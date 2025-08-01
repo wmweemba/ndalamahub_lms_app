@@ -293,6 +293,87 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_admin'), async (
   }
 });
 
+// @route   PUT /api/users/:id/password
+// @desc    Change user password
+// @access  Private (Own profile or admin)
+router.put('/:id/password', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { currentPassword, newPassword } = req.body;
+
+    // Check if user is changing their own password or has admin rights
+    if (req.user._id.toString() !== id && 
+        !req.user.hasPermission('corporate_admin')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
+    const user = await User.findById(id).select('+password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check company access for non-super users
+    if (req.user.role !== 'super_user' && 
+        req.user.company.toString() !== user.company.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this user'
+      });
+    }
+
+    // If changing own password, verify current password
+    if (req.user._id.toString() === id) {
+      if (!currentPassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is required'
+        });
+      }
+
+      const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is incorrect'
+        });
+      }
+    }
+
+    // Validate new password
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password does not meet requirements',
+        errors: passwordValidation.errors
+      });
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change password',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
 // @route   PUT /api/users/:id
 // @desc    Update user
 // @access  Private (Admin roles or own profile)
@@ -452,87 +533,6 @@ router.delete('/:id', authenticateToken, authorizeMinRole('corporate_admin'), as
     res.status(500).json({
       success: false,
       message: 'Failed to delete user',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
-});
-
-// @route   PUT /api/users/:id/password
-// @desc    Change user password
-// @access  Private (Own profile or admin)
-router.put('/:id/password', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { currentPassword, newPassword } = req.body;
-
-    // Check if user is changing their own password or has admin rights
-    if (req.user._id.toString() !== id && 
-        !req.user.hasPermission('corporate_admin')) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied'
-      });
-    }
-
-    const user = await User.findById(id).select('+password');
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    // Check company access for non-super users
-    if (req.user.role !== 'super_user' && 
-        req.user.company.toString() !== user.company.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied to this user'
-      });
-    }
-
-    // If changing own password, verify current password
-    if (req.user._id.toString() === id) {
-      if (!currentPassword) {
-        return res.status(400).json({
-          success: false,
-          message: 'Current password is required'
-        });
-      }
-
-      const isCurrentPasswordValid = await user.comparePassword(currentPassword);
-      if (!isCurrentPasswordValid) {
-        return res.status(400).json({
-          success: false,
-          message: 'Current password is incorrect'
-        });
-      }
-    }
-
-    // Validate new password
-    const passwordValidation = validatePassword(newPassword);
-    if (!passwordValidation.isValid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password does not meet requirements',
-        errors: passwordValidation.errors
-      });
-    }
-
-    // Update password
-    user.password = newPassword;
-    await user.save();
-
-    res.json({
-      success: true,
-      message: 'Password changed successfully'
-    });
-
-  } catch (error) {
-    console.error('Change password error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to change password',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }

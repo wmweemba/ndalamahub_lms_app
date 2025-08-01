@@ -110,6 +110,57 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
+// @route   GET /api/loans/:id/summary
+// @desc    Get loan summary
+// @access  Private
+router.get('/:id/summary', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const loan = await Loan.findById(id);
+    if (!loan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Loan not found'
+      });
+    }
+
+    // Check access permissions
+    if (req.user.role === 'staff' && loan.applicant.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this loan'
+      });
+    }
+
+    if (req.user.role !== 'super_user' && req.user.role !== 'staff') {
+      if (req.user.company.toString() !== loan.company.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied to this loan'
+        });
+      }
+    }
+
+    const summary = loan.getSummary();
+
+    res.json({
+      success: true,
+      data: {
+        summary
+      }
+    });
+
+  } catch (error) {
+    console.error('Get loan summary error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get loan summary',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
 // @route   GET /api/loans/:id
 // @desc    Get loan by ID
 // @access  Private
@@ -583,57 +634,6 @@ router.put('/:id/repayment', authenticateToken, authorize('corporate_admin', 'cl
     res.status(500).json({
       success: false,
       message: 'Failed to record repayment',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
-});
-
-// @route   GET /api/loans/:id/summary
-// @desc    Get loan summary
-// @access  Private
-router.get('/:id/summary', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const loan = await Loan.findById(id);
-    if (!loan) {
-      return res.status(404).json({
-        success: false,
-        message: 'Loan not found'
-      });
-    }
-
-    // Check access permissions
-    if (req.user.role === 'staff' && loan.applicant.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied to this loan'
-      });
-    }
-
-    if (req.user.role !== 'super_user' && req.user.role !== 'staff') {
-      if (req.user.company.toString() !== loan.company.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied to this loan'
-        });
-      }
-    }
-
-    const summary = loan.getSummary();
-
-    res.json({
-      success: true,
-      data: {
-        summary
-      }
-    });
-
-  } catch (error) {
-    console.error('Get loan summary error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get loan summary',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }

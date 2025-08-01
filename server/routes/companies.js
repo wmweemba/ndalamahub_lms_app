@@ -94,6 +94,106 @@ router.get('/', authenticateToken, authorizeMinRole('client_admin'), async (req,
   }
 });
 
+// @route   GET /api/companies/:id/users
+// @desc    Get users for a specific company
+// @access  Private (Admin roles only)
+router.get('/:id/users', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      page = 1,
+      limit = 10,
+      role,
+      department,
+      isActive,
+      search
+    } = req.query;
+
+    // Check access permissions
+    if (req.user.role !== 'super_user') {
+      if (req.user.role === 'client_admin') {
+        // Client admins can access their lender company and their corporate clients
+        if (req.user.company.toString() !== id && 
+            !(await Company.findOne({ _id: id, lenderCompany: req.user.company }))) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied to this company'
+          });
+        }
+      } else {
+        // Other roles can only access their own company
+        if (req.user.company.toString() !== id) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied to this company'
+          });
+        }
+      }
+    }
+
+    // Build filter object
+    const filter = { company: id };
+
+    // Role filter
+    if (role) {
+      filter.role = role;
+    }
+
+    // Department filter
+    if (department) {
+      filter.department = { $regex: department, $options: 'i' };
+    }
+
+    // Active status filter
+    if (isActive !== undefined) {
+      filter.isActive = isActive === 'true';
+    }
+
+    // Search filter
+    if (search) {
+      filter.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { employeeId: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const total = await User.countDocuments(filter);
+    const totalPages = Math.ceil(total / parseInt(limit));
+
+    // Get users with pagination
+    const users = await User.find(filter)
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    res.json({
+      success: true,
+      data: {
+        users,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get company users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get company users',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
 // @route   GET /api/companies/:id
 // @desc    Get company by ID
 // @access  Private (Admin roles only)
@@ -378,106 +478,6 @@ router.delete('/:id', authenticateToken, authorize('super_user'), async (req, re
     res.status(500).json({
       success: false,
       message: 'Failed to delete company',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
-});
-
-// @route   GET /api/companies/:id/users
-// @desc    Get users for a specific company
-// @access  Private (Admin roles only)
-router.get('/:id/users', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const {
-      page = 1,
-      limit = 10,
-      role,
-      department,
-      isActive,
-      search
-    } = req.query;
-
-    // Check access permissions
-    if (req.user.role !== 'super_user') {
-      if (req.user.role === 'client_admin') {
-        // Client admins can access their lender company and their corporate clients
-        if (req.user.company.toString() !== id && 
-            !(await Company.findOne({ _id: id, lenderCompany: req.user.company }))) {
-          return res.status(403).json({
-            success: false,
-            message: 'Access denied to this company'
-          });
-        }
-      } else {
-        // Other roles can only access their own company
-        if (req.user.company.toString() !== id) {
-          return res.status(403).json({
-            success: false,
-            message: 'Access denied to this company'
-          });
-        }
-      }
-    }
-
-    // Build filter object
-    const filter = { company: id };
-
-    // Role filter
-    if (role) {
-      filter.role = role;
-    }
-
-    // Department filter
-    if (department) {
-      filter.department = { $regex: department, $options: 'i' };
-    }
-
-    // Active status filter
-    if (isActive !== undefined) {
-      filter.isActive = isActive === 'true';
-    }
-
-    // Search filter
-    if (search) {
-      filter.$or = [
-        { firstName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { employeeId: { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    // Calculate pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const total = await User.countDocuments(filter);
-    const totalPages = Math.ceil(total / parseInt(limit));
-
-    // Get users with pagination
-    const users = await User.find(filter)
-      .select('-password')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    res.json({
-      success: true,
-      data: {
-        users,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          totalPages
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('Get company users error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get company users',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }

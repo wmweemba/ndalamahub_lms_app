@@ -32,3 +32,4 @@ and this project adheres to Semantic Versioning.
   - **API Documentation**: Complete README with setup instructions and endpoint documentation
   - **Username-Based Authentication**: Unique username system replacing email-based login
   - **Database Seeding**: Comprehensive seeder with sample companies and users for development
+  - **Express Version Fix**: Resolved path-to-regexp compatibility issue by downgrading from Express 5.x to Express 4.21.2

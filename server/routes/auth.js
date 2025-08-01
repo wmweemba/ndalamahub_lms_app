@@ -27,6 +27,7 @@ router.post('/register', async (req, res) => {
     const {
       firstName,
       lastName,
+      username,
       email,
       phone,
       password,
@@ -37,7 +38,7 @@ router.post('/register', async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!firstName || !lastName || !email || !phone || !password || !role || !companyId) {
+    if (!firstName || !lastName || !username || !email || !phone || !password || !role || !companyId) {
       return res.status(400).json({
         success: false,
         message: 'All required fields must be provided'
@@ -79,9 +80,18 @@ router.post('/register', async (req, res) => {
       });
     }
 
+    // Check if username already exists
+    const existingUsername = await User.findOne({ username: username.toLowerCase() });
+    if (existingUsername) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username already exists'
+      });
+    }
+
     // Check if email already exists
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
+    const existingEmail = await User.findOne({ email: email.toLowerCase() });
+    if (existingEmail) {
       return res.status(400).json({
         success: false,
         message: 'User with this email already exists'
@@ -92,6 +102,7 @@ router.post('/register', async (req, res) => {
     const userData = {
       firstName,
       lastName,
+      username: username.toLowerCase(),
       email: email.toLowerCase(),
       phone: formatPhoneNumber(phone),
       password,
@@ -157,13 +168,13 @@ router.post('/register', async (req, res) => {
 // @access  Public
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
     // Validate required fields
-    if (!email || !password) {
+    if (!username || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Email and password are required'
+        message: 'Username and password are required'
       });
     }
 
@@ -176,15 +187,15 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Find user by email
-    const user = await User.findOne({ email: email.toLowerCase() })
+    // Find user by username
+    const user = await User.findOne({ username: username.toLowerCase() })
       .populate('company')
       .select('+password');
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password'
+        message: 'Invalid username or password'
       });
     }
 
@@ -201,7 +212,7 @@ router.post('/login', async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password'
+        message: 'Invalid username or password'
       });
     }
 

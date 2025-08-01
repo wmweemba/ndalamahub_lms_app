@@ -30,3 +30,5 @@ and this project adheres to Semantic Versioning.
   - **Reporting & Analytics**: Comprehensive reporting with various filters, date ranges, and export functionality
   - **Security Features**: Password hashing, rate limiting, input validation, and company-level access control
   - **API Documentation**: Complete README with setup instructions and endpoint documentation
+  - **Username-Based Authentication**: Unique username system replacing email-based login
+  - **Database Seeding**: Comprehensive seeder with sample companies and users for development

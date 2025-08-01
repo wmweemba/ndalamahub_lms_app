@@ -14,6 +14,15 @@ const userSchema = new mongoose.Schema({
     trim: true,
     maxlength: [50, 'Last name cannot exceed 50 characters']
   },
+  username: {
+    type: String,
+    required: [true, 'Username is required'],
+    unique: true,
+    trim: true,
+    minlength: [3, 'Username must be at least 3 characters long'],
+    maxlength: [30, 'Username cannot exceed 30 characters'],
+    match: [/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores']
+  },
   email: {
     type: String,
     required: [true, 'Email is required'],
@@ -71,6 +80,7 @@ const userSchema = new mongoose.Schema({
 });
 
 // Index for better query performance
+userSchema.index({ username: 1 });
 userSchema.index({ email: 1 });
 userSchema.index({ company: 1 });
 userSchema.index({ role: 1 });

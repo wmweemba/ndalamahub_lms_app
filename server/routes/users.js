@@ -60,6 +60,7 @@ router.get('/', authenticateToken, authorizeMinRole('corporate_admin'), async (r
       filter.$or = [
         { firstName: { $regex: search, $options: 'i' } },
         { lastName: { $regex: search, $options: 'i' } },
+        { username: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
         { employeeId: { $regex: search, $options: 'i' } }
       ];
@@ -160,6 +161,7 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_admin'), async (
     const {
       firstName,
       lastName,
+      username,
       email,
       phone,
       password,
@@ -170,7 +172,7 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_admin'), async (
     } = req.body;
 
     // Validate required fields
-    if (!firstName || !lastName || !email || !phone || !password || !role) {
+    if (!firstName || !lastName || !username || !email || !phone || !password || !role) {
       return res.status(400).json({
         success: false,
         message: 'All required fields must be provided'
@@ -203,9 +205,18 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_admin'), async (
       });
     }
 
+    // Check if username already exists
+    const existingUsername = await User.findOne({ username: username.toLowerCase() });
+    if (existingUsername) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username already exists'
+      });
+    }
+
     // Check if email already exists
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
+    const existingEmail = await User.findOne({ email: email.toLowerCase() });
+    if (existingEmail) {
       return res.status(400).json({
         success: false,
         message: 'User with this email already exists'
@@ -231,6 +242,7 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_admin'), async (
     const userData = {
       firstName,
       lastName,
+      username: username.toLowerCase(),
       email: email.toLowerCase(),
       phone: formatPhoneNumber(phone),
       password,

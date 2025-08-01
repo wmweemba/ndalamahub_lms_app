@@ -79,12 +79,6 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for better query performance
-userSchema.index({ username: 1 });
-userSchema.index({ email: 1 });
-userSchema.index({ company: 1 });
-userSchema.index({ role: 1 });
-
 // Hash password before saving
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
@@ -130,4 +124,4 @@ userSchema.methods.toJSON = function() {
   return user;
 };
 
-module.exports = mongoose.model('User', userSchema); 
+module.exports = mongoose.model('User', userSchema);

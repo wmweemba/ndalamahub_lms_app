@@ -10,6 +10,7 @@ pnpm-lock.yaml
 # This is critical for security. Never commit your secrets.
 .env
 .env.local
+.env.*.local
 
 # Build output directories
 # Vite's build output for the frontend

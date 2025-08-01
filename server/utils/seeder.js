@@ -1,3 +1,4 @@
+require('dotenv').config();
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Company = require('../models/Company');
@@ -109,13 +110,16 @@ const sampleData = {
 
 // Connect to database
 const connectDB = async () => {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ndalamahub');
-    console.log('✅ Connected to MongoDB');
-  } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
-    process.exit(1);
-  }
+    try {
+        const conn = await mongoose.connect(process.env.MONGODB_URI, {
+            // Remove deprecated options
+            // useNewUrlParser and useUnifiedTopology are no longer needed
+        });
+        console.log(`📦 MongoDB Connected: ${conn.connection.host}`);
+    } catch (error) {
+        console.error(`❌ Error: ${error.message}`);
+        process.exit(1);
+    }
 };
 
 // Clear existing data
@@ -134,12 +138,22 @@ const seedCompanies = async () => {
   try {
     const companies = [];
     
-    for (const companyData of sampleData.companies) {
-      const company = new Company(companyData);
-      await company.save();
-      companies.push(company);
-      console.log(`✅ Created company: ${company.name}`);
-    }
+    // First, create the lender company
+    const lenderCompanyData = sampleData.companies.find(c => c.type === 'lender');
+    const lenderCompany = new Company(lenderCompanyData);
+    await lenderCompany.save();
+    companies.push(lenderCompany);
+    console.log(`✅ Created company: ${lenderCompany.name}`);
+    
+    // Then, create the corporate company with lender reference
+    const corporateCompanyData = sampleData.companies.find(c => c.type === 'corporate');
+    const corporateCompany = new Company({
+      ...corporateCompanyData,
+      lenderCompany: lenderCompany._id
+    });
+    await corporateCompany.save();
+    companies.push(corporateCompany);
+    console.log(`✅ Created company: ${corporateCompany.name}`);
     
     return companies;
   } catch (error) {
@@ -190,11 +204,7 @@ const updateCompanyRelationships = async (companies) => {
     const lenderCompany = companies.find(c => c.type === 'lender');
     const corporateCompany = companies.find(c => c.type === 'corporate');
     
-    // Set lender company for corporate
-    corporateCompany.lenderCompany = lenderCompany._id;
-    await corporateCompany.save();
-    
-    // Add corporate to lender's clients
+    // Add corporate to lender's clients (lenderCompany is already set during creation)
     lenderCompany.corporateClients.push(corporateCompany._id);
     await lenderCompany.save();
     
@@ -271,4 +281,4 @@ module.exports = {
   seedDatabase,
   clearData,
   sampleData
-}; 
+};

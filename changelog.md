@@ -33,3 +33,22 @@ and this project adheres to Semantic Versioning.
   - **Username-Based Authentication**: Unique username system replacing email-based login
   - **Database Seeding**: Comprehensive seeder with sample companies and users for development
   - **Express Version Fix**: Resolved path-to-regexp compatibility issue by downgrading from Express 5.x to Express 4.21.2
+
+## [0.2.1] - 2025-08-01
+### Fixed
+- **Environment Configuration**:
+  - Resolved environment variable loading issues by consolidating `.env` files
+  - Moved all server environment variables to `/server/.env`
+  - Removed duplicate `.env` file from root directory
+  - Added proper environment variable structure for client-side in `/client/.env`
+
+- **Database Configuration**:
+  - Removed deprecated MongoDB connection options (`useNewUrlParser`, `useUnifiedTopology`)
+  - Fixed MongoDB connection string handling in seeder script
+  - Resolved duplicate index warnings in Mongoose schemas
+  - Improved security by updating MongoDB Atlas credentials
+
+- **Code Quality**:
+  - Updated `.gitignore` to properly exclude all environment files
+  - Standardized environment variable naming conventions
+  - Improved error handling in

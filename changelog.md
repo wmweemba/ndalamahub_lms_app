@@ -131,3 +131,14 @@ and this project adheres to Semantic Versioning.
   - Improved arrears calculation
   - Added automated status updates
   - Enhanced validation rules
+
+## [0.2.8] - 2025-08-04
+### Added
+- **Navigation System**:
+  - Created responsive navbar component
+  - Added navigation icons with labels
+  - Implemented mobile-first design approach
+  - Added active route indicators
+  - Integrated logout functionality
+  - Created centered content layout
+  - Added nested routing for authenticated pages

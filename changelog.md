@@ -51,4 +51,26 @@ and this project adheres to Semantic Versioning.
 - **Code Quality**:
   - Updated `.gitignore` to properly exclude all environment files
   - Standardized environment variable naming conventions
-  - Improved error handling in
+  - Improved error handling in seeder scripts
+  - Enhanced logging for better debugging information
+  - Removed unused dependencies and scripts
+
+## [0.2.2] - 2025-08-04
+### Added
+- **Super User Seeding**:
+  - Created dedicated seeder script for initial super user and company setup
+  - Implemented comprehensive validation for company and user creation
+  - Added clear console feedback with emoji indicators for seeding progress
+
+### Fixed
+- **Database Seeding**:
+  - Resolved schema validation errors in company creation
+  - Added missing required fields for contact information
+  - Fixed user role and company relationship setup
+  - Improved error handling and user feedback in seeder scripts
+
+### Security
+- **Authentication**:
+  - Enhanced password security for super user account
+  - Standardized credential output format
+  - Added clear login instructions after seeding

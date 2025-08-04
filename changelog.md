@@ -74,3 +74,29 @@ and this project adheres to Semantic Versioning.
   - Enhanced password security for super user account
   - Standardized credential output format
   - Added clear login instructions after seeding
+
+## [0.2.3] - 2025-08-04
+### Added
+- **Frontend Authentication**:
+  - Implemented login page with form validation
+  - Added authentication service layer
+  - Setup axios for API requests
+  - Created protected route system
+  - Added token-based authentication handling
+
+## [0.2.4] - 2025-08-04
+### Added
+- **Frontend Login Implementation**:
+  - Created AuthLayout component with consistent styling
+  - Implemented LoginForm component with validation
+  - Added responsive form design with Tailwind CSS
+  - Integrated form icons and loading states
+  - Added error handling and display
+  - Setup proper routing structure for authentication flow
+
+### Fixed
+- **Frontend Structure**:
+  - Reorganized component hierarchy for better maintainability
+  - Fixed component export/import issues
+  - Resolved form rendering issues
+  - Improved error message display

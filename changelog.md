@@ -110,3 +110,13 @@ and this project adheres to Semantic Versioning.
   - Added system health monitoring card
   - Integrated responsive grid layout
   - Added loading and error states
+
+## [0.2.6] - 2025-08-04
+### Added
+- **Backend Dashboard API**:
+  - Created dashboard statistics endpoint
+  - Added company-specific data filtering
+  - Implemented role-based access control
+  - Added active entity counting
+  - Integrated loan amount calculations
+  - Added error handling and logging

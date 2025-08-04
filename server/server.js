@@ -26,6 +26,7 @@ const userRoutes = require('./routes/users');
 const companyRoutes = require('./routes/companies');
 const loanRoutes = require('./routes/loans');
 const reportRoutes = require('./routes/reports');
+const dashboardRoutes = require('./routes/dashboard');
 
 // Route middleware
 app.use('/api/auth', authRoutes);
@@ -33,6 +34,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

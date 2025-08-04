@@ -1,12 +1,12 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage } from './pages/auth/LoginPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
+import { CompaniesPage } from './pages/companies/CompaniesPage';
 import { Navbar } from './components/layout/Navbar';
 
 export function App() {
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Conditionally render navbar based on route */}
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route
@@ -18,6 +18,7 @@ export function App() {
                                 <div className="max-w-7xl mx-auto">
                                     <Routes>
                                         <Route path="/dashboard" element={<DashboardPage />} />
+                                        <Route path="/companies" element={<CompaniesPage />} />
                                         <Route path="/" element={<Navigate to="/dashboard" replace />} />
                                     </Routes>
                                 </div>

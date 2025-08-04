@@ -142,3 +142,22 @@ and this project adheres to Semantic Versioning.
   - Integrated logout functionality
   - Created centered content layout
   - Added nested routing for authenticated pages
+
+## [0.2.9] - 2025-08-04
+### Added
+- **Company Management**:
+  - Created companies list page with table view
+  - Implemented company creation dialog
+  - Added company editing functionality
+  - Implemented company deletion with confirmation
+  - Added status and type indicators
+  - Created company CRUD API endpoints
+  - Added role-based access control for company management
+  - Implemented form validation and error handling
+
+## [0.2.10] - 2025-08-04
+### Fixed
+- **Routing**:
+  - Added missing Companies page route to main App component
+  - Fixed companies management page navigation
+  - Ensured proper route nesting for authenticated pages

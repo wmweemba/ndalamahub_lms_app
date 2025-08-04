@@ -120,3 +120,14 @@ and this project adheres to Semantic Versioning.
   - Added active entity counting
   - Integrated loan amount calculations
   - Added error handling and logging
+
+## [0.2.7] - 2025-08-04
+### Enhanced
+- **Loan Model**:
+  - Added comprehensive status tracking
+  - Implemented risk assessment structure
+  - Added rejection tracking
+  - Enhanced payment tracking
+  - Improved arrears calculation
+  - Added automated status updates
+  - Enhanced validation rules

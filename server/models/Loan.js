@@ -66,8 +66,21 @@ const loanSchema = new mongoose.Schema({
   // Status and workflow
   status: {
     type: String,
-    enum: ['pending', 'approved', 'rejected', 'disbursed', 'active', 'completed', 'defaulted'],
-    default: 'pending'
+    enum: [
+      'pending_approval',
+      'pending_documents',
+      'under_review',
+      'approved',
+      'rejected',
+      'pending_disbursement',
+      'disbursed',
+      'active',
+      'in_arrears',
+      'defaulted',
+      'completed',
+      'cancelled'
+    ],
+    default: 'pending_approval'
   },
   
   // Approval information
@@ -203,6 +216,77 @@ const loanSchema = new mongoose.Schema({
   },
   endDate: {
     type: Date
+  },
+  
+  // Enhanced status field with more descriptive states
+  status: {
+    type: String,
+    enum: [
+      'pending_approval',
+      'pending_documents',
+      'under_review',
+      'approved',
+      'rejected',
+      'pending_disbursement',
+      'disbursed',
+      'active',
+      'in_arrears',
+      'defaulted',
+      'completed',
+      'cancelled'
+    ],
+    default: 'pending_approval'
+  },
+
+  // Add risk assessment
+  riskAssessment: {
+    score: {
+      type: Number,
+      min: 0,
+      max: 100
+    },
+    category: {
+      type: String,
+      enum: ['low', 'medium', 'high'],
+      required: function() {
+        return !!this.riskAssessment?.score;
+      }
+    },
+    assessedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    assessedAt: Date
+  },
+
+  // Add rejection details
+  rejectionDetails: {
+    reason: {
+      type: String,
+      trim: true
+    },
+    rejectedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    rejectedAt: Date
+  },
+
+  // Add payment tracking
+  paymentTracking: {
+    totalPaid: {
+      type: Number,
+      default: 0
+    },
+    lastPaymentDate: Date,
+    daysInArrears: {
+      type: Number,
+      default: 0
+    },
+    missedPayments: {
+      type: Number,
+      default: 0
+    }
   }
 }, {
   timestamps: true
@@ -232,6 +316,12 @@ loanSchema.pre('save', async function(next) {
   // Calculate loan details if amount, interest rate, or term changes
   if (this.isModified('amount') || this.isModified('interestRate') || this.isModified('term')) {
     this.calculateLoanDetails();
+  }
+  
+  // Update payment tracking
+  if (this.isModified('repaymentSchedule')) {
+    this.updatePaymentTracking();
+    this.checkArrearsStatus();
   }
   
   next();
@@ -316,7 +406,52 @@ loanSchema.methods.canBeApproved = function() {
 
 // Check if loan can be disbursed
 loanSchema.methods.canBeDisbursed = function() {
-  return this.status === 'approved';
+  return this.status === 'approved' && 
+         this.documents.some(doc => doc.type === 'id_document') &&
+         (!this.company.settings?.requireGuarantor || this.guarantor?.name);
 };
 
-module.exports = mongoose.model('Loan', loanSchema); 
+// Add method to update payment tracking
+loanSchema.methods.updatePaymentTracking = function() {
+  const summary = this.getSummary();
+  this.paymentTracking = {
+    totalPaid: summary.totalPaid,
+    lastPaymentDate: this.repaymentSchedule
+      .filter(i => i.status === 'paid')
+      .sort((a, b) => b.paidAt - a.paidAt)[0]?.paidAt,
+    daysInArrears: this.calculateDaysInArrears(),
+    missedPayments: this.repaymentSchedule.filter(i => i.status === 'overdue').length
+  };
+};
+
+// Add method to calculate days in arrears
+loanSchema.methods.calculateDaysInArrears = function() {
+  const overdueInstallment = this.repaymentSchedule
+      .find(i => i.status === 'overdue');
+  
+  if (!overdueInstallment) return 0;
+  
+  const now = new Date();
+  const dueDate = new Date(overdueInstallment.dueDate);
+  const diffTime = Math.abs(now - dueDate);
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
+// Add validation for disbursement requirements
+loanSchema.methods.canBeDisbursed = function() {
+  return this.status === 'approved' && 
+         this.documents.some(doc => doc.type === 'id_document') &&
+         (!this.company.settings?.requireGuarantor || this.guarantor?.name);
+};
+
+// Add method to check if loan is in arrears
+loanSchema.methods.checkArrearsStatus = function() {
+  const daysInArrears = this.calculateDaysInArrears();
+  if (daysInArrears > 90) {
+      this.status = 'defaulted';
+  } else if (daysInArrears > 0) {
+      this.status = 'in_arrears';
+  }
+};
+
+module.exports = mongoose.model('Loan', loanSchema);

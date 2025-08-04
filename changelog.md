@@ -100,3 +100,13 @@ and this project adheres to Semantic Versioning.
   - Fixed component export/import issues
   - Resolved form rendering issues
   - Improved error message display
+
+## [0.2.5] - 2025-08-04
+### Added
+- **Dashboard Enhancement**:
+  - Added statistics cards using shadcn/ui components
+  - Implemented real-time dashboard data fetching
+  - Created company overview section
+  - Added system health monitoring card
+  - Integrated responsive grid layout
+  - Added loading and error states

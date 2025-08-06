@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Company = require('../models/Company');
-const { authenticateToken, authorizeRole } = require('../middleware/auth');
+const { authenticateToken, authorizeRole, authorizeMinRole } = require('../middleware/auth');
 
 // @route   GET /api/companies
 // @desc    Get all companies

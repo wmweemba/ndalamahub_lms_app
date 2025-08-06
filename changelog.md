@@ -161,3 +161,21 @@ and this project adheres to Semantic Versioning.
   - Added missing Companies page route to main App component
   - Fixed companies management page navigation
   - Ensured proper route nesting for authenticated pages
+
+## [0.2.11] - 2025-08-06
+### Fixed
+- **Authentication Middleware**:
+  - Fixed authorizeRole middleware export
+  - Added role hierarchy for better permission management
+  - Enhanced error messages for authentication failures
+  - Added proper middleware chaining support
+  - Improved token verification process
+
+## [0.2.12] - 2025-08-04
+### Fixed
+- **Authentication System**:
+  - Added missing authorize middleware function
+  - Enhanced role-based access control
+  - Added support for multiple role authorization
+  - Improved company access validation
+  - Added comprehensive authorization middleware exports

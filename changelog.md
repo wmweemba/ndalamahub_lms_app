@@ -196,3 +196,11 @@ and this project adheres to Semantic Versioning.
   - Added connection status logging
   - Implemented better separation of concerns
   - Enhanced configuration management
+
+## [0.2.15] - 2025-08-06
+### Fixed
+- **Companies Page UI**:
+  - Improved error state handling
+  - Maintained visibility of create button during errors
+  - Enhanced error message presentation
+  - Fixed header persistence across all states

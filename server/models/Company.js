@@ -118,7 +118,6 @@ const companySchema = new mongoose.Schema({
 });
 
 // Indexes for better query performance
-companySchema.index({ registrationNumber: 1 });
 companySchema.index({ type: 1 });
 companySchema.index({ lenderCompany: 1 });
 companySchema.index({ isActive: 1 });
@@ -152,4 +151,4 @@ companySchema.methods.isCorporate = function() {
 companySchema.set('toJSON', { virtuals: true });
 companySchema.set('toObject', { virtuals: true });
 
-module.exports = mongoose.model('Company', companySchema); 
+module.exports = mongoose.model('Company', companySchema);

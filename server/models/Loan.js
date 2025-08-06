@@ -5,7 +5,8 @@ const loanSchema = new mongoose.Schema({
   loanNumber: {
     type: String,
     required: true,
-    unique: true
+    unique: true,  // Keep this, remove any schema.index() for loanNumber
+    trim: true
   },
   applicant: {
     type: mongoose.Schema.Types.ObjectId,
@@ -291,14 +292,6 @@ const loanSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
-
-// Indexes for better query performance
-loanSchema.index({ loanNumber: 1 });
-loanSchema.index({ applicant: 1 });
-loanSchema.index({ company: 1 });
-loanSchema.index({ lenderCompany: 1 });
-loanSchema.index({ status: 1 });
-loanSchema.index({ applicationDate: 1 });
 
 // Generate loan number before saving
 loanSchema.pre('save', async function(next) {

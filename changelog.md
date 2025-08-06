@@ -179,3 +179,11 @@ and this project adheres to Semantic Versioning.
   - Added support for multiple role authorization
   - Improved company access validation
   - Added comprehensive authorization middleware exports
+
+## [0.2.13] - 2025-08-06
+### Fixed
+- **Database Schemas**:
+  - Removed duplicate index definitions in Company model
+  - Removed duplicate index definitions in Loan model
+  - Cleaned up deprecated MongoDB connection options
+  - Optimized schema structure for better performance

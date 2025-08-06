@@ -187,3 +187,12 @@ and this project adheres to Semantic Versioning.
   - Removed duplicate index definitions in Loan model
   - Cleaned up deprecated MongoDB connection options
   - Optimized schema structure for better performance
+
+## [0.2.14] - 2025-08-06
+### Enhanced
+- **Project Structure**:
+  - Moved database connection logic to dedicated config file
+  - Improved error handling for database connection
+  - Added connection status logging
+  - Implemented better separation of concerns
+  - Enhanced configuration management

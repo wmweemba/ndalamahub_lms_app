@@ -20,10 +20,15 @@ router.get('/', authenticateToken, async (req, res) => {
 // @access  Private (Super user only)
 router.post('/', authenticateToken, authorizeRole('super_user'), async (req, res) => {
     try {
+        // Add debug logging
+        console.log('User attempting company creation:', req.user);
+        console.log('Request body:', req.body);
+
         const company = new Company(req.body);
         const savedCompany = await company.save();
         res.status(201).json(savedCompany);
     } catch (error) {
+        console.error('Company creation error:', error);
         res.status(400).json({ message: error.message });
     }
 });

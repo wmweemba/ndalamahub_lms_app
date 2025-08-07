@@ -167,81 +167,63 @@ router.post('/register', async (req, res) => {
 // @desc    Login user
 // @access  Public
 router.post('/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
+    try {
+        const { username, password } = req.body;
 
-    // Validate required fields
-    if (!username || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Username and password are required'
-      });
+        // Find user by username
+        const user = await User.findOne({ username });
+        if (!user) {
+            return res.status(401).json({ message: 'Invalid username or password' });
+        }
+
+        // Debug log to check user data
+        console.log('Found user:', {
+            id: user._id,
+            username: user.username,
+            role: user.role
+        });
+
+        // Verify password
+        const isValid = await user.comparePassword(password);
+        if (!isValid) {
+            return res.status(401).json({ message: 'Invalid username or password' });
+        }
+
+        // Create payload object first for verification
+        const tokenPayload = {
+            id: user._id,
+            username: user.username,
+            role: user.role,
+            company: user.company
+        };
+
+        // Debug log the payload
+        console.log('Token payload before signing:', tokenPayload);
+
+        // Generate token
+        const token = jwt.sign(
+            tokenPayload,
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        // Verify the token immediately after creation
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log('Verified token payload:', decoded);
+
+        res.json({
+            token,
+            user: {
+                id: user._id,
+                username: user.username,
+                role: user.role,
+                name: user.name
+            }
+        });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Server error during login' });
     }
-
-    // Check rate limiting
-    const clientIP = req.ip || req.connection.remoteAddress;
-    if (!loginRateLimiter(clientIP)) {
-      return res.status(429).json({
-        success: false,
-        message: 'Too many login attempts. Please try again later.'
-      });
-    }
-
-    // Find user by username
-    const user = await User.findOne({ username: username.toLowerCase() })
-      .populate('company')
-      .select('+password');
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid username or password'
-      });
-    }
-
-    // Check if user is active
-    if (!user.isActive) {
-      return res.status(401).json({
-        success: false,
-        message: 'Account is deactivated. Please contact administrator.'
-      });
-    }
-
-    // Verify password
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid username or password'
-      });
-    }
-
-    // Generate tokens
-    const token = generateToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
-
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save();
-
-    res.json({
-      success: true,
-      message: 'Login successful',
-      data: {
-        user: user.toJSON(),
-        token,
-        refreshToken
-      }
-    });
-
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Login failed',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
 });
 
 // @route   POST /api/auth/refresh
@@ -458,4 +440,4 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

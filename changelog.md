@@ -204,3 +204,37 @@ and this project adheres to Semantic Versioning.
   - Maintained visibility of create button during errors
   - Enhanced error message presentation
   - Fixed header persistence across all states
+
+## [0.2.19] - 2025-08-07
+### Fixed
+- **Company Creation**:
+  - Enhanced authorization debugging
+  - Added detailed error logging
+  - Improved role verification feedback
+  - Added token validation logging
+
+## [0.2.20] - 2025-08-07
+### Fixed
+- **Authentication**:
+  - Added user role to JWT token payload
+  - Enhanced token debugging
+  - Fixed role-based authorization
+  - Added payload verification logging
+  - Updated token structure documentation
+
+## [0.2.21] - 2025-08-07
+### Fixed
+- **Authentication**:
+  - Fixed missing role in JWT token payload
+  - Updated token structure to include all required user data
+  - Added comprehensive token payload logging
+  - Standardized token payload format
+
+## [0.2.22] - 2025-08-07
+### Fixed
+- **Authentication**:
+  - Corrected token payload structure
+  - Added immediate token verification after generation
+  - Enhanced debug logging for token creation
+  - Fixed user role inclusion in token
+  - Added payload verification steps

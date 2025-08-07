@@ -10,10 +10,16 @@ const authenticateToken = (req, res, next) => {
     }
 
     try {
+        // Add debug logging
+        console.log('Token received:', token);
+        
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log('Decoded token:', decoded); // Debug log
+        
         req.user = decoded;
         next();
     } catch (error) {
+        console.error('Token verification error:', error);
         res.status(401).json({ message: 'Invalid token.' });
     }
 };
@@ -38,13 +44,24 @@ const authorize = (...roles) => {
 // Authorize by role
 const authorizeRole = (role) => {
     return (req, res, next) => {
+        // Add detailed debug logging
+        console.log('Authorization check:', {
+            requiredRole: role,
+            userRole: req.user?.role,
+            userDetails: req.user,
+            token: req.headers.authorization
+        });
+
         if (!req.user) {
             return res.status(401).json({ message: 'User not authenticated' });
         }
 
+        // Check if user has required role
         if (req.user.role !== role && req.user.role !== 'super_user') {
             return res.status(403).json({ 
-                message: 'Access denied. Insufficient permissions.' 
+                message: 'Access denied. Insufficient permissions.',
+                requiredRole: role,
+                currentRole: req.user.role // Add this for debugging
             });
         }
 

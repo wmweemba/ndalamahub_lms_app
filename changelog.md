@@ -238,3 +238,11 @@ and this project adheres to Semantic Versioning.
   - Enhanced debug logging for token creation
   - Fixed user role inclusion in token
   - Added payload verification steps
+
+## [0.2.23] - 2025-08-08
+### Fixed
+- **Company Management**:
+  - Updated company deletion endpoint to use findByIdAndDelete
+  - Added proper error handling for company deletion
+  - Enhanced deletion confirmation response
+  - Added company existence check before deletion

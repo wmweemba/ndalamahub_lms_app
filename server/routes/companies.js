@@ -58,16 +58,17 @@ router.put('/:id', authenticateToken, authorizeRole('super_user'), async (req, r
 router.delete('/:id', authenticateToken, authorizeRole('super_user'), async (req, res) => {
     try {
         const company = await Company.findById(req.params.id);
+        
         if (!company) {
             return res.status(404).json({ message: 'Company not found' });
         }
-        if (company.type === 'lender') {
-            return res.status(400).json({ message: 'Cannot delete lender company' });
-        }
-        await company.remove();
+
+        await Company.findByIdAndDelete(req.params.id);
+        
         res.json({ message: 'Company deleted successfully' });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Company deletion error:', error);
+        res.status(500).json({ message: 'Error deleting company' });
     }
 });
 

@@ -246,3 +246,21 @@ and this project adheres to Semantic Versioning.
   - Added proper error handling for company deletion
   - Enhanced deletion confirmation response
   - Added company existence check before deletion
+
+## [0.2.24] - 2025-08-08
+### Added
+- **Role Management**:
+  - Added corporate_hr role to role hierarchy
+  - Updated role levels to accommodate new HR role
+  - Positioned HR role between corporate_admin and lender_user
+  - Enhanced role-based access control
+
+## [0.2.25] - 2025-08-08
+### Updated
+- **Role System Enhancement**:
+  - Updated User model schema with corporate_hr role
+  - Added role constants across frontend and backend
+  - Enhanced loan approval permissions for HR role
+  - Updated user seeder with HR role examples
+  - Modified role-based component permissions
+  - Updated role documentation

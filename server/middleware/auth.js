@@ -72,9 +72,10 @@ const authorizeRole = (role) => {
 // Authorize minimum role level
 const authorizeMinRole = (minRole) => {
     const roleHierarchy = {
-        'super_user': 4,
-        'lender_admin': 3,
-        'corporate_admin': 2,
+        'super_user': 5,        // Increased to accommodate new role
+        'lender_admin': 4,      // Moved up
+        'corporate_admin': 3,   // Moved up
+        'corporate_hr': 2,      // Added new role
         'lender_user': 1,
         'corporate_user': 0
     };

@@ -109,33 +109,57 @@ pnpm start
 
 ## User Roles
 
-1. **Super User**: Full system admin rights
-2. **Client Admin**: Manages lending company and corporate clients
-3. **Corporate Admin**: Manages a specific corporate entity
-4. **Corporate HR**: Manages employee records and loan approvals
-5. **Staff**: Can submit loan requests and view repayment schedules
+1. **Super User** (`super_user`): Full system administration rights
+2. **Lender Admin** (`lender_admin`): Manages lending company operations
+3. **Corporate Admin** (`corporate_admin`): Manages corporate entity
+4. **Corporate HR** (`corporate_hr`): Handles employee loans and approvals
+5. **Lender User** (`lender_user`): Processes loans and payments
+6. **Corporate User** (`corporate_user`): Can apply for loans
 
-## Database Models
+## Role Hierarchy
 
-### User Model
-- Personal information (name, email, phone)
-- Role-based access control
-- Company association
-- Department and employee ID for staff
-- Password hashing and validation
+```javascript
+{
+    'super_user': 5,        // Highest level access
+    'lender_admin': 4,      // Lending company administration
+    'corporate_admin': 3,   // Corporate company administration
+    'corporate_hr': 2,      // HR department loan management
+    'lender_user': 1,       // Loan processing
+    'corporate_user': 0     // Basic access
+}
+```
 
-### Company Model
-- Multi-tenant structure (lender/corporate)
-- Company settings and configurations
-- Address and contact information
-- Relationship between lenders and corporate clients
+## Role-Based Permissions
 
-### Loan Model
-- Complete loan lifecycle management
-- Automatic calculation of interest and payments
-- Repayment schedule generation
-- Document upload support
-- Guarantor information
+### Super User
+- Full system access
+- Manage all companies and users
+- Configure system settings
+
+### Lender Admin
+- Manage lending operations
+- Access all corporate clients
+- Process loan approvals
+
+### Corporate Admin
+- Manage company settings
+- Oversee HR operations
+- View company-wide reports
+
+### Corporate HR
+- Approve employee loans
+- Manage employee records
+- View department reports
+
+### Lender User
+- Process loan applications
+- Record payments
+- Generate reports
+
+### Corporate User
+- Submit loan applications
+- View loan status
+- Make payments
 
 ## Authentication
 
@@ -143,6 +167,16 @@ The API uses JWT tokens for authentication. Include the token in the Authorizati
 
 ```
 Authorization: Bearer <your-jwt-token>
+```
+
+Token payload structure:
+```json
+{
+    "id": "user_id",
+    "username": "username",
+    "role": "user_role",
+    "company": "company_id"
+}
 ```
 
 ## Error Handling
@@ -203,4 +237,4 @@ server/
 
 ## API Documentation
 
-For detailed API documentation, refer to the individual route files or use tools like Postman to explore the endpoints. 
+For detailed API documentation, refer to the individual route files or use tools like Postman to explore the endpoints.

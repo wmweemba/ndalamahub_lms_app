@@ -264,3 +264,28 @@ and this project adheres to Semantic Versioning.
   - Updated user seeder with HR role examples
   - Modified role-based component permissions
   - Updated role documentation
+
+## [0.2.26] - 2025-08-08
+### Documentation
+- **README Updates**:
+  - Added role hierarchy documentation
+  - Updated user roles section
+  - Enhanced permissions documentation
+  - Added token payload structure
+  - Updated authentication details
+
+## [0.2.27] - 2025-08-08
+### Fixed
+- **User Management**:
+  - Enhanced company validation in user creation
+  - Added detailed error messages for company association
+  - Improved user creation error handling
+  - Added company existence check
+
+## [0.2.28] - 2025-08-08
+### Fixed
+- **User Management**:
+  - Fixed middleware import in users route
+  - Added missing authorizeRole import
+  - Maintained existing authorization flow
+  - Enhanced route security checks

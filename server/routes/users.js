@@ -4,7 +4,8 @@ const User = require('../models/User');
 const Company = require('../models/Company');
 const { 
   authenticateToken, 
-  authorize, 
+  authorize,
+  authorizeRole,  // Add this
   authorizeMinRole, 
   authorizeCompany 
 } = require('../middleware/auth');
@@ -156,141 +157,28 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // @route   POST /api/users
 // @desc    Create new user
 // @access  Private (Admin roles only)
-router.post('/', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
-  try {
-    const {
-      firstName,
-      lastName,
-      username,
-      email,
-      phone,
-      password,
-      role,
-      companyId,
-      department,
-      employeeId
-    } = req.body;
+router.post('/', authenticateToken, authorizeRole('super_user'), async (req, res) => {
+    try {
+        // Verify company exists first
+        const company = await Company.findById(req.body.company);
+        if (!company) {
+            return res.status(400).json({ 
+                success: false,
+                message: `Company not found with ID: ${req.body.company}` 
+            });
+        }
 
-    // Validate required fields
-    if (!firstName || !lastName || !username || !email || !phone || !password || !role) {
-      return res.status(400).json({
-        success: false,
-        message: 'All required fields must be provided'
-      });
-    }
-
-    // Validate email format
-    if (!validateEmail(email)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide a valid email address'
-      });
-    }
-
-    // Validate phone number
-    if (!validatePhoneNumber(phone)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide a valid phone number'
-      });
-    }
-
-    // Validate password strength
-    const passwordValidation = validatePassword(password);
-    if (!passwordValidation.isValid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password does not meet requirements',
-        errors: passwordValidation.errors
-      });
-    }
-
-    // Check if username already exists
-    const existingUsername = await User.findOne({ username: username.toLowerCase() });
-    if (existingUsername) {
-      return res.status(400).json({
-        success: false,
-        message: 'Username already exists'
-      });
-    }
-
-    // Check if email already exists
-    const existingEmail = await User.findOne({ email: email.toLowerCase() });
-    if (existingEmail) {
-      return res.status(400).json({
-        success: false,
-        message: 'User with this email already exists'
-      });
-    }
-
-    // Determine company ID
-    let targetCompanyId = companyId;
-    if (req.user.role !== 'super_user') {
-      targetCompanyId = req.user.company;
-    }
-
-    // Check if company exists
-    const company = await Company.findById(targetCompanyId);
-    if (!company) {
-      return res.status(400).json({
-        success: false,
-        message: 'Company not found'
-      });
-    }
-
-    // Create user object
-    const userData = {
-      firstName,
-      lastName,
-      username: username.toLowerCase(),
-      email: email.toLowerCase(),
-      phone: formatPhoneNumber(phone),
-      password,
-      role,
-      company: targetCompanyId
-    };
-
-    // Add department and employeeId for staff and HR roles
-    if (role === 'staff' || role === 'corporate_hr') {
-      if (!department) {
-        return res.status(400).json({
-          success: false,
-          message: 'Department is required for staff and HR roles'
+        // Create user
+        const user = new User(req.body);
+        const savedUser = await user.save();
+        res.status(201).json(savedUser);
+    } catch (error) {
+        console.error('User creation error:', error);
+        res.status(400).json({ 
+            success: false,
+            message: error.message 
         });
-      }
-      userData.department = department;
     }
-
-    if (role === 'staff') {
-      if (!employeeId) {
-        return res.status(400).json({
-          success: false,
-          message: 'Employee ID is required for staff role'
-        });
-      }
-      userData.employeeId = employeeId;
-    }
-
-    // Create new user
-    const user = new User(userData);
-    await user.save();
-
-    res.status(201).json({
-      success: true,
-      message: 'User created successfully',
-      data: {
-        user: user.toJSON()
-      }
-    });
-
-  } catch (error) {
-    console.error('Create user error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create user',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
 });
 
 // @route   PUT /api/users/:id/password
@@ -538,4 +426,4 @@ router.delete('/:id', authenticateToken, authorizeMinRole('corporate_admin'), as
   }
 });
 
-module.exports = router; 
+module.exports = router;

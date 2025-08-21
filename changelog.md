@@ -289,3 +289,8 @@ and this project adheres to Semantic Versioning.
   - Added missing authorizeRole import
   - Maintained existing authorization flow
   - Enhanced route security checks
+
+## [0.2.29] - 2025-08-21
+### Fixed
+- **User Management**:
+  - Resolved duplicate username error handling for user creation

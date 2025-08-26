@@ -217,7 +217,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // @route   POST /api/loans
 // @desc    Create new loan application
 // @access  Private (Staff only)
-router.post('/', authenticateToken, authorize('staff'), async (req, res) => {
+router.post('/', authenticateToken, authorize('corporate_user'), async (req, res) => {
   try {
     const {
       amount,
@@ -252,7 +252,14 @@ router.post('/', authenticateToken, authorize('staff'), async (req, res) => {
     }
 
     // Get user's company and lender company
-    const user = await User.findById(req.user._id).populate('company');
+    const user = await User.findById(req.user.id).populate('company');
+    console.log('Fetched user:', user);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    if (!user.company) {
+      return res.status(400).json({ success: false, message: 'User is not linked to a valid company' });
+    }
     const company = user.company;
 
     // Find lender company
@@ -309,7 +316,17 @@ router.post('/', authenticateToken, authorize('staff'), async (req, res) => {
     }
 
     // Create new loan
-    const loan = new Loan(loanData);
+    const loan = new Loan({
+      applicant: user._id, // This is correct
+      company: user.company._id,
+      lenderCompany: user.company.lenderCompany,
+      amount,
+      interestRate: user.company.settings.interestRate,
+      term,
+      purpose,
+      guarantor,
+      documents
+    });
     await loan.save();
 
     // Populate references for response
@@ -639,4 +656,4 @@ router.put('/:id/repayment', authenticateToken, authorize('corporate_admin', 'cl
   }
 });
 
-module.exports = router; 
+module.exports = router;

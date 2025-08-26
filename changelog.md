@@ -294,3 +294,13 @@ and this project adheres to Semantic Versioning.
 ### Fixed
 - **User Management**:
   - Resolved duplicate username error handling for user creation
+
+## [0.2.30] - 2025-08-26
+### Fixed
+- **Loan Application Workflow**:
+  - Resolved validation errors for calculated loan fields by updating Loan model schema
+  - Removed duplicate status field from Loan schema
+  - Ensured applicant field is set correctly from fetched user document
+  - Improved pre-save hook reliability for loan calculations
+  - Verified company association and user lookup logic in loan creation route
+  - Successfully tested end-to-end loan application creation for corporate users

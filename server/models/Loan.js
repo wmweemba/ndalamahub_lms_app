@@ -4,8 +4,7 @@ const loanSchema = new mongoose.Schema({
   // Basic loan information
   loanNumber: {
     type: String,
-    required: true,
-    unique: true,  // Keep this, remove any schema.index() for loanNumber
+    unique: true,
     trim: true
   },
   applicant: {
@@ -52,16 +51,13 @@ const loanSchema = new mongoose.Schema({
   
   // Calculated fields
   totalAmount: {
-    type: Number,
-    required: true
+    type: Number
   },
   monthlyPayment: {
-    type: Number,
-    required: true
+    type: Number
   },
   totalInterest: {
-    type: Number,
-    required: true
+    type: Number
   },
   
   // Status and workflow
@@ -220,24 +216,24 @@ const loanSchema = new mongoose.Schema({
   },
   
   // Enhanced status field with more descriptive states
-  status: {
-    type: String,
-    enum: [
-      'pending_approval',
-      'pending_documents',
-      'under_review',
-      'approved',
-      'rejected',
-      'pending_disbursement',
-      'disbursed',
-      'active',
-      'in_arrears',
-      'defaulted',
-      'completed',
-      'cancelled'
-    ],
-    default: 'pending_approval'
-  },
+  // status: {
+  //   type: String,
+  //   enum: [
+  //     'pending_approval',
+  //     'pending_documents',
+  //     'under_review',
+  //     'approved',
+  //     'rejected',
+  //     'pending_disbursement',
+  //     'disbursed',
+  //     'active',
+  //     'in_arrears',
+  //     'defaulted',
+  //     'completed',
+  //     'cancelled'
+  //   ],
+  //   default: 'pending_approval'
+  // },
 
   // Add risk assessment
   riskAssessment: {
@@ -295,6 +291,7 @@ const loanSchema = new mongoose.Schema({
 
 // Generate loan number before saving
 loanSchema.pre('save', async function(next) {
+  console.log('Loan pre-save hook triggered for:', this._id, this.amount, this.term);
   if (this.isNew && !this.loanNumber) {
     const year = new Date().getFullYear();
     const count = await this.constructor.countDocuments({ 

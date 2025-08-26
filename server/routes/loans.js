@@ -381,9 +381,18 @@ router.put('/:id/approve', authenticateToken, authorize('corporate_hr', 'corpora
       });
     }
 
+    console.log('req.user.company:', req.user.company && req.user.company.toString());
+    console.log('loan.company:', loan.company && loan.company.toString());
+
     // Check access permissions
-    if (req.user.role !== 'super_user' && req.user.role !== 'client_admin') {
-      if (req.user.company.toString() !== loan.company.toString()) {
+    if (
+      req.user.role !== 'super_user' &&
+      req.user.role !== 'client_admin'
+    ) {
+      // Compare the _id of the populated company object
+      if (
+        req.user.company.toString() !== loan.company._id.toString()
+      ) {
         return res.status(403).json({
           success: false,
           message: 'Access denied to this loan'

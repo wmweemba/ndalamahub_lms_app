@@ -304,3 +304,11 @@ and this project adheres to Semantic Versioning.
   - Improved pre-save hook reliability for loan calculations
   - Verified company association and user lookup logic in loan creation route
   - Successfully tested end-to-end loan application creation for corporate users
+
+## [0.2.31] - 2025-08-26
+### Fixed
+- **Loan Approval Workflow**:
+  - Fixed company ID comparison for loan approval access control
+  - Enabled corporate HR users to approve loans for their company
+  - Added debug logging for company ID checks in loan approval route
+  - Successfully tested loan approval by HR user

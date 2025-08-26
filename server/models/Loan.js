@@ -391,7 +391,7 @@ loanSchema.methods.getSummary = function() {
 
 // Check if loan can be approved
 loanSchema.methods.canBeApproved = function() {
-  return this.status === 'pending';
+  return this.status === 'pending' || this.status === 'pending_approval';
 };
 
 // Check if loan can be disbursed

@@ -319,3 +319,16 @@ and this project adheres to Semantic Versioning.
   - Corrected company ID comparison in loan disbursement route to match approval logic
   - Enabled authorized users to successfully disburse loans for their company
   - Verified end-to-end loan lifecycle from application to disbursement
+
+## [0.2.33] - 2025-08-27
+### Fixed
+- **Loan Repayment Workflow**:
+  - Documented and tested loan repayment route for installment payments
+  - Clarified HTTP method and request structure for repayments
+  - Ensured lenderadmin and authorized users can post repayments successfully
+
+- **Loan Rejection Workflow**:
+  - Fixed company ID comparison in loan rejection route to match approval/disbursement logic
+  - Updated rejection status logic to allow rejection for 'pending_approval' loans
+  - Enabled corporate HR users to reject loans in correct status
+  - Verified loan rejection and error handling

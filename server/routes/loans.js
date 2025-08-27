@@ -460,7 +460,7 @@ router.put('/:id/reject', authenticateToken, authorize('corporate_hr', 'corporat
     }
 
     // Check if loan can be rejected
-    if (loan.status !== 'pending') {
+    if (loan.status !== 'pending' && loan.status !== 'pending_approval') {
       return res.status(400).json({
         success: false,
         message: 'Loan cannot be rejected in its current status'
@@ -469,7 +469,7 @@ router.put('/:id/reject', authenticateToken, authorize('corporate_hr', 'corporat
 
     // Check access permissions
     if (req.user.role !== 'super_user' && req.user.role !== 'client_admin') {
-      if (req.user.company.toString() !== loan.company.toString()) {
+      if (req.user.company.toString() !== loan.company._id.toString()) {
         return res.status(403).json({
           success: false,
           message: 'Access denied to this loan'

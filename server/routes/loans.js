@@ -538,8 +538,13 @@ router.put('/:id/disburse', authenticateToken, authorize('corporate_admin', 'cli
     }
 
     // Check access permissions
-    if (req.user.role !== 'super_user' && req.user.role !== 'client_admin') {
-      if (req.user.company.toString() !== loan.company.toString()) {
+    if (
+      req.user.role !== 'super_user' &&
+      req.user.role !== 'client_admin'
+    ) {
+      if (
+        req.user.company.toString() !== loan.company._id.toString()
+      ) {
         return res.status(403).json({
           success: false,
           message: 'Access denied to this loan'

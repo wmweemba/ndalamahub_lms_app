@@ -312,3 +312,10 @@ and this project adheres to Semantic Versioning.
   - Enabled corporate HR users to approve loans for their company
   - Added debug logging for company ID checks in loan approval route
   - Successfully tested loan approval by HR user
+
+## [0.2.32] - 2025-08-27
+### Fixed
+- **Loan Disbursement Workflow**:
+  - Corrected company ID comparison in loan disbursement route to match approval logic
+  - Enabled authorized users to successfully disburse loans for their company
+  - Verified end-to-end loan lifecycle from application to disbursement

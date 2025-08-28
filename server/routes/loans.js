@@ -15,6 +15,11 @@ const {
 // @access  Private
 router.get('/', authenticateToken, async (req, res) => {
   try {
+    console.log('=== Loans fetch request ===');
+    console.log('User:', req.user);
+    console.log('User role:', req.user.role);
+    console.log('User company:', req.user.company);
+    
     const {
       page = 1,
       limit = 10,
@@ -54,8 +59,8 @@ router.get('/', authenticateToken, async (req, res) => {
       // Super users can see all loans
       if (companyId) filter.company = companyId;
       if (lenderCompanyId) filter.lenderCompany = lenderCompanyId;
-    } else if (req.user.role === 'client_admin') {
-      // Client admins see loans from their lender company and their corporate clients
+    } else if (req.user.role === 'lender_admin') {
+      // Lender admins see loans from their lender company and their corporate clients
       filter.$or = [
         { lenderCompany: req.user.company },
         { company: { $in: await Company.find({ lenderCompany: req.user.company }).select('_id') } }
@@ -66,10 +71,15 @@ router.get('/', authenticateToken, async (req, res) => {
     } else if (req.user.role === 'corporate_hr') {
       // HR can see loans from their company
       filter.company = req.user.company;
+    } else if (req.user.role === 'corporate_user' || req.user.role === 'lender_user') {
+      // Corporate users and lender users can only see their own loans
+      filter.applicant = req.user.id;
     } else {
-      // Staff can only see their own loans
-      filter.applicant = req.user._id;
+      // Default: users can only see their own loans
+      filter.applicant = req.user.id;
     }
+
+    console.log('Applied filter:', filter);
 
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -115,6 +125,10 @@ router.get('/', authenticateToken, async (req, res) => {
 // @access  Private
 router.get('/:id/summary', authenticateToken, async (req, res) => {
   try {
+    console.log('=== Get loan summary request ===');
+    console.log('Loan ID:', req.params.id);
+    console.log('User:', req.user);
+
     const { id } = req.params;
 
     const loan = await Loan.findById(id);
@@ -125,21 +139,30 @@ router.get('/:id/summary', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check access permissions
-    if (req.user.role === 'staff' && loan.applicant.toString() !== req.user._id.toString()) {
+    // Check access permissions based on role
+    let hasAccess = false;
+
+    if (req.user.role === 'super_user') {
+      hasAccess = true;
+    } else if (req.user.role === 'lender_admin') {
+      // Lender admins can see loans from their lender company and their corporate clients
+      hasAccess = loan.lenderCompany.toString() === req.user.company.toString();
+    } else if (req.user.role === 'corporate_admin' || req.user.role === 'corporate_hr') {
+      // Corporate admins and HR can see loans from their company
+      hasAccess = loan.company.toString() === req.user.company.toString();
+    } else if (req.user.role === 'corporate_user' || req.user.role === 'lender_user') {
+      // Corporate users and lender users can only see their own loans
+      hasAccess = loan.applicant.toString() === req.user.id.toString();
+    } else {
+      // Default: users can only see their own loans
+      hasAccess = loan.applicant.toString() === req.user.id.toString();
+    }
+
+    if (!hasAccess) {
       return res.status(403).json({
         success: false,
         message: 'Access denied to this loan'
       });
-    }
-
-    if (req.user.role !== 'super_user' && req.user.role !== 'staff') {
-      if (req.user.company.toString() !== loan.company.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied to this loan'
-        });
-      }
     }
 
     const summary = loan.getSummary();
@@ -166,6 +189,12 @@ router.get('/:id/summary', authenticateToken, async (req, res) => {
 // @access  Private
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
+    console.log('=== Get loan details request ===');
+    console.log('Loan ID:', req.params.id);
+    console.log('User:', req.user);
+    console.log('User role:', req.user.role);
+    console.log('User company:', req.user.company);
+
     const { id } = req.params;
 
     const loan = await Loan.findById(id)
@@ -182,21 +211,36 @@ router.get('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check access permissions
-    if (req.user.role === 'staff' && loan.applicant.toString() !== req.user._id.toString()) {
+    console.log('Found loan:', loan._id);
+    console.log('Loan applicant:', loan.applicant._id);
+    console.log('Loan company:', loan.company._id);
+
+    // Check access permissions based on role
+    let hasAccess = false;
+
+    if (req.user.role === 'super_user') {
+      hasAccess = true;
+    } else if (req.user.role === 'lender_admin') {
+      // Lender admins can see loans from their lender company and their corporate clients
+      hasAccess = loan.lenderCompany._id.toString() === req.user.company.toString();
+    } else if (req.user.role === 'corporate_admin' || req.user.role === 'corporate_hr') {
+      // Corporate admins and HR can see loans from their company
+      hasAccess = loan.company._id.toString() === req.user.company.toString();
+    } else if (req.user.role === 'corporate_user' || req.user.role === 'lender_user') {
+      // Corporate users and lender users can only see their own loans
+      hasAccess = loan.applicant._id.toString() === req.user.id.toString();
+    } else {
+      // Default: users can only see their own loans
+      hasAccess = loan.applicant._id.toString() === req.user.id.toString();
+    }
+
+    console.log('Access check result:', hasAccess);
+
+    if (!hasAccess) {
       return res.status(403).json({
         success: false,
         message: 'Access denied to this loan'
       });
-    }
-
-    if (req.user.role !== 'super_user' && req.user.role !== 'staff') {
-      if (req.user.company.toString() !== loan.company.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied to this loan'
-        });
-      }
     }
 
     res.json({
@@ -223,6 +267,9 @@ router.post('/', authenticateToken, authorize('corporate_user'), async (req, res
       amount,
       term,
       purpose,
+      description,
+      monthlyIncome,
+      collateral,
       guarantor,
       documents
     } = req.body;
@@ -279,7 +326,7 @@ router.post('/', authenticateToken, authorize('corporate_user'), async (req, res
 
     // Check if user has existing active loans
     const existingLoans = await Loan.find({
-      applicant: req.user._id,
+      applicant: req.user.id,
       status: { $in: ['pending', 'approved', 'active'] }
     });
 
@@ -300,13 +347,16 @@ router.post('/', authenticateToken, authorize('corporate_user'), async (req, res
 
     // Create loan object
     const loanData = {
-      applicant: req.user._id,
+      applicant: req.user.id,
       company: company._id,
       lenderCompany: lenderCompany._id,
       amount,
       interestRate: lenderCompany.settings.interestRate,
       term,
       purpose,
+      description: description || '',
+      monthlyIncome: monthlyIncome || 0,
+      collateral: collateral || null,
       guarantor
     };
 
@@ -402,7 +452,7 @@ router.put('/:id/approve', authenticateToken, authorize('corporate_hr', 'corpora
 
     // Update loan status
     loan.status = 'approved';
-    loan.approvedBy = req.user._id;
+    loan.approvedBy = req.user.id;
     loan.approvedAt = new Date();
     if (approvalNotes) loan.approvalNotes = approvalNotes;
 
@@ -479,7 +529,7 @@ router.put('/:id/reject', authenticateToken, authorize('corporate_hr', 'corporat
 
     // Update loan status
     loan.status = 'rejected';
-    loan.approvedBy = req.user._id;
+    loan.approvedBy = req.user.id;
     loan.approvedAt = new Date();
     loan.approvalNotes = approvalNotes;
 
@@ -554,7 +604,7 @@ router.put('/:id/disburse', authenticateToken, authorize('corporate_admin', 'cli
 
     // Update loan status
     loan.status = 'disbursed';
-    loan.disbursedBy = req.user._id;
+    loan.disbursedBy = req.user.id;
     loan.disbursedAt = new Date();
     loan.startDate = new Date();
     loan.endDate = new Date(Date.now() + (loan.term * 30 * 24 * 60 * 60 * 1000)); // Approximate end date

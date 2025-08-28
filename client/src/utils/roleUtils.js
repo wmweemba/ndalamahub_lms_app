@@ -15,3 +15,45 @@ export const canApproveLoan = (role) => {
         ROLES.CORPORATE_HR
     ].includes(role);
 };
+
+// Get current user from JWT token
+export const getCurrentUser = () => {
+    const token = localStorage.getItem('ndalamahub-token');
+    if (!token) return null;
+    
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload;
+    } catch (error) {
+        console.error('Error decoding token:', error);
+        return null;
+    }
+};
+
+// Check if user can access companies management
+export const canAccessCompanies = (role) => {
+    return [
+        ROLES.SUPER_USER,
+        ROLES.LENDER_ADMIN,
+        ROLES.CORPORATE_ADMIN
+    ].includes(role);
+};
+
+// Check if user can access reports
+export const canAccessReports = (role) => {
+    return [
+        ROLES.SUPER_USER,
+        ROLES.LENDER_ADMIN,
+        ROLES.CORPORATE_ADMIN,
+        ROLES.CORPORATE_HR
+    ].includes(role);
+};
+
+// Check if user can access settings
+export const canAccessSettings = (role) => {
+    return [
+        ROLES.SUPER_USER,
+        ROLES.LENDER_ADMIN,
+        ROLES.CORPORATE_ADMIN
+    ].includes(role);
+};

@@ -427,3 +427,49 @@ and this project adheres to Semantic Versioning.
 - Table alignment and layout issues in user management component
 - Permission checking for settings sections based on user roles
 - Enhanced error handling for authentication failures with proper redirects
+
+
+## [0.2.41] - 2025-08-28
+### Added
+- **Corporate User Loan Application System**:
+  - Created comprehensive LoanApplicationForm component with multi-section form interface
+  - Implemented complete loan application workflow with validation and API integration
+  - Added role-based permission checks enabling only corporate users to apply for loans
+  - Enhanced LoansPage with "Apply for Loan" button and form integration
+  - Added collateral tracking, monthly income, and loan description fields to loan schema
+
+- **Corporate User Dashboard**:
+  - Implemented role-specific dashboard with personalized loan statistics for corporate users
+  - Created user-specific dashboard API endpoint (`/api/dashboard/user-stats`) for loan tracking
+  - Added comprehensive loan summary cards showing total, active, pending, and completed loans
+  - Implemented loan amount tracking with active and total borrowed amounts display
+  - Added next payment due notification with amount and due date information
+  - Created onboarding card for users with no loans that doubles as application CTA
+  - Added quick action buttons for loan management and new applications
+  - Enhanced dashboard with responsive grid layout and appropriate visual hierarchy
+
+- **Role-Based Navigation System**:
+  - Implemented conditional navigation visibility based on user roles and permissions
+  - Added JWT token decoding utility for client-side user role access
+  - Created permission helper functions for companies, reports, and settings access
+  - Restricted Companies tab visibility to management roles only (hidden from corporate users)
+  - Added user greeting with first name display in navigation header
+  - Enhanced role-based access control across navigation and dashboard components
+
+### Fixed
+- **Loan Access Control**:
+  - Fixed loan details modal access permissions for corporate users to view their own loans
+  - Corrected JWT token field references from `req.user._id` to `req.user.id` in loan routes
+  - Updated role-based access logic replacing outdated 'staff' role with proper role hierarchy
+  - Enhanced loan visibility filtering to ensure corporate users can only see their own loans
+  - Added comprehensive access control debugging and logging for loan detail requests
+  - Fixed loan summary endpoint permissions matching the loan details access control
+
+### Enhanced
+- **User Experience**:
+  - Streamlined corporate user workflow focusing on loan application and tracking
+  - Removed administrative features from corporate user interface for cleaner experience
+  - Added personalized dashboard content relevant to individual user loan portfolio
+  - Implemented visual feedback with color-coded status indicators and progress tracking
+  - Enhanced navigation simplicity for corporate users with only essential features visible
+

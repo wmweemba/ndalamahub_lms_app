@@ -48,6 +48,26 @@ const loanSchema = new mongoose.Schema({
     trim: true,
     maxlength: [200, 'Purpose cannot exceed 200 characters']
   },
+  description: {
+    type: String,
+    trim: true,
+    maxlength: [1000, 'Description cannot exceed 1000 characters']
+  },
+  monthlyIncome: {
+    type: Number,
+    min: [0, 'Monthly income cannot be negative']
+  },
+  collateral: {
+    value: {
+      type: Number,
+      min: [0, 'Collateral value cannot be negative']
+    },
+    description: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Collateral description cannot exceed 500 characters']
+    }
+  },
   
   // Calculated fields
   totalAmount: {

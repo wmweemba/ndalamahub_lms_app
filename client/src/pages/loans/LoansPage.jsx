@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LoanDetailsDialog } from '@/components/loans/LoanDetailsDialog';
+import LoanApplicationForm from '@/components/loans/LoanApplicationForm';
 import api from '@/utils/api';
 
 export default function LoansPage() {
@@ -10,10 +11,24 @@ export default function LoansPage() {
     const [error, setError] = useState(null);
     const [selectedLoan, setSelectedLoan] = useState(null);
     const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+    const [isApplicationFormOpen, setIsApplicationFormOpen] = useState(false);
+    const [currentUser, setCurrentUser] = useState(null);
 
     useEffect(() => {
         fetchLoans();
+        fetchCurrentUser();
     }, []);
+
+    const fetchCurrentUser = async () => {
+        try {
+            const response = await api.get('/auth/me');
+            if (response.data.success) {
+                setCurrentUser(response.data.data.user);
+            }
+        } catch (err) {
+            console.error('Failed to fetch current user:', err);
+        }
+    };
 
     const fetchLoans = async () => {
         try {
@@ -71,6 +86,16 @@ export default function LoansPage() {
         });
     };
 
+    // Check if user can apply for loans (corporate users)
+    const canApplyForLoan = () => {
+        return currentUser && ['corporate_user', 'corporate_hr', 'corporate_admin'].includes(currentUser.role);
+    };
+
+    const handleLoanApplicationSuccess = () => {
+        setIsApplicationFormOpen(false);
+        fetchLoans(); // Refresh the loans list
+    };
+
     if (loading) return <div className="p-8">Loading loans...</div>;
 
     return (
@@ -78,9 +103,9 @@ export default function LoansPage() {
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-900">Loan Management</h1>
                 <Button 
-                    onClick={() => {/* TODO: Add create loan functionality */}}
+                    onClick={() => setIsApplicationFormOpen(true)}
                     className="bg-blue-600 hover:bg-blue-700 text-white"
-                    disabled
+                    disabled={!canApplyForLoan()}
                 >
                     Apply for Loan
                 </Button>
@@ -197,6 +222,12 @@ export default function LoansPage() {
                     setSelectedLoan(null);
                 }}
                 onUpdate={fetchLoans}
+            />
+
+            <LoanApplicationForm
+                open={isApplicationFormOpen}
+                onClose={() => setIsApplicationFormOpen(false)}
+                onSuccess={handleLoanApplicationSuccess}
             />
         </div>
     );

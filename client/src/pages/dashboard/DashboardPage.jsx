@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import api from '@/utils/api';
 
-export function DashboardPage() {
+export default function DashboardPage() {
   const [stats, setStats] = useState({
     activeLoans: 0,
     activeCompanies: 0,
@@ -17,10 +17,16 @@ export function DashboardPage() {
     const fetchDashboardStats = async () => {
       try {
         const response = await api.get('/dashboard/stats');
-        setStats(response.data);
+        // Handle the nested data structure from the server
+        if (response.data.success && response.data.data) {
+          setStats(response.data.data);
+        } else {
+          setError('Invalid response format from server');
+        }
       } catch (err) {
         setError('Failed to load dashboard statistics');
         console.error('Dashboard stats error:', err);
+        console.error('Error details:', err.response?.data || err.message);
       } finally {
         setLoading(false);
       }

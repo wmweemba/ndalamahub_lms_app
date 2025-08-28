@@ -320,6 +320,21 @@ and this project adheres to Semantic Versioning.
   - Enabled authorized users to successfully disburse loans for their company
   - Verified end-to-end loan lifecycle from application to disbursement
 
+## [0.2.34] - 2025-08-28
+### Fixed
+- **Frontend Dashboard Issues**:
+  - Fixed API response data structure handling in DashboardPage component
+  - Corrected client-side data access from `response.data` to `response.data.data` to match server response format
+  - Changed DashboardPage to default export and updated corresponding import in App.jsx
+  - Enhanced error handling and logging for better debugging
+  - Added response format validation to prevent rendering errors
+  - Resolved blank dashboard page and component error boundary issues
+
+- **Frontend Build Configuration**:
+  - Fixed favicon.ico 404 error by adding proper favicon file to public directory
+  - Updated HTML head section to reference correct favicon path and type
+  - Improved page title from generic "Vite + React" to "Ndalama Hub LMS"
+
 ## [0.2.33] - 2025-08-27
 ### Fixed
 - **Loan Repayment Workflow**:

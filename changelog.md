@@ -320,6 +320,33 @@ and this project adheres to Semantic Versioning.
   - Enabled authorized users to successfully disburse loans for their company
   - Verified end-to-end loan lifecycle from application to disbursement
 
+## [0.2.33] - 2025-08-27
+### Fixed
+- **Loan Repayment Workflow**:
+  - Documented and tested loan repayment route for installment payments
+  - Clarified HTTP method and request structure for repayments
+  - Ensured lenderadmin and authorized users can post repayments successfully
+
+- **Loan Rejection Workflow**:
+  - Fixed company ID comparison in loan rejection route to match approval/disbursement logic
+  - Updated rejection status logic to allow rejection for 'pending_approval' loans
+  - Enabled corporate HR users to reject loans in correct status
+  - Verified loan rejection and error handling
+
+## [0.2.35] - 2025-08-28
+### Added
+- **Loans Management Interface**:
+  - Created comprehensive LoansPage component with table view displaying loan summaries
+  - Implemented LoanDetailsDialog component with full loan information display
+  - Added interactive loan management with click-to-view details functionality
+  - Integrated loan action buttons for approve, reject, and disburse operations
+  - Added proper role-based permissions for loan management actions
+  - Implemented responsive design with status color coding and currency formatting
+  - Added comprehensive error handling and loading states for loan operations
+  - Integrated with existing API endpoints for full loan lifecycle management
+  - Added loans route to main application navigation and routing system
+  - Enhanced loan data presentation with applicant, company, and financial details
+
 ## [0.2.34] - 2025-08-28
 ### Fixed
 - **Frontend Dashboard Issues**:
@@ -335,15 +362,4 @@ and this project adheres to Semantic Versioning.
   - Updated HTML head section to reference correct favicon path and type
   - Improved page title from generic "Vite + React" to "Ndalama Hub LMS"
 
-## [0.2.33] - 2025-08-27
-### Fixed
-- **Loan Repayment Workflow**:
-  - Documented and tested loan repayment route for installment payments
-  - Clarified HTTP method and request structure for repayments
-  - Ensured lenderadmin and authorized users can post repayments successfully
 
-- **Loan Rejection Workflow**:
-  - Fixed company ID comparison in loan rejection route to match approval/disbursement logic
-  - Updated rejection status logic to allow rejection for 'pending_approval' loans
-  - Enabled corporate HR users to reject loans in correct status
-  - Verified loan rejection and error handling

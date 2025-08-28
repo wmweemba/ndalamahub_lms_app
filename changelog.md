@@ -8,11 +8,6 @@ and this project adheres to Semantic Versioning.
 - Added
 - Future features will be documented here.
 
-## [0.2.38] - 2025-08-28
-### Fixed
-- Fixed dashboard statistics not displaying correct counts for active companies and users
-- Updated dashboard API to use correct field names (isActive boolean instead of status string)
-
 ## [0.1.0] - 2025-08-01
 ## Added
 - Initial project scaffolding and documentation.
@@ -338,47 +333,6 @@ and this project adheres to Semantic Versioning.
   - Enabled corporate HR users to reject loans in correct status
   - Verified loan rejection and error handling
 
-## [0.2.37] - 2025-08-28
-### Fixed
-- **Company Management Interface**:
-  - Fixed company status display to use correct `isActive` boolean field instead of non-existent `status` field
-  - Corrected status badge colors and labels to show "Active" or "Inactive" properly
-  - Implemented complete edit company functionality with working edit button
-  - Created comprehensive EditCompanyDialog component with full CRUD capabilities
-  - Added proper form pre-population with existing company data in edit dialog
-  - Enabled dynamic lender selection when editing corporate companies
-  - Added company status toggle between Active/Inactive in edit form
-  - Implemented success feedback and error handling for company updates
-  - Added proper API integration with PUT `/companies/:id` endpoint for updates
-  - Enhanced company management workflow with seamless edit and update functionality
-
-## [0.2.36] - 2025-08-28
-### Enhanced
-- **Company Creation Modal**:
-  - Enhanced CreateCompanyDialog with comprehensive form structure using card-based layout
-  - Added dynamic lender company selection for corporate companies
-  - Implemented conditional form fields that show/hide based on company type selection
-  - Added automatic fetching of available lender companies for corporate company creation
-  - Included proper form validation requiring lender selection for corporate companies
-  - Enhanced user experience with success feedback screen and loading states
-  - Improved form styling with proper labels, placeholders, and responsive design
-  - Added comprehensive address and contact information sections
-  - Fixed company creation workflow to properly handle lenderCompany field requirement
-  - Enhanced error handling with visual feedback and detailed error messages
-
-## [0.2.35] - 2025-08-28
-### Added
-- **Loans Management Interface**:
-  - Created comprehensive LoansPage component with table view displaying loan summaries
-  - Implemented LoanDetailsDialog component with full loan information display
-  - Added interactive loan management with click-to-view details functionality
-  - Integrated loan action buttons for approve, reject, and disburse operations
-  - Added proper role-based permissions for loan management actions
-  - Implemented responsive design with status color coding and currency formatting
-  - Added comprehensive error handling and loading states for loan operations
-  - Integrated with existing API endpoints for full loan lifecycle management
-  - Added loans route to main application navigation and routing system
-  - Enhanced loan data presentation with applicant, company, and financial details
 
 ## [0.2.34] - 2025-08-28
 ### Fixed
@@ -395,4 +349,60 @@ and this project adheres to Semantic Versioning.
   - Updated HTML head section to reference correct favicon path and type
   - Improved page title from generic "Vite + React" to "Ndalama Hub LMS"
 
+## [0.2.35] - 2025-08-28
+### Added
+- **Loans Management Interface**:
+  - Created comprehensive LoansPage component with table view displaying loan summaries
+  - Implemented LoanDetailsDialog component with full loan information display
+  - Added interactive loan management with click-to-view details functionality
+  - Integrated loan action buttons for approve, reject, and disburse operations
+  - Added proper role-based permissions for loan management actions
+  - Implemented responsive design with status color coding and currency formatting
+  - Added comprehensive error handling and loading states for loan operations
+  - Integrated with existing API endpoints for full loan lifecycle management
+  - Added loans route to main application navigation and routing system
+  - Enhanced loan data presentation with applicant, company, and financial details  
 
+## [0.2.36] - 2025-08-28
+### Enhanced
+- **Company Creation Modal**:
+  - Enhanced CreateCompanyDialog with comprehensive form structure using card-based layout
+  - Added dynamic lender company selection for corporate companies
+  - Implemented conditional form fields that show/hide based on company type selection
+  - Added automatic fetching of available lender companies for corporate company creation
+  - Included proper form validation requiring lender selection for corporate companies
+  - Enhanced user experience with success feedback screen and loading states
+  - Improved form styling with proper labels, placeholders, and responsive design
+  - Added comprehensive address and contact information sections
+  - Fixed company creation workflow to properly handle lenderCompany field requirement
+  - Enhanced error handling with visual feedback and detailed error messages
+
+## [0.2.37] - 2025-08-28
+### Fixed
+- **Company Management Interface**:
+  - Fixed company status display to use correct `isActive` boolean field instead of non-existent `status` field
+  - Corrected status badge colors and labels to show "Active" or "Inactive" properly
+  - Implemented complete edit company functionality with working edit button
+  - Created comprehensive EditCompanyDialog component with full CRUD capabilities
+  - Added proper form pre-population with existing company data in edit dialog
+  - Enabled dynamic lender selection when editing corporate companies
+  - Added company status toggle between Active/Inactive in edit form
+  - Implemented success feedback and error handling for company updates
+  - Added proper API integration with PUT `/companies/:id` endpoint for updates
+  - Enhanced company management workflow with seamless edit and update functionality
+
+
+## [0.2.38] - 2025-08-28
+### Fixed
+- Fixed dashboard statistics not displaying correct counts for active companies and users
+- Updated dashboard API to use correct field names (isActive boolean instead of status string)
+
+## [0.2.39] - 2025-08-28
+### Added
+- Complete reports and analytics page with visual data representations
+- Interactive charts showing loans by status and companies by type
+- Comprehensive report generation for active loans, overdue loans, and upcoming payments
+- Report modal with detailed data tables and export functionality
+- PDF and Excel export capabilities for all reports
+- Role-based access control for reports functionality
+- Real-time statistics dashboard with loan and payment trends

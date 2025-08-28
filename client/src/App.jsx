@@ -3,6 +3,7 @@ import { LoginPage } from './pages/auth/LoginPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import { CompaniesPage } from './pages/companies/CompaniesPage';
 import LoansPage from './pages/loans/LoansPage';
+import ReportsPage from './pages/reports/ReportsPage';
 import { Navbar } from './components/layout/Navbar';
 
 export function App() {
@@ -21,6 +22,7 @@ export function App() {
                                         <Route path="/dashboard" element={<DashboardPage />} />
                                         <Route path="/companies" element={<CompaniesPage />} />
                                         <Route path="/loans" element={<LoansPage />} />
+                                        <Route path="/reports" element={<ReportsPage />} />
                                         <Route path="/" element={<Navigate to="/dashboard" replace />} />
                                     </Routes>
                                 </div>

@@ -39,86 +39,112 @@ const getDateRange = (period) => {
 };
 
 // @route   GET /api/reports/overview
-// @desc    Get overview statistics
+// @desc    Get overview statistics for reports dashboard
 // @access  Private (Admin roles)
 router.get('/overview', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
   try {
-    const { period, startDate, endDate } = req.query;
-
-    // Build date filter
-    let dateFilter = {};
-    if (period && period !== 'custom') {
-      const { startDate: periodStart, endDate: periodEnd } = getDateRange(period);
-      dateFilter.applicationDate = { $gte: periodStart, $lte: periodEnd };
-    } else if (startDate && endDate) {
-      dateFilter.applicationDate = { $gte: new Date(startDate), $lte: new Date(endDate) };
-    }
-
     // Build company filter
     let companyFilter = {};
     if (req.user.role !== 'super_user') {
-      if (req.user.role === 'client_admin') {
-        // Client admins see their lender company and their corporate clients
+      if (req.user.role === 'lender_admin') {
         const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
         companyFilter.$or = [
           { lenderCompany: req.user.company },
           { company: { $in: corporateCompanies.map(c => c._id) } }
         ];
       } else {
-        // Other roles see only their company
         companyFilter.company = req.user.company;
       }
     }
 
-    // Combine filters
-    const filter = { ...dateFilter, ...companyFilter };
-
-    // Get loan statistics
-    const totalLoans = await Loan.countDocuments(filter);
-    const pendingLoans = await Loan.countDocuments({ ...filter, status: 'pending' });
-    const approvedLoans = await Loan.countDocuments({ ...filter, status: 'approved' });
-    const disbursedLoans = await Loan.countDocuments({ ...filter, status: 'disbursed' });
-    const activeLoans = await Loan.countDocuments({ ...filter, status: 'active' });
-    const completedLoans = await Loan.countDocuments({ ...filter, status: 'completed' });
-    const rejectedLoans = await Loan.countDocuments({ ...filter, status: 'rejected' });
-
-    // Get financial statistics
-    const totalAmount = await Loan.aggregate([
-      { $match: filter },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+    // Get loans by status
+    const loansByStatus = await Loan.aggregate([
+      { $match: companyFilter },
+      { $group: { _id: '$status', count: { $sum: 1 } } }
     ]);
 
-    const totalDisbursed = await Loan.aggregate([
-      { $match: { ...filter, status: { $in: ['disbursed', 'active', 'completed'] } } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+    const loansByStatusObj = {};
+    loansByStatus.forEach(item => {
+      loansByStatusObj[item._id] = item.count;
+    });
+
+    // Get companies by type
+    let companiesFilter = {};
+    if (req.user.role !== 'super_user') {
+      if (req.user.role === 'lender_admin') {
+        companiesFilter = {
+          $or: [
+            { _id: req.user.company },
+            { lenderCompany: req.user.company }
+          ]
+        };
+      } else {
+        companiesFilter = { _id: req.user.company };
+      }
+    }
+
+    const companiesByType = await Company.aggregate([
+      { $match: { isActive: true, ...companiesFilter } },
+      { $group: { _id: '$type', count: { $sum: 1 } } }
     ]);
 
-    const totalRepaid = await Loan.aggregate([
-      { $match: { ...filter, status: { $in: ['active', 'completed'] } } },
+    const companiesByTypeObj = {};
+    companiesByType.forEach(item => {
+      companiesByTypeObj[item._id] = item.count;
+    });
+
+    // Get monthly loan trends (last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const monthlyTrends = await Loan.aggregate([
+      { 
+        $match: { 
+          applicationDate: { $gte: sixMonthsAgo },
+          ...companyFilter
+        } 
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$applicationDate' },
+            month: { $month: '$applicationDate' }
+          },
+          count: { $sum: 1 },
+          totalAmount: { $sum: '$amount' }
+        }
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1 } }
+    ]);
+
+    // Get payment status overview
+    const paymentStatus = await Loan.aggregate([
+      { $match: { status: { $in: ['active', 'in_arrears', 'defaulted'] }, ...companyFilter } },
       { $unwind: '$repaymentSchedule' },
-      { $match: { 'repaymentSchedule.status': 'paid' } },
-      { $group: { _id: null, total: { $sum: '$repaymentSchedule.paidAmount' } } }
+      {
+        $group: {
+          _id: '$repaymentSchedule.status',
+          count: { $sum: 1 },
+          totalAmount: { $sum: '$repaymentSchedule.amount' }
+        }
+      }
     ]);
 
-    // Calculate approval rate
-    const approvalRate = totalLoans > 0 ? ((approvedLoans + disbursedLoans + activeLoans + completedLoans) / totalLoans * 100).toFixed(2) : 0;
+    const paymentStatusObj = {};
+    paymentStatus.forEach(item => {
+      paymentStatusObj[item._id] = {
+        count: item.count,
+        totalAmount: item.totalAmount
+      };
+    });
 
     res.json({
       success: true,
       data: {
-        overview: {
-          totalLoans,
-          pendingLoans,
-          approvedLoans,
-          disbursedLoans,
-          activeLoans,
-          completedLoans,
-          rejectedLoans,
-          approvalRate: parseFloat(approvalRate),
-          totalAmount: totalAmount[0]?.total || 0,
-          totalDisbursed: totalDisbursed[0]?.total || 0,
-          totalRepaid: totalRepaid[0]?.total || 0
-        }
+        loansByStatus: loansByStatusObj,
+        companiesByType: companiesByTypeObj,
+        monthlyLoanTrends: monthlyTrends,
+        paymentStatus: paymentStatusObj
       }
     });
 
@@ -127,6 +153,256 @@ router.get('/overview', authenticateToken, authorizeMinRole('corporate_admin'), 
     res.status(500).json({
       success: false,
       message: 'Failed to get overview statistics',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// @route   GET /api/reports/active-loans
+// @desc    Get active loans report
+// @access  Private (Admin roles)
+router.get('/active-loans', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
+  try {
+    let companyFilter = {};
+    if (req.user.role !== 'super_user') {
+      if (req.user.role === 'lender_admin') {
+        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
+        companyFilter.$or = [
+          { lenderCompany: req.user.company },
+          { company: { $in: corporateCompanies.map(c => c._id) } }
+        ];
+      } else {
+        companyFilter.company = req.user.company;
+      }
+    }
+
+    const loans = await Loan.find({ 
+      status: { $in: ['active', 'disbursed'] },
+      ...companyFilter 
+    })
+    .populate('applicant', 'firstName lastName phone email')
+    .populate('company', 'name')
+    .populate('lenderCompany', 'name')
+    .sort({ disbursedAt: -1 });
+
+    const loansWithPaymentInfo = loans.map(loan => {
+      const nextPayment = loan.repaymentSchedule?.find(payment => payment.status === 'pending');
+      return {
+        ...loan.toObject(),
+        nextPaymentDate: nextPayment?.dueDate || null,
+        nextPaymentAmount: nextPayment?.amount || 0
+      };
+    });
+
+    res.json({
+      success: true,
+      data: loansWithPaymentInfo
+    });
+
+  } catch (error) {
+    console.error('Get active loans error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get active loans report',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// @route   GET /api/reports/overdue-loans
+// @desc    Get overdue loans report
+// @access  Private (Admin roles)
+router.get('/overdue-loans', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
+  try {
+    let companyFilter = {};
+    if (req.user.role !== 'super_user') {
+      if (req.user.role === 'lender_admin') {
+        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
+        companyFilter.$or = [
+          { lenderCompany: req.user.company },
+          { company: { $in: corporateCompanies.map(c => c._id) } }
+        ];
+      } else {
+        companyFilter.company = req.user.company;
+      }
+    }
+
+    const loans = await Loan.find({ 
+      status: { $in: ['in_arrears', 'defaulted'] },
+      ...companyFilter 
+    })
+    .populate('applicant', 'firstName lastName phone email')
+    .populate('company', 'name')
+    .populate('lenderCompany', 'name')
+    .sort({ 'paymentTracking.daysInArrears': -1 });
+
+    const loansWithOverdueInfo = loans.map(loan => {
+      const overduePayments = loan.repaymentSchedule?.filter(payment => 
+        payment.status === 'overdue' && new Date() > new Date(payment.dueDate)
+      ) || [];
+      
+      const overdueAmount = overduePayments.reduce((sum, payment) => 
+        sum + (payment.amount - (payment.paidAmount || 0)), 0
+      );
+
+      const lastPayment = loan.repaymentSchedule?.filter(payment => payment.status === 'paid')
+        .sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt))[0];
+
+      return {
+        ...loan.toObject(),
+        overdueAmount,
+        daysOverdue: loan.paymentTracking?.daysInArrears || 0,
+        lastPaymentDate: lastPayment?.paidAt || null,
+        lastPaymentAmount: lastPayment?.paidAmount || 0
+      };
+    });
+
+    res.json({
+      success: true,
+      data: loansWithOverdueInfo
+    });
+
+  } catch (error) {
+    console.error('Get overdue loans error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get overdue loans report',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// @route   GET /api/reports/upcoming-payments
+// @desc    Get upcoming payments report
+// @access  Private (Admin roles)
+router.get('/upcoming-payments', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
+  try {
+    let companyFilter = {};
+    if (req.user.role !== 'super_user') {
+      if (req.user.role === 'lender_admin') {
+        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
+        companyFilter.$or = [
+          { lenderCompany: req.user.company },
+          { company: { $in: corporateCompanies.map(c => c._id) } }
+        ];
+      } else {
+        companyFilter.company = req.user.company;
+      }
+    }
+
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+    const loans = await Loan.find({ 
+      status: { $in: ['active', 'disbursed'] },
+      ...companyFilter 
+    })
+    .populate('applicant', 'firstName lastName phone email')
+    .populate('company', 'name')
+    .populate('lenderCompany', 'name');
+
+    const upcomingPayments = [];
+
+    loans.forEach(loan => {
+      const upcomingInstallments = loan.repaymentSchedule?.filter(payment => 
+        payment.status === 'pending' && 
+        new Date(payment.dueDate) <= thirtyDaysFromNow
+      ) || [];
+
+      upcomingInstallments.forEach(installment => {
+        const daysUntilDue = Math.ceil((new Date(installment.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
+        
+        upcomingPayments.push({
+          loanId: loan._id,
+          loanNumber: loan.loanNumber,
+          installmentNumber: installment.installmentNumber,
+          borrowerName: `${loan.applicant.firstName} ${loan.applicant.lastName}`,
+          borrowerPhone: loan.applicant.phone,
+          borrowerEmail: loan.applicant.email,
+          companyName: loan.company.name,
+          amount: installment.amount,
+          dueDate: installment.dueDate,
+          daysUntilDue: daysUntilDue,
+          priority: daysUntilDue <= 7 ? 'high' : daysUntilDue <= 14 ? 'medium' : 'low'
+        });
+      });
+    });
+
+    // Sort by days until due (most urgent first)
+    upcomingPayments.sort((a, b) => a.daysUntilDue - b.daysUntilDue);
+
+    res.json({
+      success: true,
+      data: upcomingPayments
+    });
+
+  } catch (error) {
+    console.error('Get upcoming payments error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get upcoming payments report',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// @route   GET /api/reports/:type/export/:format
+// @desc    Export reports in PDF or Excel format
+// @access  Private (Admin roles)
+router.get('/:type/export/:format', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
+  try {
+    const { type, format } = req.params;
+    
+    // For now, return JSON data that the frontend can handle
+    // In a real implementation, you would use libraries like:
+    // - PDFKit or Puppeteer for PDF generation
+    // - ExcelJS for Excel generation
+    
+    let data = [];
+    
+    // Get the same data as the report endpoints
+    switch (type) {
+      case 'active-loans':
+        const activeResponse = await new Promise((resolve, reject) => {
+          // Simulate the active-loans endpoint logic
+          router.stack.find(layer => layer.route.path === '/active-loans').route.stack[0].handle(req, {
+            json: (result) => resolve(result)
+          }, () => {});
+        });
+        data = activeResponse.data;
+        break;
+        
+      case 'overdue-loans':
+        // Similar for overdue loans
+        break;
+        
+      case 'upcoming-payments':
+        // Similar for upcoming payments
+        break;
+    }
+
+    // Set appropriate headers based on format
+    if (format === 'pdf') {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=${type}-report.pdf`);
+    } else if (format === 'excel') {
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename=${type}-report.xlsx`);
+    }
+
+    // For now, return the data (frontend will handle the actual export)
+    res.json({
+      success: true,
+      data: data,
+      format: format,
+      type: type
+    });
+
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to export report',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }

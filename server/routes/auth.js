@@ -421,9 +421,15 @@ router.post('/logout', authenticateToken, async (req, res) => {
 // @access  Private
 router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id)
+    console.log('=== /auth/me endpoint called ===');
+    console.log('req.user:', req.user);
+    console.log('req.user.id:', req.user?.id);
+    
+    const user = await User.findById(req.user.id)
       .populate('company')
       .select('-password');
+      
+    console.log('Found user:', user ? `${user.username} (${user.role})` : 'null');
 
     res.json({
       success: true,

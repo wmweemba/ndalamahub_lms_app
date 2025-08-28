@@ -406,3 +406,24 @@ and this project adheres to Semantic Versioning.
 - PDF and Excel export capabilities for all reports
 - Role-based access control for reports functionality
 - Real-time statistics dashboard with loan and payment trends
+
+## [0.2.40] - 2025-08-28
+### Added
+- Complete settings page with comprehensive administrative functionality
+- User management interface with full CRUD operations for user accounts
+- Company settings panel for configuring loan policies and business rules
+- System settings for platform-wide configuration and preferences
+- Security settings for password policies and authentication controls
+- Notification preferences for email, SMS, and in-app alerts
+- Integration settings for third-party services and API configurations
+- Role-based tab visibility ensuring appropriate access control
+- Responsive tabbed interface with sidebar navigation
+
+### Fixed
+- Authentication API response handling in settings components
+- User data access path from `response.data.data` to `response.data.data.user`
+- JWT token user ID field reference from `req.user._id` to `req.user.id`
+- Settings page loading state and authentication redirect logic
+- Table alignment and layout issues in user management component
+- Permission checking for settings sections based on user roles
+- Enhanced error handling for authentication failures with proper redirects

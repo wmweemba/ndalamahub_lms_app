@@ -34,9 +34,19 @@ router.get('/', authenticateToken, authorizeMinRole('corporate_admin'), async (r
     // Build filter object
     const filter = {};
 
-    // Company filter
+    // Company filter based on user role
     if (req.user.role !== 'super_user') {
-      filter.company = req.user.company;
+      if (req.user.role === 'lender_admin') {
+        // Lender admins can see users from their company and corporate clients
+        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
+        filter.$or = [
+          { company: req.user.company },
+          { company: { $in: corporateCompanies.map(c => c._id) } }
+        ];
+      } else {
+        // Other roles see only their company
+        filter.company = req.user.company;
+      }
     } else if (companyId) {
       filter.company = companyId;
     }
@@ -70,27 +80,16 @@ router.get('/', authenticateToken, authorizeMinRole('corporate_admin'), async (r
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const total = await User.countDocuments(filter);
-    const totalPages = Math.ceil(total / parseInt(limit));
 
-    // Get users with pagination
+    // Get users without pagination for settings page
     const users = await User.find(filter)
       .populate('company', 'name type')
       .select('-password')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+      .sort({ createdAt: -1 });
 
     res.json({
       success: true,
-      data: {
-        users,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          totalPages
-        }
-      }
+      data: users // Return users array directly for settings page
     });
 
   } catch (error) {
@@ -157,28 +156,148 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // @route   POST /api/users
 // @desc    Create new user
 // @access  Private (Admin roles only)
-router.post('/', authenticateToken, authorizeRole('super_user'), async (req, res) => {
+router.post('/', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
     try {
-        // Verify company exists first
-        const company = await Company.findById(req.body.company);
-        if (!company) {
+        const {
+            firstName,
+            lastName,
+            username,
+            email,
+            phone,
+            password,
+            role,
+            company,
+            department,
+            employeeId
+        } = req.body;
+
+        // Validate required fields
+        if (!firstName || !lastName || !username || !email || !phone || !password || !role || !company) {
+            return res.status(400).json({
+                success: false,
+                message: 'All required fields must be provided'
+            });
+        }
+
+        // Verify company exists
+        const companyDoc = await Company.findById(company);
+        if (!companyDoc) {
             return res.status(400).json({ 
                 success: false,
-                message: `Company not found with ID: ${req.body.company}` 
+                message: `Company not found with ID: ${company}` 
+            });
+        }
+
+        // Check if username already exists
+        const existingUsername = await User.findOne({ username: username.toLowerCase() });
+        if (existingUsername) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username already exists'
+            });
+        }
+
+        // Check if email already exists
+        const existingEmail = await User.findOne({ email: email.toLowerCase() });
+        if (existingEmail) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email already exists'
+            });
+        }
+
+        // Validate password strength
+        if (password.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 6 characters long'
             });
         }
 
         // Create user
-        const user = new User(req.body);
+        const userData = {
+            firstName,
+            lastName,
+            username: username.toLowerCase(),
+            email: email.toLowerCase(),
+            phone,
+            password,
+            role,
+            company,
+            department: department || undefined,
+            employeeId: employeeId || undefined
+        };
+
+        const user = new User(userData);
         const savedUser = await user.save();
-        res.status(201).json(savedUser);
+        
+        // Populate company information before returning
+        await savedUser.populate('company', 'name type');
+
+        res.status(201).json({
+            success: true,
+            message: 'User created successfully',
+            data: savedUser.toJSON()
+        });
     } catch (error) {
         console.error('User creation error:', error);
         res.status(400).json({ 
             success: false,
-            message: error.message 
+            message: error.message || 'Failed to create user'
         });
     }
+});
+
+// @route   PATCH /api/users/:id/status
+// @desc    Toggle user active status
+// @access  Private (Admin roles only)
+router.patch('/:id/status', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    // Prevent self-deactivation
+    if (req.user._id.toString() === id && !isActive) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot deactivate your own account'
+      });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check company access for non-super users
+    if (req.user.role !== 'super_user' && 
+        req.user.company.toString() !== user.company.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this user'
+      });
+    }
+
+    user.isActive = isActive;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `User ${isActive ? 'activated' : 'deactivated'} successfully`,
+      data: user.toJSON()
+    });
+
+  } catch (error) {
+    console.error('Toggle user status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update user status',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
 });
 
 // @route   PUT /api/users/:id/password

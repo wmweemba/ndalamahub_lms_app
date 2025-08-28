@@ -333,6 +333,20 @@ and this project adheres to Semantic Versioning.
   - Enabled corporate HR users to reject loans in correct status
   - Verified loan rejection and error handling
 
+## [0.2.36] - 2025-08-28
+### Enhanced
+- **Company Creation Modal**:
+  - Enhanced CreateCompanyDialog with comprehensive form structure using card-based layout
+  - Added dynamic lender company selection for corporate companies
+  - Implemented conditional form fields that show/hide based on company type selection
+  - Added automatic fetching of available lender companies for corporate company creation
+  - Included proper form validation requiring lender selection for corporate companies
+  - Enhanced user experience with success feedback screen and loading states
+  - Improved form styling with proper labels, placeholders, and responsive design
+  - Added comprehensive address and contact information sections
+  - Fixed company creation workflow to properly handle lenderCompany field requirement
+  - Enhanced error handling with visual feedback and detailed error messages
+
 ## [0.2.35] - 2025-08-28
 ### Added
 - **Loans Management Interface**:

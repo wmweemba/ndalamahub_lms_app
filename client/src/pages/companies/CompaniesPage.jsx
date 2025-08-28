@@ -108,7 +108,7 @@ export function CompaniesPage() {
                                         <Button
                                             variant="ghost"
                                             className="text-blue-600 hover:text-blue-900 mr-2"
-                                            onClick={() => handleEdit(company._id)}
+                                            onClick={() => {/* TODO: Add edit functionality */}}
                                         >
                                             Edit
                                         </Button>

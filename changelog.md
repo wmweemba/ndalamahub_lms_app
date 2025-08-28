@@ -333,6 +333,20 @@ and this project adheres to Semantic Versioning.
   - Enabled corporate HR users to reject loans in correct status
   - Verified loan rejection and error handling
 
+## [0.2.37] - 2025-08-28
+### Fixed
+- **Company Management Interface**:
+  - Fixed company status display to use correct `isActive` boolean field instead of non-existent `status` field
+  - Corrected status badge colors and labels to show "Active" or "Inactive" properly
+  - Implemented complete edit company functionality with working edit button
+  - Created comprehensive EditCompanyDialog component with full CRUD capabilities
+  - Added proper form pre-population with existing company data in edit dialog
+  - Enabled dynamic lender selection when editing corporate companies
+  - Added company status toggle between Active/Inactive in edit form
+  - Implemented success feedback and error handling for company updates
+  - Added proper API integration with PUT `/companies/:id` endpoint for updates
+  - Enhanced company management workflow with seamless edit and update functionality
+
 ## [0.2.36] - 2025-08-28
 ### Enhanced
 - **Company Creation Modal**:

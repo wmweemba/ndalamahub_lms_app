@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CreateCompanyDialog } from '@/components/companies/CreateCompanyDialog';
+import { EditCompanyDialog } from '@/components/companies/EditCompanyDialog';
 import api from '@/utils/api';
 
 export function CompaniesPage() {
@@ -9,6 +10,8 @@ export function CompaniesPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [selectedCompany, setSelectedCompany] = useState(null);
 
     useEffect(() => {
         fetchCompanies();
@@ -24,6 +27,11 @@ export function CompaniesPage() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleEdit = (company) => {
+        setSelectedCompany(company);
+        setIsEditDialogOpen(true);
     };
 
     const handleDelete = async (id) => {
@@ -94,11 +102,11 @@ export function CompaniesPage() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-2 py-1 text-xs rounded-full ${
-                                            company.status === 'active'
+                                            company.isActive
                                                 ? 'bg-green-100 text-green-800'
                                                 : 'bg-red-100 text-red-800'
                                         }`}>
-                                            {company.status}
+                                            {company.isActive ? 'Active' : 'Inactive'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
@@ -108,7 +116,7 @@ export function CompaniesPage() {
                                         <Button
                                             variant="ghost"
                                             className="text-blue-600 hover:text-blue-900 mr-2"
-                                            onClick={() => {/* TODO: Add edit functionality */}}
+                                            onClick={() => handleEdit(company)}
                                         >
                                             Edit
                                         </Button>
@@ -132,6 +140,20 @@ export function CompaniesPage() {
                 onClose={() => setIsCreateDialogOpen(false)}
                 onSuccess={() => {
                     setIsCreateDialogOpen(false);
+                    fetchCompanies();
+                }}
+            />
+
+            <EditCompanyDialog
+                company={selectedCompany}
+                open={isEditDialogOpen}
+                onClose={() => {
+                    setIsEditDialogOpen(false);
+                    setSelectedCompany(null);
+                }}
+                onSuccess={() => {
+                    setIsEditDialogOpen(false);
+                    setSelectedCompany(null);
                     fetchCompanies();
                 }}
             />

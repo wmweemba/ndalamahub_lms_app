@@ -509,6 +509,20 @@ and this project adheres to Semantic Versioning.
   - Enhanced error handling and data scoping for role-based report access
   - Added comprehensive company-based filtering across all report categories
 
+- **Loan Details Modal Access Control**:
+  - Fixed loan approval button visibility for corporate users in loan details modal
+  - Added role-based permission checks to hide Approve/Reject/Disburse buttons from corporate users
+  - Ensured only Corporate HR and management roles can see loan action buttons
+  - Enhanced LoanDetailsDialog component with proper role validation using roleUtils
+  - Corporate users now only see "Close" button when viewing loan details
+
+- **Dashboard Pending Loans Count**:
+  - Fixed pending loans count in corporate user dashboard not showing submitted applications
+  - Updated dashboard API to include all pending statuses: pending_approval, pending_documents, under_review, pending_disbursement
+  - Corrected both user and HR dashboard statistics to properly count loans awaiting approval or processing
+  - Fixed pending loan amount calculations to include all non-active, non-completed loan statuses
+  - Enhanced loan status recognition for accurate dashboard statistics display
+
 ### Enhanced
 - **Role-Based Access Control**:
   - Refined Corporate HR role permissions for optimal workflow efficiency

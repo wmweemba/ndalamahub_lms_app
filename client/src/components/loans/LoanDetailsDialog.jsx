@@ -8,12 +8,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import api from '@/utils/api';
+import { canApproveLoan, getCurrentUser } from '@/utils/roleUtils';
 
 export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
   const [loading, setLoading] = useState(false);
   const [actionError, setActionError] = useState(null);
 
   if (!loan) return null;
+
+  // Get current user to check permissions
+  const currentUser = getCurrentUser();
+  const userCanApprove = currentUser && canApproveLoan(currentUser.role);
 
   const formatCurrency = (amount) => {
     return `K${amount?.toLocaleString() || '0'}`;
@@ -291,7 +296,7 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
             </div>
           )}
           
-          {canApprove && (
+          {userCanApprove && canApprove && (
             <Button
               onClick={handleApprove}
               disabled={loading}
@@ -301,7 +306,7 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
             </Button>
           )}
           
-          {canReject && (
+          {userCanApprove && canReject && (
             <Button
               onClick={handleReject}
               disabled={loading}
@@ -312,7 +317,7 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
             </Button>
           )}
           
-          {canDisburse && (
+          {userCanApprove && canDisburse && (
             <Button
               onClick={handleDisburse}
               disabled={loading}

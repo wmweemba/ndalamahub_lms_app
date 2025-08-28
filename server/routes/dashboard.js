@@ -98,7 +98,13 @@ router.get('/hr-stats', authenticateToken, authorizeMinRole('corporate_hr'), asy
         // Calculate loan statistics
         const totalEmployees = companyUsers.length;
         const totalLoans = companyLoans.length;
-        const pendingLoans = companyLoans.filter(loan => loan.status === 'pending').length;
+        const pendingLoans = companyLoans.filter(loan => 
+            loan.status === 'pending' || 
+            loan.status === 'pending_approval' || 
+            loan.status === 'pending_documents' || 
+            loan.status === 'under_review' ||
+            loan.status === 'pending_disbursement'
+        ).length;
         const approvedLoans = companyLoans.filter(loan => loan.status === 'approved').length;
         const activeLoans = companyLoans.filter(loan => loan.status === 'active').length;
         const rejectedLoans = companyLoans.filter(loan => loan.status === 'rejected').length;
@@ -107,7 +113,13 @@ router.get('/hr-stats', authenticateToken, authorizeMinRole('corporate_hr'), asy
         // Calculate amounts
         const totalLoanAmount = companyLoans.reduce((sum, loan) => sum + loan.amount, 0);
         const pendingLoanAmount = companyLoans
-            .filter(loan => loan.status === 'pending')
+            .filter(loan => 
+                loan.status === 'pending' || 
+                loan.status === 'pending_approval' || 
+                loan.status === 'pending_documents' || 
+                loan.status === 'under_review' ||
+                loan.status === 'pending_disbursement'
+            )
             .reduce((sum, loan) => sum + loan.amount, 0);
         const activeLoanAmount = companyLoans
             .filter(loan => loan.status === 'active')
@@ -128,7 +140,12 @@ router.get('/hr-stats', authenticateToken, authorizeMinRole('corporate_hr'), asy
             }));
 
         // Get pending approvals that need HR attention
-        const pendingApprovals = companyLoans.filter(loan => loan.status === 'pending');
+        const pendingApprovals = companyLoans.filter(loan => 
+            loan.status === 'pending' || 
+            loan.status === 'pending_approval' || 
+            loan.status === 'pending_documents' || 
+            loan.status === 'under_review'
+        );
 
         // Calculate employee loan statistics
         const employeesWithLoans = [...new Set(companyLoans.map(loan => loan.applicant.toString()))].length;
@@ -199,7 +216,13 @@ router.get('/user-stats', authenticateToken, async (req, res) => {
         // Calculate loan statistics
         const totalLoans = userLoans.length;
         const activeLoans = userLoans.filter(loan => loan.status === 'active').length;
-        const pendingLoans = userLoans.filter(loan => loan.status === 'pending').length;
+        const pendingLoans = userLoans.filter(loan => 
+            loan.status === 'pending' || 
+            loan.status === 'pending_approval' || 
+            loan.status === 'pending_documents' || 
+            loan.status === 'under_review' ||
+            loan.status === 'pending_disbursement'
+        ).length;
         const approvedLoans = userLoans.filter(loan => loan.status === 'approved').length;
         const completedLoans = userLoans.filter(loan => loan.status === 'completed').length;
         const rejectedLoans = userLoans.filter(loan => loan.status === 'rejected').length;
@@ -210,7 +233,13 @@ router.get('/user-stats', authenticateToken, async (req, res) => {
             .filter(loan => loan.status === 'active')
             .reduce((sum, loan) => sum + loan.amount, 0);
         const pendingLoanAmount = userLoans
-            .filter(loan => loan.status === 'pending')
+            .filter(loan => 
+                loan.status === 'pending' || 
+                loan.status === 'pending_approval' || 
+                loan.status === 'pending_documents' || 
+                loan.status === 'under_review' ||
+                loan.status === 'pending_disbursement'
+            )
             .reduce((sum, loan) => sum + loan.amount, 0);
 
         // Get recent loan activity (last 5 loans)

@@ -19,20 +19,20 @@ router.get('/stats', authenticateToken, authorizeMinRole('corporate_admin'), asy
 
         // Get active companies count
         const activeCompanies = await Company.countDocuments({ 
-            status: 'active',
+            isActive: true,
             ...filter
         });
 
         // Get active corporate clients
         const activeCorporates = await Company.countDocuments({
-            status: 'active',
+            isActive: true,
             type: 'corporate',
             ...filter
         });
 
         // Get active users
         const activeUsers = await User.countDocuments({
-            status: 'active',
+            isActive: true,
             ...filter
         });
 

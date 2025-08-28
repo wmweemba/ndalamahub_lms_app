@@ -8,6 +8,11 @@ and this project adheres to Semantic Versioning.
 - Added
 - Future features will be documented here.
 
+## [0.2.38] - 2025-08-28
+### Fixed
+- Fixed dashboard statistics not displaying correct counts for active companies and users
+- Updated dashboard API to use correct field names (isActive boolean instead of status string)
+
 ## [0.1.0] - 2025-08-01
 ## Added
 - Initial project scaffolding and documentation.

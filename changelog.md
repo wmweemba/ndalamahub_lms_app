@@ -473,3 +473,46 @@ and this project adheres to Semantic Versioning.
   - Implemented visual feedback with color-coded status indicators and progress tracking
   - Enhanced navigation simplicity for corporate users with only essential features visible
 
+## [0.2.42] - 2025-08-28
+### Added
+- **Corporate HR Dashboard System**:
+  - Created comprehensive HR dashboard with company-specific statistics and insights
+  - Implemented `/api/dashboard/hr-stats` endpoint for Corporate HR role analytics
+  - Added employee count tracking with role distribution statistics
+  - Integrated loan portfolio overview with status breakdown for company employees
+  - Created pending approvals tracking for loans requiring HR review
+  - Added quick action buttons for HR-specific tasks and loan management
+  - Implemented recent loan applications table with detailed employee loan history
+  - Enhanced dashboard with company overview cards and visual status indicators
+
+- **Corporate HR Reports Access**:
+  - Updated reports system to grant Corporate HR users access to company-scoped analytics
+  - Modified all report endpoints (`/overview`, `/active-loans`, `/overdue-loans`, `/upcoming-payments`) 
+  - Changed minimum role requirement from `corporate_admin` to `corporate_hr` for report access
+  - Implemented company-based data filtering ensuring HR users only see their company's data
+  - Added company filtering logic to prevent cross-company data exposure
+  - Updated export functionality to allow HR users to export company-specific reports
+  - Enhanced role-based access control for comprehensive reporting capabilities
+
+### Fixed
+- **Loan Application Permissions**:
+  - Removed "Apply for Loan" button visibility for Corporate HR users on loans page
+  - Updated `canApplyForLoan()` function to exclude `corporate_hr` role from loan applications
+  - Enhanced role-based UI rendering to prevent HR users from accessing loan application forms
+  - Maintained HR approval and management capabilities while removing application permissions
+  - Fixed loan workflow to ensure HR users focus on approval and oversight rather than applications
+
+- **Reports Page Functionality**:
+  - Resolved reports page loading failures for Corporate HR users (`corphr1` login issue)
+  - Fixed company data filtering to show only relevant company information for HR users
+  - Corrected API endpoint permissions allowing HR users to access reports without authentication errors
+  - Enhanced error handling and data scoping for role-based report access
+  - Added comprehensive company-based filtering across all report categories
+
+### Enhanced
+- **Role-Based Access Control**:
+  - Refined Corporate HR role permissions for optimal workflow efficiency
+  - Created clear separation between application, approval, and management functions
+  - Enhanced data security with company-scoped access patterns
+  - Improved user experience with role-appropriate feature visibility
+  - Streamlined HR workflow focusing on employee loan oversight and company analytics

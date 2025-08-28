@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { LoanDetailsDialog } from '@/components/loans/LoanDetailsDialog';
 import LoanApplicationForm from '@/components/loans/LoanApplicationForm';
 import api from '@/utils/api';
+import { ROLES } from '@/utils/roleUtils';
 
 export default function LoansPage() {
     const [loans, setLoans] = useState([]);
@@ -86,9 +87,9 @@ export default function LoansPage() {
         });
     };
 
-    // Check if user can apply for loans (corporate users)
+    // Check if user can apply for loans (only corporate users, not HR)
     const canApplyForLoan = () => {
-        return currentUser && ['corporate_user', 'corporate_hr', 'corporate_admin'].includes(currentUser.role);
+        return currentUser && [ROLES.CORPORATE_USER, ROLES.CORPORATE_ADMIN].includes(currentUser.role);
     };
 
     const handleLoanApplicationSuccess = () => {
@@ -102,13 +103,15 @@ export default function LoansPage() {
         <div className="p-8">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-900">Loan Management</h1>
-                <Button 
-                    onClick={() => setIsApplicationFormOpen(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                    disabled={!canApplyForLoan()}
-                >
-                    Apply for Loan
-                </Button>
+                {/* Only show Apply for Loan button for corporate users and admins, not HR */}
+                {canApplyForLoan() && (
+                    <Button 
+                        onClick={() => setIsApplicationFormOpen(true)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                        Apply for Loan
+                    </Button>
+                )}
             </div>
 
             {error ? (

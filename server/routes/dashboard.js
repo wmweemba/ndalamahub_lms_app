@@ -66,6 +66,121 @@ router.get('/stats', authenticateToken, authorizeMinRole('corporate_admin'), asy
     }
 });
 
+// @route   GET /api/dashboard/hr-stats
+// @desc    Get HR-specific dashboard statistics
+// @access  Private (Corporate HR and above)
+router.get('/hr-stats', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
+    try {
+        console.log('=== HR dashboard stats request ===');
+        console.log('User:', req.user);
+        console.log('User company:', req.user.company);
+
+        // Get company information
+        const company = await Company.findById(req.user.company);
+        if (!company) {
+            return res.status(404).json({
+                success: false,
+                message: 'Company not found'
+            });
+        }
+
+        // Get company employees (users in the same company)
+        const companyUsers = await User.find({ 
+            company: req.user.company,
+            isActive: true 
+        });
+
+        // Get all loans for company employees
+        const companyLoans = await Loan.find({
+            company: req.user.company
+        }).populate('applicant', 'firstName lastName');
+
+        // Calculate loan statistics
+        const totalEmployees = companyUsers.length;
+        const totalLoans = companyLoans.length;
+        const pendingLoans = companyLoans.filter(loan => loan.status === 'pending').length;
+        const approvedLoans = companyLoans.filter(loan => loan.status === 'approved').length;
+        const activeLoans = companyLoans.filter(loan => loan.status === 'active').length;
+        const rejectedLoans = companyLoans.filter(loan => loan.status === 'rejected').length;
+        const completedLoans = companyLoans.filter(loan => loan.status === 'completed').length;
+
+        // Calculate amounts
+        const totalLoanAmount = companyLoans.reduce((sum, loan) => sum + loan.amount, 0);
+        const pendingLoanAmount = companyLoans
+            .filter(loan => loan.status === 'pending')
+            .reduce((sum, loan) => sum + loan.amount, 0);
+        const activeLoanAmount = companyLoans
+            .filter(loan => loan.status === 'active')
+            .reduce((sum, loan) => sum + loan.amount, 0);
+
+        // Get recent loan applications (last 10)
+        const recentApplications = companyLoans
+            .sort((a, b) => new Date(b.applicationDate) - new Date(a.applicationDate))
+            .slice(0, 10)
+            .map(loan => ({
+                id: loan._id,
+                loanNumber: loan.loanNumber,
+                applicantName: `${loan.applicant.firstName} ${loan.applicant.lastName}`,
+                amount: loan.amount,
+                status: loan.status,
+                applicationDate: loan.applicationDate,
+                purpose: loan.purpose
+            }));
+
+        // Get pending approvals that need HR attention
+        const pendingApprovals = companyLoans.filter(loan => loan.status === 'pending');
+
+        // Calculate employee loan statistics
+        const employeesWithLoans = [...new Set(companyLoans.map(loan => loan.applicant.toString()))].length;
+        const employeesWithoutLoans = totalEmployees - employeesWithLoans;
+
+        // Get role distribution
+        const roleDistribution = companyUsers.reduce((acc, user) => {
+            acc[user.role] = (acc[user.role] || 0) + 1;
+            return acc;
+        }, {});
+
+        res.json({
+            success: true,
+            data: {
+                company: {
+                    name: company.name,
+                    type: company.type,
+                    totalEmployees
+                },
+                loanSummary: {
+                    totalLoans,
+                    pendingLoans,
+                    approvedLoans,
+                    activeLoans,
+                    rejectedLoans,
+                    completedLoans,
+                    totalLoanAmount,
+                    pendingLoanAmount,
+                    activeLoanAmount
+                },
+                employeeStats: {
+                    totalEmployees,
+                    employeesWithLoans,
+                    employeesWithoutLoans,
+                    roleDistribution
+                },
+                recentApplications,
+                pendingApprovals: pendingApprovals.length,
+                needsAttention: pendingApprovals.length
+            }
+        });
+
+    } catch (error) {
+        console.error('HR dashboard stats error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching HR dashboard statistics',
+            error: error.message
+        });
+    }
+});
+
 // @route   GET /api/dashboard/user-stats
 // @desc    Get user-specific dashboard statistics
 // @access  Private (All authenticated users)

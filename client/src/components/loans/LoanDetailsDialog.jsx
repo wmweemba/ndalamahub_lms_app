@@ -8,7 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import api from '@/utils/api';
-import { canApproveLoan, getCurrentUser } from '@/utils/roleUtils';
+import { canApproveLoan, canDisburseLoan, getCurrentUser } from '@/utils/roleUtils';
 
 export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
   const [loading, setLoading] = useState(false);
@@ -19,6 +19,7 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
   // Get current user to check permissions
   const currentUser = getCurrentUser();
   const userCanApprove = currentUser && canApproveLoan(currentUser.role);
+  const userCanDisburse = currentUser && canDisburseLoan(currentUser.role);
 
   const formatCurrency = (amount) => {
     return `K${amount?.toLocaleString() || '0'}`;
@@ -317,7 +318,7 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
             </Button>
           )}
           
-          {userCanApprove && canDisburse && (
+          {userCanDisburse && canDisburse && (
             <Button
               onClick={handleDisburse}
               disabled={loading}

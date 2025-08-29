@@ -458,20 +458,6 @@ and this project adheres to Semantic Versioning.
 
 ### Fixed
 - **Loan Access Control**:
-  - Fixed loan details modal access permissions for corporate users to view their own loans
-  - Corrected JWT token field references from `req.user._id` to `req.user.id` in loan routes
-  - Updated role-based access logic replacing outdated 'staff' role with proper role hierarchy
-  - Enhanced loan visibility filtering to ensure corporate users can only see their own loans
-  - Added comprehensive access control debugging and logging for loan detail requests
-  - Fixed loan summary endpoint permissions matching the loan details access control
-
-### Enhanced
-- **User Experience**:
-  - Streamlined corporate user workflow focusing on loan application and tracking
-  - Removed administrative features from corporate user interface for cleaner experience
-  - Added personalized dashboard content relevant to individual user loan portfolio
-  - Implemented visual feedback with color-coded status indicators and progress tracking
-  - Enhanced navigation simplicity for corporate users with only essential features visible
 
 ## [0.2.42] - 2025-08-28
 ### Added
@@ -487,7 +473,7 @@ and this project adheres to Semantic Versioning.
 
 - **Corporate HR Reports Access**:
   - Updated reports system to grant Corporate HR users access to company-scoped analytics
-  - Modified all report endpoints (`/overview`, `/active-loans`, `/overdue-loans`, `/upcoming-payments`) 
+  - Modified all report endpoints (`/overview`, `/active-loans`, `/overdue-loans`, `/upcoming-payments`)
   - Changed minimum role requirement from `corporate_admin` to `corporate_hr` for report access
   - Implemented company-based data filtering ensuring HR users only see their company's data
   - Added company filtering logic to prevent cross-company data exposure
@@ -529,4 +515,19 @@ and this project adheres to Semantic Versioning.
   - Created clear separation between application, approval, and management functions
   - Enhanced data security with company-scoped access patterns
   - Improved user experience with role-appropriate feature visibility
-  - Streamlined HR workflow focusing on employee loan oversight and company analytics
+  - Streamlined HR workflow focusing on employee loan oversight and company analytics## TEST ENTRY ADDED VIA TERMINAL - 2025-08-29
+
+## [0.2.43] - 2025-08-29
+### Fixed
+- **Loan Disbursement Permissions**:
+  - Restricted loan disbursement functionality to Lender Admin role only
+  - Removed disbursement permissions from Corporate HR and Corporate Admin roles
+  - Updated server/routes/loans.js disbursement endpoint authorization
+  - Added canDisburseLoan permission function in roleUtils.js
+  - Updated LoanDetailsDialog component to hide disburse button from non-lender roles
+  - Enhanced loan workflow security ensuring only lenders can release approved funds
+
+### Technical Notes
+- Only super_user and lender_admin roles can now disburse loans
+- Corporate HR and Corporate Admin users will no longer see disbursement buttons
+- Backend API will reject disbursement requests from unauthorized roles

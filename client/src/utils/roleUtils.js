@@ -16,11 +16,18 @@ export const canApproveLoan = (role) => {
     ].includes(role);
 };
 
+export const canDisburseLoan = (role) => {
+    return [
+        ROLES.SUPER_USER,
+        ROLES.LENDER_ADMIN
+    ].includes(role);
+};
+
 // Get current user from JWT token
 export const getCurrentUser = () => {
     const token = localStorage.getItem('ndalamahub-token');
     if (!token) return null;
-    
+
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         return payload;

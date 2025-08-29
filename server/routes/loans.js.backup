@@ -437,7 +437,7 @@ router.put('/:id/approve', authenticateToken, authorize('corporate_hr', 'corpora
     // Check access permissions
     if (
       req.user.role !== 'super_user' &&
-      req.user.role !== 'lender_admin'
+      req.user.role !== 'client_admin'
     ) {
       // Compare the _id of the populated company object
       if (
@@ -518,7 +518,7 @@ router.put('/:id/reject', authenticateToken, authorize('corporate_hr', 'corporat
     }
 
     // Check access permissions
-    if (req.user.role !== 'super_user' && req.user.role !== 'lender_admin') {
+    if (req.user.role !== 'super_user' && req.user.role !== 'client_admin') {
       if (req.user.company.toString() !== loan.company._id.toString()) {
         return res.status(403).json({
           success: false,
@@ -562,8 +562,8 @@ router.put('/:id/reject', authenticateToken, authorize('corporate_hr', 'corporat
 
 // @route   PUT /api/loans/:id/disburse
 // @desc    Disburse approved loan
-// @access  Private (Lender Admin only)
-router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async (req, res) => {
+// @access  Private (Admin roles)
+router.put('/:id/disburse', authenticateToken, authorize('corporate_admin', 'client_admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const { disbursementMethod } = req.body;
@@ -590,7 +590,7 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
     // Check access permissions
     if (
       req.user.role !== 'super_user' &&
-      req.user.role !== 'lender_admin'
+      req.user.role !== 'client_admin'
     ) {
       if (
         req.user.company.toString() !== loan.company._id.toString()
@@ -639,8 +639,8 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
 
 // @route   PUT /api/loans/:id/repayment
 // @desc    Record loan repayment
-// @access  Private (Lender Admin only)
-router.put('/:id/repayment', authenticateToken, authorize('lender_admin'), async (req, res) => {
+// @access  Private (Admin roles)
+router.put('/:id/repayment', authenticateToken, authorize('corporate_admin', 'client_admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const { installmentNumber, amount } = req.body;
@@ -661,7 +661,7 @@ router.put('/:id/repayment', authenticateToken, authorize('lender_admin'), async
     }
 
     // Check access permissions
-    if (req.user.role !== 'super_user' && req.user.role !== 'lender_admin') {
+    if (req.user.role !== 'super_user' && req.user.role !== 'client_admin') {
       if (req.user.company.toString() !== loan.company.toString()) {
         return res.status(403).json({
           success: false,

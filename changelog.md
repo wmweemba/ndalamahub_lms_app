@@ -605,3 +605,28 @@ and this project adheres to Semantic Versioning.
 - Created `isHROrCorporateAdmin` role check for both `corporate_hr` and `corporate_admin` roles
 - Both Corporate Admin and Corporate HR users now use `/dashboard/hr-stats` API endpoint
 - Backend authorization already supported Corporate Admin access via role hierarchy system
+
+
+## [0.2.47] - 2025-08-30
+### Enhanced
+- **Lender Admin Company Creation Restrictions**:
+  - Restricted Lender Admin users to only create corporate companies (client companies)
+  - Automatically link new corporate companies to the lender admin's own lender company
+  - Removed company type selection dropdown for lender admins - forced to corporate type only
+  - Pre-populated and disabled lender company selection for lender admins
+  - Updated dialog title to "Create New Corporate Client" for lender admins
+  - Enhanced form with explanatory text for lender admin restrictions
+  - Updated Companies page button text to "Create New Corporate Client" for lender admins
+  - Prevented lender admins from creating additional lender companies
+
+### Security
+- **Role-Based Company Management**:
+  - Lender admins can only expand their client base, not create competing lender companies
+  - Automatic company linking ensures proper relationship hierarchy
+  - Clear UI indicators for role-based restrictions and capabilities
+
+### Technical Notes
+- Added role checking using `getCurrentUser()` and `ROLES.LENDER_ADMIN`
+- Conditional form rendering based on user role
+- Automatic pre-population of lender company field for lender admins
+- Enhanced user experience with role-appropriate messaging and constraints

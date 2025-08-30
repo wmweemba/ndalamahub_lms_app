@@ -4,8 +4,11 @@ import { Button } from '@/components/ui/button';
 import { CreateCompanyDialog } from '@/components/companies/CreateCompanyDialog';
 import { EditCompanyDialog } from '@/components/companies/EditCompanyDialog';
 import api from '@/utils/api';
+import { getCurrentUser, ROLES } from '@/utils/roleUtils';
 
 export function CompaniesPage() {
+    const currentUser = getCurrentUser();
+    const isLenderAdmin = currentUser?.role === ROLES.LENDER_ADMIN;
     const [companies, setCompanies] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -55,7 +58,7 @@ export function CompaniesPage() {
                     onClick={() => setIsCreateDialogOpen(true)}
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                    Create New Company
+                    {isLenderAdmin ? 'Create New Corporate Client' : 'Create New Company'}
                 </Button>
             </div>
 

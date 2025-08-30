@@ -8,12 +8,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import api from '@/utils/api';
+import { getCurrentUser, ROLES } from '@/utils/roleUtils';
 
 export function CreateCompanyDialog({ open, onClose, onSuccess }) {
+    const currentUser = getCurrentUser();
+    const isLenderAdmin = currentUser?.role === ROLES.LENDER_ADMIN;
     const [formData, setFormData] = useState({
         name: '',
-        type: 'corporate',
-        lenderCompany: '',
+        type: isLenderAdmin ? 'corporate' : 'corporate', // Force corporate for lender admins
+        lenderCompany: isLenderAdmin ? currentUser?.company : '',
         registrationNumber: '',
         taxNumber: '',
         address: {
@@ -35,12 +38,12 @@ export function CreateCompanyDialog({ open, onClose, onSuccess }) {
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
 
-    // Fetch lender companies when dialog opens
+    // Fetch lender companies when dialog opens (only for super_user and non-lender admins)
     useEffect(() => {
-        if (open) {
+        if (open && !isLenderAdmin) {
             fetchLenderCompanies();
         }
-    }, [open]);
+    }, [open, isLenderAdmin]);
 
     const fetchLenderCompanies = async () => {
         setLoadingLenders(true);
@@ -60,8 +63,8 @@ export function CreateCompanyDialog({ open, onClose, onSuccess }) {
     const resetForm = () => {
         setFormData({
             name: '',
-            type: 'corporate',
-            lenderCompany: '',
+            type: isLenderAdmin ? 'corporate' : 'corporate',
+            lenderCompany: isLenderAdmin ? currentUser?.company : '',
             registrationNumber: '',
             taxNumber: '',
             address: {
@@ -134,8 +137,14 @@ export function CreateCompanyDialog({ open, onClose, onSuccess }) {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
                         </div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">Company Created Successfully!</h3>
-                        <p className="text-sm text-gray-500">The new company has been added to your system.</p>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            {isLenderAdmin ? 'Corporate Client Created Successfully!' : 'Company Created Successfully!'}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                            {isLenderAdmin 
+                                ? 'The new corporate client has been added and linked to your lender company.' 
+                                : 'The new company has been added to your system.'}
+                        </p>
                     </div>
                 </DialogContent>
             </Dialog>
@@ -146,7 +155,9 @@ export function CreateCompanyDialog({ open, onClose, onSuccess }) {
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Create New Company</DialogTitle>
+                    <DialogTitle>
+                        {isLenderAdmin ? 'Create New Corporate Client' : 'Create New Company'}
+                    </DialogTitle>
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -168,28 +179,50 @@ export function CreateCompanyDialog({ open, onClose, onSuccess }) {
                                         required
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Company Type *
-                                    </label>
-                                    <select
-                                        value={formData.type}
-                                        onChange={(e) => handleTypeChange(e.target.value)}
-                                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                        required
-                                    >
-                                        <option value="corporate">Corporate</option>
-                                        <option value="lender">Lender</option>
-                                    </select>
-                                </div>
+                                {/* Company Type - Only show for super_user */}
+                                {!isLenderAdmin && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Company Type *
+                                        </label>
+                                        <select
+                                            value={formData.type}
+                                            onChange={(e) => handleTypeChange(e.target.value)}
+                                            className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                            required
+                                        >
+                                            <option value="corporate">Corporate</option>
+                                            <option value="lender">Lender</option>
+                                        </select>
+                                    </div>
+                                )}
+
+                                {/* Lender Company Information for Lender Admins */}
+                                {isLenderAdmin && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Company Type
+                                        </label>
+                                        <div className="w-full p-3 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
+                                            Corporate (Client Company)
+                                        </div>
+                                        <p className="text-sm text-gray-500 mt-1">
+                                            As a lender admin, you can only create corporate client companies.
+                                        </p>
+                                    </div>
+                                )}
                                 
-                                {/* Lender Selection - Only show for corporate companies */}
-                                {formData.type === 'corporate' && (
+                                {/* Lender Selection - Show for corporate companies or all lender admin companies */}
+                                {(formData.type === 'corporate' || isLenderAdmin) && (
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Lender Company *
                                         </label>
-                                        {loadingLenders ? (
+                                        {isLenderAdmin ? (
+                                            <div className="w-full p-3 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
+                                                Your Lender Company (Auto-assigned)
+                                            </div>
+                                        ) : loadingLenders ? (
                                             <div className="w-full p-3 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
                                                 Loading lenders...
                                             </div>
@@ -208,9 +241,14 @@ export function CreateCompanyDialog({ open, onClose, onSuccess }) {
                                                 ))}
                                             </select>
                                         )}
-                                        {lenderCompanies.length === 0 && !loadingLenders && (
+                                        {!isLenderAdmin && lenderCompanies.length === 0 && !loadingLenders && (
                                             <p className="text-sm text-orange-600 mt-1">
                                                 No lender companies found. Create a lender company first.
+                                            </p>
+                                        )}
+                                        {isLenderAdmin && (
+                                            <p className="text-sm text-gray-500 mt-1">
+                                                This corporate company will be automatically linked to your lender company.
                                             </p>
                                         )}
                                     </div>

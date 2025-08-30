@@ -60,11 +60,14 @@ export default function DashboardPage() {
   // Check user role
   const isAdmin = currentUser && [
     ROLES.SUPER_USER,
-    ROLES.LENDER_ADMIN,
-    ROLES.CORPORATE_ADMIN
+    ROLES.LENDER_ADMIN
   ].includes(currentUser.role);
 
-  const isHR = currentUser && currentUser.role === ROLES.CORPORATE_HR;
+  const isHROrCorporateAdmin = currentUser && [
+    ROLES.CORPORATE_HR,
+    ROLES.CORPORATE_ADMIN
+  ].includes(currentUser.role);
+  
   const isCorporateUser = currentUser && currentUser.role === ROLES.CORPORATE_USER;
 
   useEffect(() => {
@@ -78,8 +81,8 @@ export default function DashboardPage() {
           } else {
             setError('Invalid response format from server');
           }
-        } else if (isHR) {
-          // Fetch HR dashboard stats
+        } else if (isHROrCorporateAdmin) {
+          // Fetch HR dashboard stats for both corporate_hr and corporate_admin
           const response = await api.get('/dashboard/hr-stats');
           if (response.data.success && response.data.data) {
             setHrStats(response.data.data);
@@ -105,7 +108,7 @@ export default function DashboardPage() {
     };
 
     fetchDashboardData();
-  }, [isAdmin, isHR, isCorporateUser]);
+  }, [isAdmin, isHROrCorporateAdmin, isCorporateUser]);
 
   if (loading) {
     return <div className="p-8">Loading dashboard...</div>;
@@ -237,12 +240,14 @@ export default function DashboardPage() {
     );
   }
 
-  // Render HR dashboard
-  if (isHR) {
+  // Render HR/Corporate Admin dashboard
+  if (isHROrCorporateAdmin) {
     return (
       <div className="p-8">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">HR Dashboard</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {currentUser.role === ROLES.CORPORATE_ADMIN ? 'Corporate Admin Dashboard' : 'HR Dashboard'}
+          </h1>
           <p className="text-gray-500 mt-2">
             Welcome, {currentUser?.firstName}! Manage {hrStats.company.name} employees and loan applications.
           </p>

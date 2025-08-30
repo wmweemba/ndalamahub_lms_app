@@ -588,3 +588,20 @@ and this project adheres to Semantic Versioning.
 - Implemented `getAvailableRoles()` filtering function for role-based restrictions
 - Fixed query structure to avoid MongoDB `$or` operator conflicts
 - Corporate HR users can now fully manage users within their company boundaries
+
+
+## [0.2.46] - 2025-08-30
+### Enhanced
+- **Corporate Admin Dashboard**:
+  - Updated Corporate Admin users to use the same comprehensive dashboard as Corporate HR users
+  - Removed Corporate Admin from basic admin dashboard and moved to company-specific HR dashboard
+  - Corporate Admin and Corporate HR now share the same dashboard functionality and API endpoints
+  - Both roles can access employee statistics, loan portfolio overview, pending approvals, and recent applications
+  - Enhanced dashboard title to reflect "Corporate Admin Dashboard" for corporate_admin role
+  - Consolidated dashboard logic to reduce code duplication between HR and Corporate Admin roles
+
+### Technical Notes
+- Updated `isAdmin` role check to only include `super_user` and `lender_admin` roles
+- Created `isHROrCorporateAdmin` role check for both `corporate_hr` and `corporate_admin` roles
+- Both Corporate Admin and Corporate HR users now use `/dashboard/hr-stats` API endpoint
+- Backend authorization already supported Corporate Admin access via role hierarchy system

@@ -80,7 +80,7 @@ export default function SettingsPage() {
       label: 'User Management',
       icon: Users,
       description: 'Manage users, roles, and permissions',
-      requiredRole: 'corporate_admin'
+      requiredRole: 'corporate_hr' // Changed from corporate_admin to corporate_hr
     },
     {
       id: 'company',

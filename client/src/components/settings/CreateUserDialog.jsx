@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import api from '@/utils/api';
+import { getCurrentUser } from '@/utils/roleUtils';
 import { X, User, Mail, Phone, Shield, Building2 } from 'lucide-react';
 
 export default function CreateUserDialog({ onClose, onUserCreated }) {
+  const currentUser = getCurrentUser();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [companies, setCompanies] = useState([]);
@@ -24,7 +26,15 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
 
   useEffect(() => {
     fetchCompanies();
-  }, []);
+    
+    // Pre-select current user's company for corporate roles
+    if (currentUser && (currentUser.role === 'corporate_hr' || currentUser.role === 'corporate_admin')) {
+      setFormData(prev => ({
+        ...prev,
+        company: currentUser.company
+      }));
+    }
+  }, [currentUser]);
 
   const fetchCompanies = async () => {
     try {
@@ -84,6 +94,22 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
     { value: 'lender_admin', label: 'Lender Admin', description: 'Lender administration' },
     { value: 'super_user', label: 'Super User', description: 'System administration' }
   ];
+
+  // Filter role options based on current user's role
+  const getAvailableRoles = () => {
+    if (!currentUser) return roleOptions;
+    
+    if (currentUser.role === 'corporate_hr') {
+      // Corporate HR can only create corporate_user and corporate_hr roles
+      return roleOptions.filter(role => ['corporate_user', 'corporate_hr'].includes(role.value));
+    } else if (currentUser.role === 'corporate_admin') {
+      // Corporate admin can create corporate roles but not lender roles
+      return roleOptions.filter(role => ['corporate_user', 'corporate_hr', 'corporate_admin'].includes(role.value));
+    }
+    
+    // Other roles get all options (lender_admin, super_user)
+    return roleOptions;
+  };
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -255,7 +281,7 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {roleOptions.map(option => (
+                  {getAvailableRoles().map(option => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -263,6 +289,11 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
                   {roleOptions.find(option => option.value === formData.role)?.description}
+                  {currentUser && (currentUser.role === 'corporate_hr' || currentUser.role === 'corporate_admin') && (
+                    <span className="block mt-1 text-xs text-blue-600">
+                      You can only create {currentUser.role === 'corporate_hr' ? 'corporate user and HR' : 'corporate'} roles.
+                    </span>
+                  )}
                 </p>
               </div>
 
@@ -276,15 +307,30 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
                   value={formData.company}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={currentUser && (currentUser.role === 'corporate_hr' || currentUser.role === 'corporate_admin')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   <option value="">Select Company</option>
-                  {companies.map(company => (
-                    <option key={company._id} value={company._id}>
-                      {company.name} ({company.type})
-                    </option>
-                  ))}
+                  {companies
+                    .filter(company => {
+                      // For corporate users, only show their own company
+                      if (currentUser && (currentUser.role === 'corporate_hr' || currentUser.role === 'corporate_admin')) {
+                        return company._id === currentUser.company;
+                      }
+                      // For other roles, show all companies
+                      return true;
+                    })
+                    .map(company => (
+                      <option key={company._id} value={company._id}>
+                        {company.name} ({company.type})
+                      </option>
+                    ))}
                 </select>
+                {currentUser && (currentUser.role === 'corporate_hr' || currentUser.role === 'corporate_admin') && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    You can only create users within your own company.
+                  </p>
+                )}
               </div>
 
               <div className="md:col-span-2">

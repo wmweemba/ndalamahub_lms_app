@@ -515,7 +515,8 @@ and this project adheres to Semantic Versioning.
   - Created clear separation between application, approval, and management functions
   - Enhanced data security with company-scoped access patterns
   - Improved user experience with role-appropriate feature visibility
-  - Streamlined HR workflow focusing on employee loan oversight and company analytics## TEST ENTRY ADDED VIA TERMINAL - 2025-08-29
+  - Streamlined HR workflow focusing on employee loan oversight and company analytics## TEST: GitHub Copilot successfully demonstrated file editing capability - 2025-08-29
+
 
 ## [0.2.43] - 2025-08-29
 ### Fixed
@@ -531,3 +532,59 @@ and this project adheres to Semantic Versioning.
 - Only super_user and lender_admin roles can now disburse loans
 - Corporate HR and Corporate Admin users will no longer see disbursement buttons
 - Backend API will reject disbursement requests from unauthorized roles
+
+
+## [0.2.44] - 2025-08-30
+### Fixed
+- **Reports Page Statistics**:
+  - Fixed reports page not displaying loan statistics for Corporate HR users
+  - Updated reports page to use same API endpoint as dashboard for HR users (`/dashboard/hr-stats`)
+  - Ensured consistent data display between dashboard and reports pages
+  - Added proper data transformation for HR-specific statistics
+
+### Enhanced
+- **Corporate HR User Management Access**:
+  - Added Settings button visibility for Corporate HR users in navigation bar
+  - Granted Corporate HR users access to User Management functionality in Settings
+  - Updated backend API permissions to allow Corporate HR users to manage company employees
+  - Enhanced role-based access control for user management operations (GET, POST, PATCH, DELETE /api/users)
+  - Added `canManageUsers()` and `canApplyForLoan()` helper functions to role utilities
+  - Corporate HR users can now create, edit, deactivate, and delete users within their company
+
+### Technical Notes
+- Updated `canAccessSettings()` role utility to include `corporate_hr` role
+- Changed User Management tab requirement from `corporate_admin` to `corporate_hr` in Settings page
+- Modified all user management API endpoints to use `authorizeMinRole('corporate_hr')` instead of `corporate_admin`
+- Reports page now dynamically selects appropriate API endpoint based on user role
+
+## [0.2.45] - 2025-08-30
+### Enhanced
+- **Corporate HR User Management Security**:
+  - Implemented comprehensive company-based user management restrictions for Corporate HR users
+  - Added company validation to prevent Corporate HR users from managing users outside their company
+  - Enhanced CreateUserDialog with role filtering to show only appropriate roles for Corporate HR (corporate_admin, corporate_hr, corporate_user)
+  - Added company dropdown restrictions - Corporate HR users can only assign users to their own company
+  - Updated EditUserDialog with same security restrictions and role filtering as CreateUserDialog
+  - Added client-side validation preventing Corporate HR from editing users outside their company
+  - Enhanced backend user management API with company validation for Corporate HR users
+
+### Fixed
+- **User Management API Stability**:
+  - Fixed MongoDB query structure in users endpoint that was causing "Failed to load users" error
+  - Resolved conflicting `$or` operators in company filtering and search functionality
+  - Restructured query using `$and` operator to properly combine search filters with company restrictions
+  - Removed excessive debug logging that was cluttering server output
+  - Ensured Corporate HR users can now successfully load and view users from their company
+
+### Security
+- **Role-Based Access Control**:
+  - Corporate HR users can only create users with roles: corporate_admin, corporate_hr, corporate_user
+  - Company selection is disabled for Corporate HR users in both create and edit dialogs
+  - Added frontend and backend validation to prevent cross-company user management
+  - Enhanced user management workflow with proper error messages for unauthorized operations
+
+### Technical Notes
+- Added `getCurrentUser()` integration to user management dialogs
+- Implemented `getAvailableRoles()` filtering function for role-based restrictions
+- Fixed query structure to avoid MongoDB `$or` operator conflicts
+- Corporate HR users can now fully manage users within their company boundaries

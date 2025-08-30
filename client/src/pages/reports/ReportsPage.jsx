@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import api from '@/utils/api';
 import ReportModal from '@/components/reports/ReportModal';
 import { BarChart3, PieChart, TrendingUp, FileText, Download, Eye, Calendar } from 'lucide-react';
+import { getCurrentUser } from '@/utils/roleUtils';
 
 export default function ReportsPage() {
+  const currentUser = getCurrentUser();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({
@@ -23,13 +25,54 @@ export default function ReportsPage() {
 
   const fetchReportsData = async () => {
     try {
-      const response = await api.get('/reports/overview');
+      console.log('🔍 Fetching reports data...');
+      
+      // Use the same endpoint as the dashboard for HR users
+      const endpoint = currentUser?.role === 'corporate_hr' ? '/dashboard/hr-stats' : '/reports/overview';
+      console.log('📊 Using endpoint:', endpoint);
+      
+      const response = await api.get(endpoint);
+      console.log('📊 Reports API Response:', response.data);
+      
       if (response.data.success) {
-        setStats(response.data.data);
+        console.log('✅ Reports data received:', response.data.data);
+        
+        if (currentUser?.role === 'corporate_hr') {
+          // Transform HR dashboard data to reports format
+          const hrData = response.data.data;
+          
+          // Create loans by status from HR data
+          const loansByStatus = {
+            pending_approval: hrData.loanSummary.pendingLoans || 0,
+            approved: hrData.loanSummary.approvedLoans || 0,
+            active: hrData.loanSummary.activeLoans || 0,
+            completed: hrData.loanSummary.completedLoans || 0,
+            rejected: hrData.loanSummary.rejectedLoans || 0
+          };
+          
+          // For companies by type, we can show the user's company info
+          const companiesByType = {
+            [hrData.company.type]: 1 // Show 1 company of the user's company type
+          };
+          
+          setStats({
+            loansByStatus,
+            companiesByType,
+            monthlyLoanTrends: [], // We'll keep this empty for now
+            paymentStatus: {} // We'll keep this empty for now
+          });
+        } else {
+          // Use reports data as-is for other roles
+          setStats(response.data.data);
+        }
+      } else {
+        console.log('❌ Reports API returned success: false');
+        setError('API returned unsuccessful response');
       }
     } catch (err) {
       setError('Failed to load reports data');
-      console.error('Reports data error:', err);
+      console.error('💥 Reports data error:', err);
+      console.error('Error response:', err.response?.data);
     } finally {
       setLoading(false);
     }
@@ -69,8 +112,21 @@ export default function ReportsPage() {
   }
 
   if (error) {
-    return <div className="p-8 text-red-600">{error}</div>;
+    return (
+      <div className="p-8">
+        <div className="text-red-600 mb-4">{error}</div>
+        <div className="text-sm text-gray-500">
+          <strong>Debug Info:</strong>
+          <pre>{JSON.stringify(stats, null, 2)}</pre>
+        </div>
+      </div>
+    );
   }
+
+  // Debug logging
+  console.log('📈 Current stats object:', stats);
+  console.log('📊 Loans by status:', stats.loansByStatus);
+  console.log('🏢 Companies by type:', stats.companiesByType);
 
   return (
     <div className="p-8">

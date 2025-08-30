@@ -18,8 +18,8 @@ const {
 
 // @route   GET /api/users
 // @desc    Get all users (with filters)
-// @access  Private (Admin roles only)
-router.get('/', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
+// @access  Private (Admin and HR roles)
+router.get('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
   try {
     const {
       page = 1,
@@ -35,21 +35,27 @@ router.get('/', authenticateToken, authorizeMinRole('corporate_admin'), async (r
     const filter = {};
 
     // Company filter based on user role
+    let companyFilter = {};
     if (req.user.role !== 'super_user') {
       if (req.user.role === 'lender_admin') {
         // Lender admins can see users from their company and corporate clients
         const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
-        filter.$or = [
-          { company: req.user.company },
-          { company: { $in: corporateCompanies.map(c => c._id) } }
-        ];
+        companyFilter = {
+          $or: [
+            { company: req.user.company },
+            { company: { $in: corporateCompanies.map(c => c._id) } }
+          ]
+        };
       } else {
         // Other roles see only their company
-        filter.company = req.user.company;
+        companyFilter = { company: req.user.company };
       }
     } else if (companyId) {
-      filter.company = companyId;
+      companyFilter = { company: companyId };
     }
+
+    // Apply company filter
+    filter = { ...filter, ...companyFilter };
 
     // Role filter
     if (role) {
@@ -68,13 +74,21 @@ router.get('/', authenticateToken, authorizeMinRole('corporate_admin'), async (r
 
     // Search filter
     if (search) {
-      filter.$or = [
+      const searchConditions = [
         { firstName: { $regex: search, $options: 'i' } },
         { lastName: { $regex: search, $options: 'i' } },
         { username: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
         { employeeId: { $regex: search, $options: 'i' } }
       ];
+
+      // Combine search with existing filters
+      filter = {
+        $and: [
+          filter, // existing filters including company
+          { $or: searchConditions }
+        ]
+      };
     }
 
     // Calculate pagination
@@ -155,8 +169,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
 // @route   POST /api/users
 // @desc    Create new user
-// @access  Private (Admin roles only)
-router.post('/', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
+// @access  Private (Admin and HR roles)
+router.post('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
     try {
         const {
             firstName,
@@ -186,6 +200,47 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_admin'), async (
                 success: false,
                 message: `Company not found with ID: ${company}` 
             });
+        }
+
+        // Company access validation - corporate users can only create users in their own company
+        if (req.user.role === 'corporate_admin' || req.user.role === 'corporate_hr') {
+            if (company !== req.user.company.toString()) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'You can only create users within your own company'
+                });
+            }
+            
+            // Corporate users cannot create lender roles
+            const lenderRoles = ['super_user', 'lender_admin', 'lender_user'];
+            if (lenderRoles.includes(role)) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'You cannot create users with lender roles'
+                });
+            }
+            
+            // Corporate HR can only create specific roles
+            if (req.user.role === 'corporate_hr') {
+                const allowedRoles = ['corporate_user', 'corporate_hr'];
+                if (!allowedRoles.includes(role)) {
+                    return res.status(403).json({
+                        success: false,
+                        message: 'Corporate HR can only create corporate_user and corporate_hr roles'
+                    });
+                }
+            }
+            
+            // Corporate admin can create corporate roles but not lender roles
+            if (req.user.role === 'corporate_admin') {
+                const allowedRoles = ['corporate_user', 'corporate_hr', 'corporate_admin'];
+                if (!allowedRoles.includes(role)) {
+                    return res.status(403).json({
+                        success: false,
+                        message: 'Corporate admin can only create corporate roles'
+                    });
+                }
+            }
         }
 
         // Check if username already exists
@@ -250,8 +305,8 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_admin'), async (
 
 // @route   PATCH /api/users/:id/status
 // @desc    Toggle user active status
-// @access  Private (Admin roles only)
-router.patch('/:id/status', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
+// @access  Private (Admin and HR roles)
+router.patch('/:id/status', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
   try {
     const { id } = req.params;
     const { isActive } = req.body;
@@ -498,8 +553,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
 // @route   DELETE /api/users/:id
 // @desc    Delete user
-// @access  Private (Admin roles only)
-router.delete('/:id', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
+// @access  Private (Admin and HR roles)
+router.delete('/:id', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
   try {
     const { id } = req.params;
 

@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import api from '@/utils/api';
+import { getCurrentUser } from '@/utils/roleUtils';
 import { X, User, Mail, Phone, Shield, Building2 } from 'lucide-react';
 
 export default function EditUserDialog({ user, onClose, onUserUpdated }) {
+  const currentUser = getCurrentUser();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [companies, setCompanies] = useState([]);
@@ -43,6 +45,13 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
       setLoading(true);
       setError(null);
 
+      // Validate that corporate users can only edit users within their company
+      if ((currentUser.role === 'corporate_admin' || currentUser.role === 'corporate_hr') && 
+          user.company && currentUser.company !== user.company._id) {
+        setError('You can only edit users within your company');
+        return;
+      }
+
       const response = await api.put(`/users/${user._id}`, formData);
 
       if (response.data.success) {
@@ -64,14 +73,38 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
     }));
   };
 
-  const roleOptions = [
-    { value: 'corporate_user', label: 'Corporate User', description: 'Basic employee access' },
-    { value: 'corporate_hr', label: 'Corporate HR', description: 'HR management access' },
-    { value: 'corporate_admin', label: 'Corporate Admin', description: 'Company administration' },
-    { value: 'lender_user', label: 'Lender User', description: 'Lender employee access' },
-    { value: 'lender_admin', label: 'Lender Admin', description: 'Lender administration' },
-    { value: 'super_user', label: 'Super User', description: 'System administration' }
-  ];
+  const getAvailableRoles = () => {
+    const allRoles = [
+      { value: 'super_user', label: 'Super User', description: 'System administration' },
+      { value: 'lender_admin', label: 'Lender Admin', description: 'Lender administration' },
+      { value: 'corporate_admin', label: 'Corporate Admin', description: 'Company administration' },
+      { value: 'corporate_hr', label: 'Corporate HR', description: 'HR management access' },
+      { value: 'lender_user', label: 'Lender User', description: 'Lender employee access' },
+      { value: 'corporate_user', label: 'Corporate User', description: 'Basic employee access' }
+    ];
+
+    // Super user can assign any role
+    if (currentUser.role === 'super_user') {
+      return allRoles;
+    }
+
+    // Lender admin can assign all roles except super_user
+    if (currentUser.role === 'lender_admin') {
+      return allRoles.filter(role => role.value !== 'super_user');
+    }
+
+    // Corporate admin and HR can only assign corporate roles
+    if (currentUser.role === 'corporate_admin' || currentUser.role === 'corporate_hr') {
+      return allRoles.filter(role => 
+        ['corporate_admin', 'corporate_hr', 'corporate_user'].includes(role.value)
+      );
+    }
+
+    // Other roles cannot assign any roles
+    return [];
+  };
+
+  const roleOptions = getAvailableRoles();
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -237,7 +270,8 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                   value={formData.company}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={currentUser.role === 'corporate_admin' || currentUser.role === 'corporate_hr'}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   <option value="">Select Company</option>
                   {companies.map(company => (
@@ -246,6 +280,11 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                     </option>
                   ))}
                 </select>
+                {(currentUser.role === 'corporate_admin' || currentUser.role === 'corporate_hr') && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    You can only edit users within your company
+                  </p>
+                )}
               </div>
 
               <div className="md:col-span-2">

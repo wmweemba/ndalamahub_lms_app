@@ -61,6 +61,24 @@ export const canAccessSettings = (role) => {
     return [
         ROLES.SUPER_USER,
         ROLES.LENDER_ADMIN,
-        ROLES.CORPORATE_ADMIN
+        ROLES.CORPORATE_ADMIN,
+        ROLES.CORPORATE_HR
+    ].includes(role);
+};
+
+// Check if user can manage other users
+export const canManageUsers = (role) => {
+    return [
+        ROLES.SUPER_USER,
+        ROLES.LENDER_ADMIN,
+        ROLES.CORPORATE_ADMIN,
+        ROLES.CORPORATE_HR
+    ].includes(role);
+};
+
+// Check if user can apply for loans
+export const canApplyForLoan = (role) => {
+    return [
+        ROLES.CORPORATE_USER
     ].includes(role);
 };

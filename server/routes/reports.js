@@ -48,6 +48,23 @@ router.get('/overview', authenticateToken, authorizeMinRole('corporate_hr'), asy
     console.log('User role:', req.user.role);
     console.log('User company:', req.user.company);
 
+    // First, let's get all loans to see what's in the database
+    const allLoans = await Loan.find({}).populate('company', 'name').populate('applicant', 'firstName lastName');
+    console.log('📊 Total loans in database:', allLoans.length);
+    
+    if (allLoans.length > 0) {
+      console.log('Sample loan companies:');
+      allLoans.slice(0, 3).forEach((loan, index) => {
+        console.log(`Loan ${index + 1}:`, {
+          id: loan._id,
+          status: loan.status,
+          companyId: loan.company?._id,
+          companyName: loan.company?.name,
+          applicant: loan.applicant ? `${loan.applicant.firstName} ${loan.applicant.lastName}` : 'No applicant'
+        });
+      });
+    }
+
     // Build company filter based on user role
     let companyFilter = {};
     if (req.user.role !== 'super_user') {
@@ -58,8 +75,43 @@ router.get('/overview', authenticateToken, authorizeMinRole('corporate_hr'), asy
           { company: { $in: corporateCompanies.map(c => c._id) } }
         ];
       } else if (req.user.role === 'corporate_admin' || req.user.role === 'corporate_hr') {
-        // Corporate admin and HR can only see their company's data
-        companyFilter.company = req.user.company;
+        // Get user's company details to determine if it's a lender or corporate company
+        const userCompany = await Company.findById(req.user.company);
+        console.log('🏢 User company details:', userCompany);
+        
+        if (userCompany.type === 'lender') {
+          // If user belongs to a lender company, show loans where lenderCompany matches
+          // Also include loans from corporate companies that this lender serves
+          const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
+          console.log('🏢 Corporate companies served by this lender:', corporateCompanies.length);
+          
+          companyFilter.$or = [
+            { lenderCompany: req.user.company },
+            { company: { $in: corporateCompanies.map(c => c._id) } }
+          ];
+        } else {
+          // If user belongs to a corporate company, show loans where company matches
+          companyFilter.company = req.user.company;
+        }
+        
+        console.log('🔍 HR/Admin company filter - looking for loans with filter:', companyFilter);
+        
+        // Let's also check what loans match this filter
+        const matchingLoans = await Loan.find(companyFilter).populate('company', 'name').populate('lenderCompany', 'name');
+        console.log('📈 Loans matching company filter:', matchingLoans.length);
+        if (matchingLoans.length > 0) {
+          console.log('Matching loan details:');
+          matchingLoans.forEach((loan, index) => {
+            console.log(`Match ${index + 1}:`, {
+              id: loan._id,
+              status: loan.status,
+              companyId: loan.company?._id,
+              companyName: loan.company?.name,
+              lenderCompanyId: loan.lenderCompany?._id,
+              lenderCompanyName: loan.lenderCompany?.name
+            });
+          });
+        }
       }
     }
 
@@ -70,11 +122,15 @@ router.get('/overview', authenticateToken, authorizeMinRole('corporate_hr'), asy
       { $match: companyFilter },
       { $group: { _id: '$status', count: { $sum: 1 } } }
     ]);
+    
+    console.log('📊 Loans by status aggregation result:', loansByStatus);
 
     const loansByStatusObj = {};
     loansByStatus.forEach(item => {
       loansByStatusObj[item._id] = item.count;
     });
+    
+    console.log('📈 Processed loans by status object:', loansByStatusObj);
 
     // Get companies by type
     let companiesFilter = {};
@@ -86,8 +142,22 @@ router.get('/overview', authenticateToken, authorizeMinRole('corporate_hr'), asy
             { lenderCompany: req.user.company }
           ]
         };
-      } else {
-        companiesFilter = { _id: req.user.company };
+      } else if (req.user.role === 'corporate_admin' || req.user.role === 'corporate_hr') {
+        // Get user's company details to determine filtering approach
+        const userCompany = await Company.findById(req.user.company);
+        
+        if (userCompany.type === 'lender') {
+          // If user belongs to a lender company, show both the lender and its corporate companies
+          companiesFilter = {
+            $or: [
+              { _id: req.user.company },
+              { lenderCompany: req.user.company }
+            ]
+          };
+        } else {
+          // If user belongs to a corporate company, show only their company
+          companiesFilter = { _id: req.user.company };
+        }
       }
     }
 
@@ -95,11 +165,15 @@ router.get('/overview', authenticateToken, authorizeMinRole('corporate_hr'), asy
       { $match: { isActive: true, ...companiesFilter } },
       { $group: { _id: '$type', count: { $sum: 1 } } }
     ]);
+    
+    console.log('🏢 Companies by type aggregation result:', companiesByType);
 
     const companiesByTypeObj = {};
     companiesByType.forEach(item => {
       companiesByTypeObj[item._id] = item.count;
     });
+    
+    console.log('🏢 Processed companies by type object:', companiesByTypeObj);
 
     // Get monthly loan trends (last 6 months)
     const sixMonthsAgo = new Date();
@@ -146,14 +220,18 @@ router.get('/overview', authenticateToken, authorizeMinRole('corporate_hr'), asy
       };
     });
 
+    const responseData = {
+      loansByStatus: loansByStatusObj,
+      companiesByType: companiesByTypeObj,
+      monthlyLoanTrends: monthlyTrends,
+      paymentStatus: paymentStatusObj
+    };
+    
+    console.log('📋 Final response data:', responseData);
+
     res.json({
       success: true,
-      data: {
-        loansByStatus: loansByStatusObj,
-        companiesByType: companiesByTypeObj,
-        monthlyLoanTrends: monthlyTrends,
-        paymentStatus: paymentStatusObj
-      }
+      data: responseData
     });
 
   } catch (error) {

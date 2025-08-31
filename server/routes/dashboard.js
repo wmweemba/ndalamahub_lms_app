@@ -7,7 +7,7 @@ const { authenticateToken, authorizeMinRole } = require('../middleware/auth');
 
 // @route   GET /api/dashboard/stats
 // @desc    Get dashboard statistics
-// @access  Private (Admin and above)
+// @access  Private (Corporate Admin and above)
 router.get('/stats', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
     try {
         let filter = {};
@@ -61,6 +61,160 @@ router.get('/stats', authenticateToken, authorizeMinRole('corporate_admin'), asy
         res.status(500).json({
             success: false,
             message: 'Error fetching dashboard statistics',
+            error: error.message
+        });
+    }
+});
+
+// @route   GET /api/dashboard/lender-stats
+// @desc    Get lender-specific dashboard statistics
+// @access  Private (Lender Admin and above)
+router.get('/lender-stats', authenticateToken, authorizeMinRole('lender_admin'), async (req, res) => {
+    try {
+        console.log('=== Lender dashboard stats request ===');
+        console.log('User:', req.user);
+        console.log('User company (lender):', req.user.company);
+
+        // Get lender company information
+        const lenderCompany = await Company.findById(req.user.company);
+        if (!lenderCompany) {
+            return res.status(404).json({
+                success: false,
+                message: 'Lender company not found'
+            });
+        }
+
+        // Get all corporate companies linked to this lender
+        const corporateClients = await Company.find({
+            lenderCompany: req.user.company,
+            isActive: true,
+            type: 'corporate'
+        });
+
+        console.log('Found corporate clients:', corporateClients.length);
+
+        // Get all corporate client IDs
+        const corporateClientIds = corporateClients.map(client => client._id);
+
+        // Get active users from all corporate clients
+        const activeUsers = await User.countDocuments({
+            company: { $in: corporateClientIds },
+            isActive: true
+        });
+
+        // Get users from the lender company itself
+        const lenderUsers = await User.countDocuments({
+            company: req.user.company,
+            isActive: true
+        });
+
+        // Total active users (lender + all corporate clients)
+        const totalActiveUsers = activeUsers + lenderUsers;
+
+        // Get all loans for corporate clients and lender company
+        const allLoans = await Loan.find({
+            $or: [
+                { company: { $in: corporateClientIds } }, // Loans from corporate clients
+                { lenderCompany: req.user.company },       // Loans processed by this lender
+                { company: req.user.company }              // Direct loans from lender company
+            ]
+        }).populate('applicant', 'firstName lastName')
+          .populate('company', 'name type');
+
+        console.log('Found total loans:', allLoans.length);
+
+        // Calculate loan statistics
+        const totalLoans = allLoans.length;
+        const activeLoans = allLoans.filter(loan => loan.status === 'active').length;
+        const pendingLoans = allLoans.filter(loan => 
+            loan.status === 'pending' || 
+            loan.status === 'pending_approval' || 
+            loan.status === 'pending_documents' || 
+            loan.status === 'under_review' ||
+            loan.status === 'pending_disbursement'
+        ).length;
+        const approvedLoans = allLoans.filter(loan => loan.status === 'approved').length;
+        const disbursedLoans = allLoans.filter(loan => loan.status === 'disbursed').length;
+        const completedLoans = allLoans.filter(loan => loan.status === 'completed').length;
+        const rejectedLoans = allLoans.filter(loan => loan.status === 'rejected').length;
+
+        // Calculate loan amounts
+        const totalLoanAmount = allLoans.reduce((sum, loan) => sum + loan.amount, 0);
+        const activeLoanAmount = allLoans
+            .filter(loan => loan.status === 'active')
+            .reduce((sum, loan) => sum + loan.amount, 0);
+        const pendingLoanAmount = allLoans
+            .filter(loan => 
+                loan.status === 'pending' || 
+                loan.status === 'pending_approval' || 
+                loan.status === 'pending_documents' || 
+                loan.status === 'under_review' ||
+                loan.status === 'pending_disbursement'
+            )
+            .reduce((sum, loan) => sum + loan.amount, 0);
+
+        // Get recent loan applications (last 10)
+        const recentApplications = allLoans
+            .sort((a, b) => new Date(b.applicationDate) - new Date(a.applicationDate))
+            .slice(0, 10)
+            .map(loan => ({
+                id: loan._id,
+                loanNumber: loan.loanNumber,
+                applicantName: loan.applicant ? `${loan.applicant.firstName} ${loan.applicant.lastName}` : 'N/A',
+                companyName: loan.company ? loan.company.name : 'N/A',
+                amount: loan.amount,
+                status: loan.status,
+                applicationDate: loan.applicationDate,
+                purpose: loan.purpose
+            }));
+
+        // Get pending approvals that need attention
+        const pendingApprovals = allLoans.filter(loan => 
+            loan.status === 'pending' || 
+            loan.status === 'pending_approval' || 
+            loan.status === 'pending_documents' || 
+            loan.status === 'under_review'
+        );
+
+        // Get loans ready for disbursement
+        const readyForDisbursement = allLoans.filter(loan => 
+            loan.status === 'approved'
+        );
+
+        res.json({
+            success: true,
+            data: {
+                lenderCompany: {
+                    name: lenderCompany.name,
+                    type: lenderCompany.type
+                },
+                portfolioSummary: {
+                    activeCompanies: corporateClients.length,
+                    activeCorporates: corporateClients.length, // Same as activeCompanies for lenders
+                    activeUsers: totalActiveUsers,
+                    totalLoans,
+                    activeLoans,
+                    pendingLoans,
+                    approvedLoans,
+                    disbursedLoans,
+                    completedLoans,
+                    rejectedLoans,
+                    totalLoanAmount,
+                    activeLoanAmount,
+                    pendingLoanAmount
+                },
+                recentApplications,
+                pendingApprovals: pendingApprovals.length,
+                readyForDisbursement: readyForDisbursement.length,
+                needsAttention: pendingApprovals.length + readyForDisbursement.length
+            }
+        });
+
+    } catch (error) {
+        console.error('Lender dashboard stats error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching lender dashboard statistics',
             error: error.message
         });
     }

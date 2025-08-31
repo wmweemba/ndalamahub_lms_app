@@ -645,3 +645,46 @@ and this project adheres to Semantic Versioning.
 - Companies API returns companies array directly in response.data, not wrapped in success/data structure
 - Added proper error handling to prevent crashes when companies fetch fails
 - Improved user experience with clear messaging when no companies are available
+
+## [0.2.49] - 2025-08-31
+### Enhanced
+- **Lender Admin Dashboard**:
+  - Implemented comprehensive lender admin dashboard with portfolio-specific statistics
+  - Created dedicated `/dashboard/lender-stats` API endpoint with lender company portfolio filtering
+  - Added portfolio overview cards showing active companies, loans, users, and pending actions
+  - Integrated portfolio breakdown with loan status visualization and progress bars
+  - Added quick action buttons for disbursing loans, managing corporate clients, and generating reports
+  - Created recent applications table showing loan applications from linked corporate clients
+  - Enhanced dashboard with lender company branding and welcome message
+
+### Security  
+- **Role-Based Company Access Control**:
+  - Implemented strict company filtering for Lender Admin users in companies management
+  - Restricted lender admins to only view their own lender company and linked corporate clients
+  - Prevented lender admins from viewing other lender companies or unlinked corporate companies
+  - Added company creation restrictions - lender admins can only create corporate companies linked to their lender
+  - Enhanced company update permissions - lender admins can only edit their own company and linked clients
+  - Restricted company deletion - lender admins can only delete corporate companies they manage
+  - Maintained super user access to all companies for system administration
+
+### Fixed
+- **Companies Management Security**:
+  - Fixed security vulnerability where lender admins could view all companies regardless of ownership
+  - Added proper role-based filtering in GET `/companies` endpoint
+  - Enhanced authorization checks across all company CRUD operations
+  - Added company relationship validation for lender admin operations
+  - Improved error messages for unauthorized company access attempts
+
+### Technical Notes
+- Added complex MongoDB queries with `$or` operators for lender company and corporate client filtering
+- Enhanced company creation workflow with automatic lenderCompany linking for lender admins
+- Implemented corporateClients array updates when creating/deleting corporate companies
+- Corporate admin and HR users restricted to view only their own company
+- Super user maintains full system access across all companies and lenders
+
+### API Changes
+- New endpoint: `GET /dashboard/lender-stats` - Returns lender-specific portfolio statistics
+- Modified endpoint: `GET /companies` - Now returns filtered companies based on user role
+- Modified endpoint: `POST /companies` - Enhanced authorization and automatic linking for lender admins
+- Modified endpoint: `PUT /companies/:id` - Added role-based edit restrictions
+- Modified endpoint: `DELETE /companies/:id` - Added role-based deletion restrictions

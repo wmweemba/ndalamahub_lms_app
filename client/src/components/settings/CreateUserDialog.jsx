@@ -39,11 +39,12 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
   const fetchCompanies = async () => {
     try {
       const response = await api.get('/companies');
-      if (response.data.success) {
-        setCompanies(response.data.data);
-      }
+      // Companies API returns companies array directly in response.data
+      console.log('Fetched companies:', response.data);
+      setCompanies(response.data || []);
     } catch (err) {
       console.error('Failed to fetch companies:', err);
+      setCompanies([]); // Set empty array on error
     }
   };
 
@@ -311,20 +312,24 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   <option value="">Select Company</option>
-                  {companies
-                    .filter(company => {
-                      // For corporate users, only show their own company
-                      if (currentUser && (currentUser.role === 'corporate_hr' || currentUser.role === 'corporate_admin')) {
-                        return company._id === currentUser.company;
-                      }
-                      // For other roles, show all companies
-                      return true;
-                    })
-                    .map(company => (
-                      <option key={company._id} value={company._id}>
-                        {company.name} ({company.type})
-                      </option>
-                    ))}
+                  {companies.length === 0 ? (
+                    <option value="" disabled>No companies available</option>
+                  ) : (
+                    companies
+                      .filter(company => {
+                        // For corporate users, only show their own company
+                        if (currentUser && (currentUser.role === 'corporate_hr' || currentUser.role === 'corporate_admin')) {
+                          return company._id === currentUser.company;
+                        }
+                        // For other roles, show all companies
+                        return true;
+                      })
+                      .map(company => (
+                        <option key={company._id} value={company._id}>
+                          {company.name} ({company.type})
+                        </option>
+                      ))
+                  )}
                 </select>
                 {currentUser && (currentUser.role === 'corporate_hr' || currentUser.role === 'corporate_admin') && (
                   <p className="text-xs text-gray-500 mt-1">

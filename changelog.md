@@ -630,3 +630,18 @@ and this project adheres to Semantic Versioning.
 - Conditional form rendering based on user role
 - Automatic pre-population of lender company field for lender admins
 - Enhanced user experience with role-appropriate messaging and constraints
+
+
+## [0.2.48] - 2025-08-31
+### Fixed
+- **User Creation Company Dropdown**:
+  - Fixed empty company dropdown in CreateUserDialog by correcting API response structure handling
+  - Updated fetchCompanies function to properly access companies array from response.data
+  - Added error handling and fallback for empty company list
+  - Enhanced dropdown with "No companies available" message when appropriate
+  - Added debugging logs for better troubleshooting
+
+### Technical Notes
+- Companies API returns companies array directly in response.data, not wrapped in success/data structure
+- Added proper error handling to prevent crashes when companies fetch fails
+- Improved user experience with clear messaging when no companies are available

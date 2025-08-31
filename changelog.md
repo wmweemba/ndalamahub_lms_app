@@ -688,3 +688,28 @@ and this project adheres to Semantic Versioning.
 - Modified endpoint: `POST /companies` - Enhanced authorization and automatic linking for lender admins
 - Modified endpoint: `PUT /companies/:id` - Added role-based edit restrictions
 - Modified endpoint: `DELETE /companies/:id` - Added role-based deletion restrictions
+
+## [0.2.50] - 2025-08-31
+### Fixed
+- **Report Export Functionality**:
+  - Implemented proper PDF and Excel export functionality using PDFKit and ExcelJS libraries
+  - Fixed silent failure of export buttons by replacing placeholder JSON responses with actual file generation
+  - Added proper binary response handling with correct MIME types and Content-Disposition headers
+  - Enhanced frontend blob handling with improved error messaging and file naming conventions
+  - Fixed download trigger mechanism with proper URL creation and cleanup
+
+- **Loan Disbursement System**:
+  - Fixed critical loan disbursement issue where approved loans could not be disbursed by lender admins
+  - Simplified `canBeDisbursed()` method to only check for 'approved' status, removing strict document requirements
+  - Removed duplicate `canBeDisbursed()` method definition that was causing conflicts
+  - Enhanced disbursement access control to properly validate lender company relationships
+  - Added comprehensive debugging logs for disbursement status and access validation
+  - Updated loan status to change from 'approved' to 'active' after successful disbursement
+  - Fixed lenderCompany population in disbursement endpoint for proper authorization checks
+
+### Technical Notes
+- Added `pdfkit` and `exceljs` dependencies for document generation
+- Export endpoints now generate actual PDF and Excel files instead of JSON responses
+- Disbursement workflow now properly validates lender company relationships
+- Enhanced error messages provide better debugging information for disbursement failures
+- All three report types (active loans, overdue loans, upcoming payments) support both PDF and Excel export formats

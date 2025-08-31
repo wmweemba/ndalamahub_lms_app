@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const PDFDocument = require('pdfkit');
+const ExcelJS = require('exceljs');
 const Loan = require('../models/Loan');
 const User = require('../models/User');
 const Company = require('../models/Company');
@@ -439,50 +441,357 @@ router.get('/:type/export/:format', authenticateToken, authorizeMinRole('corpora
   try {
     const { type, format } = req.params;
     
-    // For now, return JSON data that the frontend can handle
-    // In a real implementation, you would use libraries like:
-    // - PDFKit or Puppeteer for PDF generation
-    // - ExcelJS for Excel generation
+    console.log(`Export request: type=${type}, format=${format}`);
     
+    // Build company filter based on user role
+    let companyFilter = {};
+    if (req.user.role !== 'super_user') {
+      if (req.user.role === 'lender_admin') {
+        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
+        companyFilter.$or = [
+          { lenderCompany: req.user.company },
+          { company: { $in: corporateCompanies.map(c => c._id) } }
+        ];
+      } else {
+        companyFilter.company = req.user.company;
+      }
+    }
+
     let data = [];
+    let reportTitle = '';
     
-    // Get the same data as the report endpoints
+    // Get the appropriate data based on report type
     switch (type) {
       case 'active-loans':
-        const activeResponse = await new Promise((resolve, reject) => {
-          // Simulate the active-loans endpoint logic
-          router.stack.find(layer => layer.route.path === '/active-loans').route.stack[0].handle(req, {
-            json: (result) => resolve(result)
-          }, () => {});
+        reportTitle = 'Active Loans Report';
+        const activeLoans = await Loan.find({ 
+          status: { $in: ['active', 'disbursed'] },
+          ...companyFilter 
+        })
+        .populate('applicant', 'firstName lastName phone email')
+        .populate('company', 'name')
+        .populate('lenderCompany', 'name')
+        .sort({ disbursedAt: -1 });
+
+        data = activeLoans.map(loan => {
+          const nextPayment = loan.repaymentSchedule?.find(payment => payment.status === 'pending');
+          return {
+            loanNumber: loan.loanNumber,
+            borrower: `${loan.applicant?.firstName || ''} ${loan.applicant?.lastName || ''}`.trim(),
+            company: loan.company?.name || '',
+            amount: loan.amount,
+            monthlyPayment: loan.monthlyPayment,
+            nextPaymentDate: nextPayment?.dueDate || null,
+            status: loan.status
+          };
         });
-        data = activeResponse.data;
         break;
         
       case 'overdue-loans':
-        // Similar for overdue loans
+        reportTitle = 'Overdue Loans Report';
+        const overdueLoans = await Loan.find({ 
+          status: { $in: ['in_arrears', 'defaulted'] },
+          ...companyFilter 
+        })
+        .populate('applicant', 'firstName lastName phone email')
+        .populate('company', 'name')
+        .populate('lenderCompany', 'name')
+        .sort({ 'paymentTracking.daysInArrears': -1 });
+
+        data = overdueLoans.map(loan => {
+          const overduePayments = loan.repaymentSchedule?.filter(payment => 
+            payment.status === 'overdue' && new Date() > new Date(payment.dueDate)
+          ) || [];
+          
+          const overdueAmount = overduePayments.reduce((sum, payment) => 
+            sum + (payment.amount - (payment.paidAmount || 0)), 0
+          );
+
+          const lastPayment = loan.repaymentSchedule?.filter(payment => payment.status === 'paid')
+            .sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt))[0];
+
+          return {
+            loanNumber: loan.loanNumber,
+            borrower: `${loan.applicant?.firstName || ''} ${loan.applicant?.lastName || ''}`.trim(),
+            company: loan.company?.name || '',
+            overdueAmount: overdueAmount,
+            daysOverdue: loan.paymentTracking?.daysInArrears || 0,
+            lastPaymentDate: lastPayment?.paidAt || null,
+            status: loan.status
+          };
+        });
         break;
         
       case 'upcoming-payments':
-        // Similar for upcoming payments
+        reportTitle = 'Upcoming Payments Report';
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+        const loansForPayments = await Loan.find({ 
+          status: { $in: ['active', 'disbursed'] },
+          ...companyFilter 
+        })
+        .populate('applicant', 'firstName lastName phone email')
+        .populate('company', 'name')
+        .populate('lenderCompany', 'name');
+
+        const upcomingPayments = [];
+        loansForPayments.forEach(loan => {
+          const upcomingInstallments = loan.repaymentSchedule?.filter(payment => 
+            payment.status === 'pending' && 
+            new Date(payment.dueDate) <= thirtyDaysFromNow
+          ) || [];
+
+          upcomingInstallments.forEach(installment => {
+            const daysUntilDue = Math.ceil((new Date(installment.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
+            
+            upcomingPayments.push({
+              loanNumber: loan.loanNumber,
+              borrower: `${loan.applicant?.firstName || ''} ${loan.applicant?.lastName || ''}`.trim(),
+              company: loan.company?.name || '',
+              amount: installment.amount,
+              dueDate: installment.dueDate,
+              daysUntilDue: daysUntilDue,
+              contact: loan.applicant?.phone || ''
+            });
+          });
+        });
+
+        data = upcomingPayments.sort((a, b) => a.daysUntilDue - b.daysUntilDue);
         break;
+        
+      default:
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid report type'
+        });
     }
 
-    // Set appropriate headers based on format
     if (format === 'pdf') {
+      // Generate PDF
+      const doc = new PDFDocument({ margin: 50 });
+      const filename = `${type}-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      // Set response headers
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=${type}-report.pdf`);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      
+      // Pipe the PDF to the response
+      doc.pipe(res);
+      
+      // Add title
+      doc.fontSize(20).text(reportTitle, 50, 50);
+      doc.fontSize(12).text(`Generated on ${new Date().toLocaleDateString()}`, 50, 80);
+      doc.text(`Total Records: ${data.length}`, 50, 95);
+      
+      // Add content based on report type
+      let yPosition = 130;
+      
+      if (data.length === 0) {
+        doc.text('No data available for this report.', 50, yPosition);
+      } else {
+        // Add table headers and data based on report type
+        if (type === 'active-loans') {
+          // Headers
+          doc.fontSize(10).font('Helvetica-Bold');
+          doc.text('Loan Number', 50, yPosition);
+          doc.text('Borrower', 150, yPosition);
+          doc.text('Company', 250, yPosition);
+          doc.text('Amount', 350, yPosition);
+          doc.text('Monthly Payment', 420, yPosition);
+          doc.text('Status', 500, yPosition);
+          
+          yPosition += 20;
+          doc.font('Helvetica');
+          
+          data.forEach((loan, index) => {
+            if (yPosition > 700) {
+              doc.addPage();
+              yPosition = 50;
+            }
+            
+            doc.text(loan.loanNumber || '', 50, yPosition);
+            doc.text(loan.borrower || '', 150, yPosition);
+            doc.text(loan.company || '', 250, yPosition);
+            doc.text(`K${(loan.amount || 0).toLocaleString()}`, 350, yPosition);
+            doc.text(`K${(loan.monthlyPayment || 0).toLocaleString()}`, 420, yPosition);
+            doc.text(loan.status || '', 500, yPosition);
+            
+            yPosition += 15;
+          });
+        } else if (type === 'overdue-loans') {
+          // Headers
+          doc.fontSize(10).font('Helvetica-Bold');
+          doc.text('Loan Number', 50, yPosition);
+          doc.text('Borrower', 150, yPosition);
+          doc.text('Company', 250, yPosition);
+          doc.text('Overdue Amount', 350, yPosition);
+          doc.text('Days Overdue', 450, yPosition);
+          doc.text('Status', 520, yPosition);
+          
+          yPosition += 20;
+          doc.font('Helvetica');
+          
+          data.forEach((loan, index) => {
+            if (yPosition > 700) {
+              doc.addPage();
+              yPosition = 50;
+            }
+            
+            doc.text(loan.loanNumber || '', 50, yPosition);
+            doc.text(loan.borrower || '', 150, yPosition);
+            doc.text(loan.company || '', 250, yPosition);
+            doc.text(`K${(loan.overdueAmount || 0).toLocaleString()}`, 350, yPosition);
+            doc.text(`${loan.daysOverdue || 0} days`, 450, yPosition);
+            doc.text(loan.status || '', 520, yPosition);
+            
+            yPosition += 15;
+          });
+        } else if (type === 'upcoming-payments') {
+          // Headers
+          doc.fontSize(10).font('Helvetica-Bold');
+          doc.text('Loan Number', 50, yPosition);
+          doc.text('Borrower', 140, yPosition);
+          doc.text('Company', 230, yPosition);
+          doc.text('Amount', 320, yPosition);
+          doc.text('Due Date', 380, yPosition);
+          doc.text('Days Until Due', 450, yPosition);
+          doc.text('Contact', 520, yPosition);
+          
+          yPosition += 20;
+          doc.font('Helvetica');
+          
+          data.forEach((payment, index) => {
+            if (yPosition > 700) {
+              doc.addPage();
+              yPosition = 50;
+            }
+            
+            doc.text(payment.loanNumber || '', 50, yPosition);
+            doc.text(payment.borrower || '', 140, yPosition);
+            doc.text(payment.company || '', 230, yPosition);
+            doc.text(`K${(payment.amount || 0).toLocaleString()}`, 320, yPosition);
+            doc.text(payment.dueDate ? new Date(payment.dueDate).toLocaleDateString() : '', 380, yPosition);
+            doc.text(`${payment.daysUntilDue || 0} days`, 450, yPosition);
+            doc.text(payment.contact || '', 520, yPosition);
+            
+            yPosition += 15;
+          });
+        }
+      }
+      
+      // Finalize the PDF
+      doc.end();
+      
     } else if (format === 'excel') {
+      // Generate Excel
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet(reportTitle);
+      
+      // Add title and metadata
+      worksheet.mergeCells('A1:G1');
+      worksheet.getCell('A1').value = reportTitle;
+      worksheet.getCell('A1').font = { size: 16, bold: true };
+      worksheet.getCell('A1').alignment = { horizontal: 'center' };
+      
+      worksheet.getCell('A2').value = `Generated on: ${new Date().toLocaleDateString()}`;
+      worksheet.getCell('A3').value = `Total Records: ${data.length}`;
+      
+      if (data.length === 0) {
+        worksheet.getCell('A5').value = 'No data available for this report.';
+      } else {
+        // Add headers and data based on report type
+        let startRow = 5;
+        
+        if (type === 'active-loans') {
+          // Add headers
+          const headers = ['Loan Number', 'Borrower', 'Company', 'Amount', 'Monthly Payment', 'Next Payment Date', 'Status'];
+          worksheet.addRow(headers);
+          worksheet.getRow(startRow).font = { bold: true };
+          
+          // Add data
+          data.forEach(loan => {
+            worksheet.addRow([
+              loan.loanNumber,
+              loan.borrower,
+              loan.company,
+              loan.amount,
+              loan.monthlyPayment,
+              loan.nextPaymentDate ? new Date(loan.nextPaymentDate).toLocaleDateString() : '',
+              loan.status
+            ]);
+          });
+          
+          // Format currency columns
+          worksheet.getColumn(4).numFmt = '#,##0';
+          worksheet.getColumn(5).numFmt = '#,##0';
+          
+        } else if (type === 'overdue-loans') {
+          // Add headers
+          const headers = ['Loan Number', 'Borrower', 'Company', 'Overdue Amount', 'Days Overdue', 'Last Payment Date', 'Status'];
+          worksheet.addRow(headers);
+          worksheet.getRow(startRow).font = { bold: true };
+          
+          // Add data
+          data.forEach(loan => {
+            worksheet.addRow([
+              loan.loanNumber,
+              loan.borrower,
+              loan.company,
+              loan.overdueAmount,
+              loan.daysOverdue,
+              loan.lastPaymentDate ? new Date(loan.lastPaymentDate).toLocaleDateString() : 'No payments',
+              loan.status
+            ]);
+          });
+          
+          // Format currency column
+          worksheet.getColumn(4).numFmt = '#,##0';
+          
+        } else if (type === 'upcoming-payments') {
+          // Add headers
+          const headers = ['Loan Number', 'Borrower', 'Company', 'Payment Amount', 'Due Date', 'Days Until Due', 'Contact'];
+          worksheet.addRow(headers);
+          worksheet.getRow(startRow).font = { bold: true };
+          
+          // Add data
+          data.forEach(payment => {
+            worksheet.addRow([
+              payment.loanNumber,
+              payment.borrower,
+              payment.company,
+              payment.amount,
+              payment.dueDate ? new Date(payment.dueDate).toLocaleDateString() : '',
+              payment.daysUntilDue,
+              payment.contact
+            ]);
+          });
+          
+          // Format currency column
+          worksheet.getColumn(4).numFmt = '#,##0';
+        }
+        
+        // Auto-fit columns
+        worksheet.columns.forEach(column => {
+          column.width = Math.max(12, column.header?.length || 0);
+        });
+      }
+      
+      // Set response headers
+      const filename = `${type}-report-${new Date().toISOString().split('T')[0]}.xlsx`;
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename=${type}-report.xlsx`);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      
+      // Write to response
+      await workbook.xlsx.write(res);
+      res.end();
+      
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid export format. Use "pdf" or "excel".'
+      });
     }
-
-    // For now, return the data (frontend will handle the actual export)
-    res.json({
-      success: true,
-      data: data,
-      format: format,
-      type: type
-    });
 
   } catch (error) {
     console.error('Export error:', error);

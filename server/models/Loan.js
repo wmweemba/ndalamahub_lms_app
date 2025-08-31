@@ -416,9 +416,8 @@ loanSchema.methods.canBeApproved = function() {
 
 // Check if loan can be disbursed
 loanSchema.methods.canBeDisbursed = function() {
-  return this.status === 'approved' && 
-         this.documents.some(doc => doc.type === 'id_document') &&
-         (!this.company.settings?.requireGuarantor || this.guarantor?.name);
+  // A loan can be disbursed if it's approved
+  return this.status === 'approved';
 };
 
 // Add method to update payment tracking
@@ -445,13 +444,6 @@ loanSchema.methods.calculateDaysInArrears = function() {
   const dueDate = new Date(overdueInstallment.dueDate);
   const diffTime = Math.abs(now - dueDate);
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-};
-
-// Add validation for disbursement requirements
-loanSchema.methods.canBeDisbursed = function() {
-  return this.status === 'approved' && 
-         this.documents.some(doc => doc.type === 'id_document') &&
-         (!this.company.settings?.requireGuarantor || this.guarantor?.name);
 };
 
 // Add method to check if loan is in arrears

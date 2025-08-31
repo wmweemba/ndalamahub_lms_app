@@ -570,7 +570,8 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
 
     const loan = await Loan.findById(id)
       .populate('applicant', 'firstName lastName email')
-      .populate('company', 'name type');
+      .populate('company', 'name type')
+      .populate('lenderCompany', 'name type');
 
     if (!loan) {
       return res.status(404).json({
@@ -580,30 +581,41 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
     }
 
     // Check if loan can be disbursed
+    console.log('Loan status:', loan.status);
+    console.log('Can be disbursed:', loan.canBeDisbursed());
+    
     if (!loan.canBeDisbursed()) {
       return res.status(400).json({
         success: false,
-        message: 'Loan cannot be disbursed in its current status'
+        message: `Loan cannot be disbursed in its current status: ${loan.status}`
       });
     }
 
-    // Check access permissions
-    if (
-      req.user.role !== 'super_user' &&
-      req.user.role !== 'lender_admin'
-    ) {
-      if (
-        req.user.company.toString() !== loan.company._id.toString()
-      ) {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied to this loan'
-        });
-      }
+    // Check access permissions based on role
+    let hasAccess = false;
+
+    console.log('User role:', req.user.role);
+    console.log('User company:', req.user.company);
+    console.log('Loan lender company:', loan.lenderCompany?._id);
+
+    if (req.user.role === 'super_user') {
+      hasAccess = true;
+    } else if (req.user.role === 'lender_admin') {
+      // Lender admins can disburse loans where they are the lender company
+      hasAccess = loan.lenderCompany && loan.lenderCompany._id.toString() === req.user.company.toString();
     }
 
-    // Update loan status
-    loan.status = 'disbursed';
+    console.log('Has access:', hasAccess);
+
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: You can only disburse loans for your lender company'
+      });
+    }
+
+    // Update loan status to active after disbursement
+    loan.status = 'active';
     loan.disbursedBy = req.user.id;
     loan.disbursedAt = new Date();
     loan.startDate = new Date();

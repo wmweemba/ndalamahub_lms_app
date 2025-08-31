@@ -18,14 +18,33 @@ export default function ReportModal({ report, onClose }) {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `${report.title.replace(/\s+/g, '_')}.${format}`);
+      
+      // Set filename based on format
+      const fileExtension = format === 'excel' ? 'xlsx' : 'pdf';
+      const fileName = `${report.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.${fileExtension}`;
+      
+      link.setAttribute('download', fileName);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      
+      console.log(`${format.toUpperCase()} export successful`);
     } catch (err) {
       console.error(`Export ${format} error:`, err);
-      alert(`Failed to export as ${format.toUpperCase()}`);
+      
+      // Check if it's a network error or server error
+      if (err.response) {
+        // Server responded with error status
+        const errorMessage = err.response.data?.message || `Server error: ${err.response.status}`;
+        alert(`Failed to export as ${format.toUpperCase()}: ${errorMessage}`);
+      } else if (err.request) {
+        // Request was made but no response received
+        alert(`Failed to export as ${format.toUpperCase()}: Network error. Please check your connection.`);
+      } else {
+        // Something else happened
+        alert(`Failed to export as ${format.toUpperCase()}: ${err.message}`);
+      }
     } finally {
       setLoading(false);
     }

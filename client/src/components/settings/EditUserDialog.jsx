@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Dialog } from '@/components/ui/dialog';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter 
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import api from '@/utils/api';
 import { getCurrentUser } from '@/utils/roleUtils';
-import { X, User, Mail, Phone, Shield, Building2 } from 'lucide-react';
+import { User, Mail, Phone, Shield, Building2 } from 'lucide-react';
 
 export default function EditUserDialog({ user, onClose, onUserUpdated }) {
   const currentUser = getCurrentUser();
@@ -108,43 +114,29 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <div className="fixed inset-0 z-50 overflow-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b">
-            <div className="flex items-center space-x-3">
-              <User className="w-6 h-6 text-blue-600" />
-              <h2 className="text-xl font-semibold text-gray-900">
-                Edit User: {user.firstName} {user.lastName}
-              </h2>
+      <DialogContent className="w-full max-w-2xl max-h-[95vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center text-lg sm:text-xl">
+            <User className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" />
+            Edit User: {user.firstName} {user.lastName}
+          </DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-3 sm:p-4 text-sm">
+              {error}
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              className="flex items-center"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
+          )}
 
-          {/* Content */}
-          <form onSubmit={handleSubmit} className="p-6 max-h-[70vh] overflow-y-auto">
-            {error && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-                {error}
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Personal Information */}
-              <div className="md:col-span-2">
-                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <User className="w-5 h-5 mr-2" />
-                  Personal Information
-                </h3>
-              </div>
-
+          {/* Personal Information */}
+          <div>
+            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4 flex items-center">
+              <User className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" />
+              Personal Information
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   First Name *
@@ -155,7 +147,7 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                   value={formData.firstName}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
 
@@ -169,7 +161,7 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                   value={formData.lastName}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
 
@@ -183,7 +175,7 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                   value={formData.username}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
 
@@ -198,7 +190,7 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
 
@@ -213,7 +205,7 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                   value={formData.phone}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
 
@@ -226,18 +218,20 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                   name="employeeId"
                   value={formData.employeeId}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
+            </div>
+          </div>
 
-              {/* Account Information */}
-              <div className="md:col-span-2 mt-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <Shield className="w-5 h-5 mr-2" />
-                  Account Information
-                </h3>
-              </div>
-
+          {/* Account Information */}
+          <div>
+            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4 flex items-center">
+              <Shield className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" />
+              Account Information
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Role *
@@ -247,7 +241,7 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                   value={formData.role}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                   {roleOptions.map(option => (
                     <option key={option.value} value={option.value}>
@@ -271,7 +265,7 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                   onChange={handleChange}
                   required
                   disabled={currentUser.role === 'corporate_admin' || currentUser.role === 'corporate_hr'}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
                 >
                   <option value="">Select Company</option>
                   {companies.map(company => (
@@ -281,13 +275,13 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                   ))}
                 </select>
                 {(currentUser.role === 'corporate_admin' || currentUser.role === 'corporate_hr') && (
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 mt-1">
                     You can only edit users within your company
                   </p>
                 )}
               </div>
 
-              <div className="md:col-span-2">
+              <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Department
                 </label>
@@ -296,12 +290,12 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                   name="department"
                   value={formData.department}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="e.g., Human Resources, Finance, IT"
                 />
               </div>
 
-              <div className="md:col-span-2">
+              <div className="sm:col-span-2">
                 <label className="flex items-center">
                   <input
                     type="checkbox"
@@ -317,28 +311,29 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                 </p>
               </div>
             </div>
+          </div>
+        </form>
 
-            {/* Footer */}
-            <div className="flex items-center justify-end space-x-4 mt-6 pt-6 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={loading}
-                className="flex items-center"
-              >
-                {loading ? 'Updating...' : 'Update User'}
-              </Button>
-            </div>
-          </form>
-        </div>
-      </div>
+        <DialogFooter className="pt-4 border-t border-gray-200">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={loading}
+            className="w-full sm:w-auto order-2 sm:order-1"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            onClick={handleSubmit}
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2 mb-2 sm:mb-0"
+          >
+            {loading ? 'Updating...' : 'Update User'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
   );
 }

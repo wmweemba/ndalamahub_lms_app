@@ -97,17 +97,17 @@ export default function LoansPage() {
         fetchLoans(); // Refresh the loans list
     };
 
-    if (loading) return <div className="p-8">Loading loans...</div>;
+    if (loading) return <div className="p-4 md:p-8">Loading loans...</div>;
 
     return (
-        <div className="p-8">
-            <div className="flex justify-between items-center mb-6">
+        <div className="p-4 md:p-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <h1 className="text-2xl font-bold text-gray-900">Loan Management</h1>
                 {/* Only show Apply for Loan button for corporate users and admins, not HR */}
                 {canApplyForLoan() && (
                     <Button 
                         onClick={() => setIsApplicationFormOpen(true)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
                     >
                         Apply for Loan
                     </Button>
@@ -131,76 +131,151 @@ export default function LoansPage() {
                     <p className="text-gray-500">There are no loan applications to display.</p>
                 </div>
             ) : (
-                <div className="bg-white rounded-lg shadow overflow-hidden">
-                    <table className="min-w-full">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Loan Number
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Applicant
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Company
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Amount
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Term
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Status
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Applied Date
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {loans.map((loan) => (
-                                <tr 
-                                    key={loan._id} 
-                                    className="hover:bg-gray-50 cursor-pointer"
-                                    onClick={() => handleLoanClick(loan._id)}
-                                >
-                                    <td className="px-6 py-4 whitespace-nowrap font-mono text-sm">
-                                        {loan.loanNumber}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
+                <>
+                    {/* Desktop Table View - Hidden on mobile */}
+                    <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
+                        <table className="min-w-full">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Loan Number
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Applicant
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Company
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Amount
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Term
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Status
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Applied Date
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {loans.map((loan) => (
+                                    <tr 
+                                        key={loan._id} 
+                                        className="hover:bg-gray-50 cursor-pointer"
+                                        onClick={() => handleLoanClick(loan._id)}
+                                    >
+                                        <td className="px-6 py-4 whitespace-nowrap font-mono text-sm">
+                                            {loan.loanNumber}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div>
+                                                <div className="text-sm font-medium text-gray-900">
+                                                    {loan.applicant?.firstName} {loan.applicant?.lastName}
+                                                </div>
+                                                <div className="text-sm text-gray-500">
+                                                    {loan.applicant?.email}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {loan.company?.name}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            {formatCurrency(loan.amount)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {loan.term} months
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(loan.status)}`}>
+                                                {loan.status.replace('_', ' ')}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {formatDate(loan.applicationDate)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <Button
+                                                variant="ghost"
+                                                className="text-blue-600 hover:text-blue-900"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleLoanClick(loan._id);
+                                                }}
+                                            >
+                                                View Details
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Mobile Card View - Visible on mobile and tablet */}
+                    <div className="lg:hidden space-y-4">
+                        {loans.map((loan) => (
+                            <Card 
+                                key={loan._id} 
+                                className="p-4 cursor-pointer hover:shadow-md transition-shadow"
+                                onClick={() => handleLoanClick(loan._id)}
+                            >
+                                <div className="space-y-3">
+                                    {/* Header with loan number and status */}
+                                    <div className="flex justify-between items-start">
                                         <div>
-                                            <div className="text-sm font-medium text-gray-900">
-                                                {loan.applicant?.firstName} {loan.applicant?.lastName}
-                                            </div>
-                                            <div className="text-sm text-gray-500">
-                                                {loan.applicant?.email}
-                                            </div>
+                                            <p className="text-sm text-gray-500">Loan Number</p>
+                                            <p className="font-mono text-sm font-medium">{loan.loanNumber}</p>
                                         </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {loan.company?.name}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        {formatCurrency(loan.amount)}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {loan.term} months
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(loan.status)}`}>
                                             {loan.status.replace('_', ' ')}
                                         </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {formatDate(loan.applicationDate)}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    </div>
+
+                                    {/* Applicant Info */}
+                                    <div>
+                                        <p className="text-sm text-gray-500">Applicant</p>
+                                        <p className="font-medium text-gray-900">
+                                            {loan.applicant?.firstName} {loan.applicant?.lastName}
+                                        </p>
+                                        <p className="text-sm text-gray-600">{loan.applicant?.email}</p>
+                                    </div>
+
+                                    {/* Company */}
+                                    <div>
+                                        <p className="text-sm text-gray-500">Company</p>
+                                        <p className="text-gray-900">{loan.company?.name}</p>
+                                    </div>
+
+                                    {/* Amount and Term in a row */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="text-sm text-gray-500">Amount</p>
+                                            <p className="font-semibold text-lg text-gray-900">
+                                                {formatCurrency(loan.amount)}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-gray-500">Term</p>
+                                            <p className="font-medium text-gray-900">{loan.term} months</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Date and Action Button */}
+                                    <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                                        <div>
+                                            <p className="text-sm text-gray-500">Applied</p>
+                                            <p className="text-sm text-gray-900">{formatDate(loan.applicationDate)}</p>
+                                        </div>
                                         <Button
                                             variant="ghost"
+                                            size="sm"
                                             className="text-blue-600 hover:text-blue-900"
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -209,12 +284,12 @@ export default function LoansPage() {
                                         >
                                             View Details
                                         </Button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                                    </div>
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                </>
             )}
 
             <LoanDetailsDialog

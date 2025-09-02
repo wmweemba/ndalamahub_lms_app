@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import api from '@/utils/api';
@@ -8,6 +8,12 @@ import { getCurrentUser, ROLES } from '@/utils/roleUtils';
 export default function DashboardPage() {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
+  
+  // Add authentication check at the top
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
+  }
+  
   const [adminStats, setAdminStats] = useState({
     activeLoans: 0,
     activeCompanies: 0,
@@ -144,6 +150,11 @@ export default function DashboardPage() {
 
   if (error) {
     return <div className="p-8 text-red-600">{error}</div>;
+  }
+
+  // Add this check at the beginning of the component
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
   }
 
   // Render admin dashboard (super user only)
@@ -881,7 +892,7 @@ export default function DashboardPage() {
     );
   }
 
-  // Render user dashboard (isCorporateUser)
+  // Render user dashboard (isCorporateUser) - Update this section
   return (
     <div className="p-8">
       <header className="mb-8">
@@ -894,8 +905,7 @@ export default function DashboardPage() {
       {!userStats.hasLoans ? (
         // No loans - Show getting started card
         <div className="max-w-md mx-auto">
-          <Card className="p-8 bg-gradient-to-br from-blue-50 to-indigo-100 shadow-lg rounded-lg border-2 border-blue-200 hover:shadow-xl transition-all duration-300 cursor-pointer"
-                onClick={() => navigate('/loans')}>
+          <Card className="p-8 bg-gradient-to-br from-blue-50 to-indigo-100 shadow-lg rounded-lg border-2 border-blue-200 hover:shadow-xl transition-all duration-300 cursor-pointer">
             <div className="text-center">
               <div className="p-4 bg-blue-100 rounded-full inline-block mb-4">
                 <svg 
@@ -908,16 +918,13 @@ export default function DashboardPage() {
                 </svg>
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Get Started with Your First Loan
+                Welcome, {currentUser?.firstName}!
               </h3>
               <p className="text-gray-600 mb-6">
                 You haven't applied for any loans yet. Click here to start your loan application process.
               </p>
               <Button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate('/loans');
-                }}
+                onClick={() => navigate('/loans')}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
               >
                 Apply for Loan

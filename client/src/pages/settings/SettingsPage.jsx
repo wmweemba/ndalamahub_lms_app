@@ -152,13 +152,69 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-8 max-w-full">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+    <div className="p-4 md:p-8 max-w-full">
+      <header className="mb-6 md:mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Settings</h1>
         <p className="text-gray-500 mt-2">Manage your application settings and preferences</p>
       </header>
 
-      <div className="flex gap-6 max-w-full">
+      {/* Mobile-First: Card Grid Layout */}
+      <div className="block lg:hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {availableTabs.map((tab) => {
+            const Icon = tab.icon;
+            
+            return (
+              <Card 
+                key={tab.id}
+                className="p-4 cursor-pointer hover:shadow-md transition-all duration-200 border-2 hover:border-blue-200"
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Icon className="w-5 h-5 text-blue-600" />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 text-sm">{tab.label}</h3>
+                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{tab.description}</p>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Mobile Tab Content */}
+        {activeTab && (
+          <div className="mt-6">
+            <div className="flex items-center mb-4">
+              <button
+                onClick={() => setActiveTab('')}
+                className="flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Settings
+              </button>
+            </div>
+            
+            <div className="bg-white rounded-lg">
+              {renderTabContent()}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: Traditional Sidebar Layout */}
+      <div className="hidden lg:flex gap-6 max-w-full">
         {/* Sidebar Navigation */}
         <div className="w-64 flex-shrink-0">
           <Card className="p-4">

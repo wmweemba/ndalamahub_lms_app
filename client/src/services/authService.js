@@ -6,6 +6,7 @@ export const authService = {
             const response = await api.post('/auth/login', { username, password });
             const { token, user } = response.data;
             localStorage.setItem('ndalamahub-token', token);
+            localStorage.setItem('ndalamahub-user', JSON.stringify(user));
             return user;
         } catch (error) {
             throw new Error(error.response?.data?.message || 'Login failed');
@@ -14,5 +15,6 @@ export const authService = {
 
     logout: () => {
         localStorage.removeItem('ndalamahub-token');
+        localStorage.removeItem('ndalamahub-user');
     }
 };

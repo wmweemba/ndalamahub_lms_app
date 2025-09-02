@@ -25,16 +25,36 @@ export const canDisburseLoan = (role) => {
 
 // Get current user from JWT token
 export const getCurrentUser = () => {
+  try {
     const token = localStorage.getItem('ndalamahub-token');
-    if (!token) return null;
-
-    try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        return payload;
-    } catch (error) {
-        console.error('Error decoding token:', error);
-        return null;
+    if (!token) {
+      return null;
     }
+    
+    const userData = localStorage.getItem('ndalamahub-user');
+    if (!userData) {
+      return null;
+    }
+    
+    const user = JSON.parse(userData);
+    
+    // Verify token is not expired (basic check)
+    const tokenData = JSON.parse(atob(token.split('.')[1]));
+    if (tokenData.exp * 1000 < Date.now()) {
+      // Token expired, clear storage
+      localStorage.removeItem('ndalamahub-token');
+      localStorage.removeItem('ndalamahub-user');
+      return null;
+    }
+    
+    return user;
+  } catch (error) {
+    console.error('Error getting current user:', error);
+    // Clear potentially corrupted data
+    localStorage.removeItem('ndalamahub-token');
+    localStorage.removeItem('ndalamahub-user');
+    return null;
+  }
 };
 
 // Check if user can access companies management

@@ -8,11 +8,10 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import api from '@/utils/api';
-import { getCurrentUser } from '@/utils/roleUtils';
 import { User, Mail, Phone, Shield, Building2 } from 'lucide-react';
 
 export default function CreateUserDialog({ onClose, onUserCreated }) {
-  const currentUser = getCurrentUser();
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [companies, setCompanies] = useState([]);
@@ -31,25 +30,54 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
   });
 
   useEffect(() => {
-    fetchCompanies();
-    
-    // Pre-select current user's company for corporate roles
-    if (currentUser && (currentUser.role === 'corporate_hr' || currentUser.role === 'corporate_admin')) {
-      setFormData(prev => ({
-        ...prev,
-        company: currentUser.company
-      }));
-    }
-  }, [currentUser]);
+    fetchCurrentUser();
+  }, []);
 
-  const fetchCompanies = async () => {
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await api.get('/auth/me');
+      if (response.data.success) {
+        const user = response.data.data.user;
+        console.log('Current user from /auth/me:', user);
+        setCurrentUser(user);
+        fetchCompanies(user);
+      }
+    } catch (err) {
+      console.error('Failed to fetch current user:', err);
+      setError('Failed to load user data. Please try again.');
+    }
+  };
+
+  const fetchCompanies = async (user) => {
     try {
       const response = await api.get('/companies');
       // Companies API returns companies array directly in response.data
       console.log('Fetched companies:', response.data);
       setCompanies(response.data || []);
+      
+      // Pre-select current user's company for corporate roles after companies are fetched
+      if (user && (user.role === 'corporate_hr' || user.role === 'corporate_admin')) {
+        // The user object from /auth/me has a populated company object
+        const companyId = user.company?._id || user.company || '';
+        console.log('User from /auth/me:', user);
+        console.log('User company from /auth/me:', user.company);
+        console.log('Company ID to set:', companyId);
+        console.log('Available companies:', response.data);
+        
+        // Verify the company exists in the fetched companies
+        const matchingCompany = response.data?.find(company => company._id === companyId);
+        console.log('Matching company found:', matchingCompany);
+        
+        if (companyId) {
+          setFormData(prev => ({
+            ...prev,
+            company: companyId
+          }));
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch companies:', err);
+      setError('Failed to load companies. Please try again.');
       setCompanies([]); // Set empty array on error
     }
   };
@@ -72,14 +100,18 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
       setError(null);
 
       const { confirmPassword, ...userData } = formData;
+      console.log('Submitting user data:', userData);
+      console.log('Current user:', currentUser);
+      
       const response = await api.post('/users', userData);
 
       if (response.data.success) {
         onUserCreated(response.data.data);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create user');
       console.error('Create user error:', err);
+      console.error('Error response:', err.response?.data);
+      setError(err.response?.data?.message || 'Failed to create user');
     } finally {
       setLoading(false);
     }
@@ -128,12 +160,19 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-3 sm:p-4 text-sm">
-              {error}
-            </div>
-          )}
+        {/* Loading state while currentUser is being fetched */}
+        {currentUser === null ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-sm text-gray-500">Loading...</div>
+          </div>
+        ) : (
+          <>
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-3 sm:p-4 text-sm">
+                  {error}
+                </div>
+              )}
 
           {/* Personal Information */}
           <div>
@@ -315,7 +354,8 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
                       .filter(company => {
                         // For corporate users, only show their own company
                         if (currentUser && (currentUser.role === 'corporate_hr' || currentUser.role === 'corporate_admin')) {
-                          return company._id === currentUser.company;
+                          const userCompanyId = currentUser.company?._id || currentUser.company;
+                          return company._id === userCompanyId;
                         }
                         // For other roles, show all companies
                         return true;
@@ -349,27 +389,29 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
               </div>
             </div>
           </div>
-        </form>
+            </form>
 
-        <DialogFooter className="pt-4 border-t border-gray-200">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={loading}
-            className="w-full sm:w-auto order-2 sm:order-1"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            onClick={handleSubmit}
-            disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2 mb-2 sm:mb-0"
-          >
-            {loading ? 'Creating...' : 'Create User'}
-          </Button>
-        </DialogFooter>
+            <DialogFooter className="pt-4 border-t border-gray-200">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={loading}
+                className="w-full sm:w-auto order-2 sm:order-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                onClick={handleSubmit}
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2 mb-2 sm:mb-0"
+              >
+                {loading ? 'Creating...' : 'Create User'}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

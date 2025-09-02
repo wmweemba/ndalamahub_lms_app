@@ -789,3 +789,48 @@ and this project adheres to Semantic Versioning.
 - Added responsive grid systems that adapt from single-column (mobile) to multi-column (desktop)
 - Integrated touch-friendly interaction patterns throughout the application
 - Optimized component loading and rendering for mobile device performance
+
+
+## [0.3.1] - 2025-09-02
+### Fixed
+- **User Creation System Overhaul**:
+  - Fixed critical user creation errors caused by company field validation issues
+  - Resolved "All required fields must be provided" error by implementing proper company data flow
+  - Fixed company dropdown not auto-populating for corporate admins creating users
+  - Updated CreateUserDialog to use `/auth/me` endpoint instead of localStorage for current user data
+  - Enhanced company pre-selection logic to run after companies are fetched from API
+  - Fixed company filtering to properly show only the corporate admin's company in dropdown
+
+- **Employee ID Validation Fix**:
+  - Removed strict employeeId requirement that was preventing user creation
+  - Updated User model schema to make employeeId optional for all roles
+  - Implemented auto-generation of employeeId for corporate users when not provided
+  - Added company prefix-based employeeId generation (e.g., "ACM123456" for Acme Corp)
+  - Fixed validation error: "User validation failed: employeeId: Path `employeeId` is required"
+
+- **User Management Data Structure Improvements**:
+  - Fixed user role hierarchy in User model to match current role system
+  - Updated hasPermission method to use correct role names (removed deprecated 'client_admin', 'staff')
+  - Enhanced user update routes to work with current role structure (corporate_user, corporate_hr)
+  - Fixed department and employeeId field requirements for proper role associations
+
+- **Authentication and Authorization Enhancements**:
+  - Enhanced user fetch endpoint with improved MongoDB query structure
+  - Fixed company filtering logic that was causing 500 errors in user management
+  - Added comprehensive error logging for user creation debugging
+  - Implemented proper company validation in user creation workflow
+  - Enhanced company access control for corporate admins and HR users
+
+- **User Interface Improvements**:
+  - Fixed company dropdown showing "Select Company" instead of pre-populated company name
+  - Enhanced CreateUserDialog with proper current user fetching and company association
+  - Added detailed console logging for debugging user creation flow
+  - Improved error handling and user feedback during user creation process
+  - Ensured company dropdown is properly disabled for corporate admins (can only create users in their company)
+
+### Technical Notes
+- Corporate admins can now successfully create users with auto-populated company selection
+- EmployeeId field is now optional with automatic generation when not provided
+- User creation workflow properly validates all required fields and company associations
+- Enhanced debugging capabilities for troubleshooting user management issues
+- Improved data consistency between JWT token payload and user management operations

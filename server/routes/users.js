@@ -32,30 +32,23 @@ router.get('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req,
     } = req.query;
 
     // Build filter object
-    const filter = {};
+    let filter = {};
 
     // Company filter based on user role
-    let companyFilter = {};
     if (req.user.role !== 'super_user') {
       if (req.user.role === 'lender_admin') {
         // Lender admins can see users from their company and corporate clients
         const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
-        companyFilter = {
-          $or: [
-            { company: req.user.company },
-            { company: { $in: corporateCompanies.map(c => c._id) } }
-          ]
+        filter.company = {
+          $in: [req.user.company, ...corporateCompanies.map(c => c._id)]
         };
       } else {
         // Other roles see only their company
-        companyFilter = { company: req.user.company };
+        filter.company = req.user.company;
       }
     } else if (companyId) {
-      companyFilter = { company: companyId };
+      filter.company = companyId;
     }
-
-    // Apply company filter
-    filter = { ...filter, ...companyFilter };
 
     // Role filter
     if (role) {
@@ -82,13 +75,8 @@ router.get('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req,
         { employeeId: { $regex: search, $options: 'i' } }
       ];
 
-      // Combine search with existing filters
-      filter = {
-        $and: [
-          filter, // existing filters including company
-          { $or: searchConditions }
-        ]
-      };
+      // Add search filter to existing filters
+      filter.$or = searchConditions;
     }
 
     // Calculate pagination
@@ -172,6 +160,10 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // @access  Private (Admin and HR roles)
 router.post('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
     try {
+        console.log('=== Create User Request ===');
+        console.log('Request body:', req.body);
+        console.log('Request user:', req.user);
+        
         const {
             firstName,
             lastName,
@@ -187,6 +179,16 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req
 
         // Validate required fields
         if (!firstName || !lastName || !username || !email || !phone || !password || !role || !company) {
+            console.log('Missing required fields:', {
+                firstName: !!firstName,
+                lastName: !!lastName,
+                username: !!username,
+                email: !!email,
+                phone: !!phone,
+                password: !!password,
+                role: !!role,
+                company: !!company
+            });
             return res.status(400).json({
                 success: false,
                 message: 'All required fields must be provided'
@@ -279,9 +281,19 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req
             password,
             role,
             company,
-            department: department || undefined,
-            employeeId: employeeId || undefined
+            department: department || undefined
         };
+
+        // Auto-generate employeeId for corporate users if not provided
+        if ((role === 'corporate_user' || role === 'corporate_hr') && !employeeId) {
+            // Generate a simple employee ID based on company and current timestamp
+            const companyDoc = await Company.findById(company);
+            const companyPrefix = companyDoc?.name?.substring(0, 3).toUpperCase() || 'EMP';
+            const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
+            userData.employeeId = `${companyPrefix}${timestamp}`;
+        } else if (employeeId) {
+            userData.employeeId = employeeId;
+        }
 
         const user = new User(userData);
         const savedUser = await user.save();
@@ -517,12 +529,12 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
 
     // Department update
-    if (department && (user.role === 'staff' || user.role === 'corporate_hr')) {
+    if (department !== undefined && (user.role === 'corporate_user' || user.role === 'corporate_hr')) {
       user.department = department;
     }
 
-    // Employee ID update (staff only)
-    if (employeeId && user.role === 'staff') {
+    // Employee ID update (corporate_user only)
+    if (employeeId !== undefined && user.role === 'corporate_user') {
       user.employeeId = employeeId;
     }
 

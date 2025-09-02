@@ -12,7 +12,7 @@ import { getCurrentUser } from '@/utils/roleUtils';
 import { User, Mail, Phone, Shield, Building2 } from 'lucide-react';
 
 export default function EditUserDialog({ user, onClose, onUserUpdated }) {
-  const currentUser = getCurrentUser();
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [companies, setCompanies] = useState([]);
@@ -30,17 +30,23 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
   });
 
   useEffect(() => {
+    // Get current user
+    const userData = getCurrentUser();
+    setCurrentUser(userData);
+    
     fetchCompanies();
   }, []);
 
   const fetchCompanies = async () => {
     try {
       const response = await api.get('/companies');
-      if (response.data.success) {
-        setCompanies(response.data.data);
-      }
+      // Companies API returns companies array directly in response.data
+      console.log('Fetched companies:', response.data);
+      setCompanies(response.data || []);
     } catch (err) {
       console.error('Failed to fetch companies:', err);
+      setError('Failed to load companies. Please try again.');
+      setCompanies([]); // Set empty array on error
     }
   };
 
@@ -52,8 +58,8 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
       setError(null);
 
       // Validate that corporate users can only edit users within their company
-      if ((currentUser.role === 'corporate_admin' || currentUser.role === 'corporate_hr') && 
-          user.company && currentUser.company !== user.company._id) {
+      if ((currentUser?.role === 'corporate_admin' || currentUser?.role === 'corporate_hr') && 
+          user.company && (currentUser.company?._id || currentUser.company) !== user.company._id) {
         setError('You can only edit users within your company');
         return;
       }

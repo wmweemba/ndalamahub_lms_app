@@ -56,15 +56,13 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true,
     required: function() {
-      return this.role === 'staff' || this.role === 'corporate_hr';
+      return this.role === 'corporate_user' || this.role === 'corporate_hr';
     }
   },
   employeeId: {
     type: String,
     trim: true,
-    required: function() {
-      return this.role === 'staff';
-    }
+    required: false  // Make employeeId optional for all roles
   },
   isActive: {
     type: Boolean,
@@ -106,10 +104,11 @@ userSchema.methods.getFullName = function() {
 userSchema.methods.hasPermission = function(requiredRole) {
   const roleHierarchy = {
     'super_user': 5,
-    'client_admin': 4,
+    'lender_admin': 4,
     'corporate_admin': 3,
     'corporate_hr': 2,
-    'staff': 1
+    'lender_user': 1,
+    'corporate_user': 0
   };
   
   return roleHierarchy[this.role] >= roleHierarchy[requiredRole];

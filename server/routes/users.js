@@ -112,7 +112,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
 
     // Check if user is accessing their own profile or has admin rights
-    if (req.user._id.toString() !== id && 
+    if (req.user.id.toString() !== id && 
         !req.user.hasPermission('corporate_admin')) {
       return res.status(403).json({
         success: false,
@@ -324,7 +324,7 @@ router.patch('/:id/status', authenticateToken, authorizeMinRole('corporate_hr'),
     const { isActive } = req.body;
 
     // Prevent self-deactivation
-    if (req.user._id.toString() === id && !isActive) {
+    if (req.user.id.toString() === id && !isActive) {
       return res.status(400).json({
         success: false,
         message: 'Cannot deactivate your own account'
@@ -376,7 +376,7 @@ router.put('/:id/password', authenticateToken, async (req, res) => {
     const { currentPassword, newPassword } = req.body;
 
     // Check if user is changing their own password or has admin rights
-    if (req.user._id.toString() !== id && 
+    if (req.user.id.toString() !== id && 
         !req.user.hasPermission('corporate_admin')) {
       return res.status(403).json({
         success: false,
@@ -402,7 +402,7 @@ router.put('/:id/password', authenticateToken, async (req, res) => {
     }
 
     // If changing own password, verify current password
-    if (req.user._id.toString() === id) {
+    if (req.user.id.toString() === id) {
       if (!currentPassword) {
         return res.status(400).json({
           success: false,
@@ -466,7 +466,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     } = req.body;
 
     // Check if user is updating their own profile or has admin rights
-    if (req.user._id.toString() !== id && 
+    if (req.user.id.toString() !== id && 
         !req.user.hasPermission('corporate_admin')) {
       return res.status(403).json({
         success: false,
@@ -563,6 +563,77 @@ router.put('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// @route   PATCH /api/users/:id/reset-password
+// @desc    Reset user password (Admin only)
+// @access  Private (Admin roles only)
+router.patch('/:id/reset-password', authenticateToken, authorize(['super_user', 'lender_admin', 'corporate_admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+
+    // Validate new password
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long'
+      });
+    }
+
+    // Prevent resetting own password this way
+    if (req.user.id.toString() === id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot reset your own password through admin function. Use change password instead.'
+      });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check company access for non-super users
+    if (req.user.role !== 'super_user') {
+      if (req.user.role === 'lender_admin') {
+        // Lender admins can reset passwords for their company and corporate clients
+        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
+        const allowedCompanies = [req.user.company, ...corporateCompanies.map(c => c._id)];
+        if (!allowedCompanies.some(companyId => companyId.toString() === user.company.toString())) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied to this user'
+          });
+        }
+      } else if (req.user.company.toString() !== user.company.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied to this user'
+        });
+      }
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset password',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
 // @route   DELETE /api/users/:id
 // @desc    Delete user
 // @access  Private (Admin and HR roles)
@@ -571,7 +642,7 @@ router.delete('/:id', authenticateToken, authorizeMinRole('corporate_hr'), async
     const { id } = req.params;
 
     // Prevent self-deletion
-    if (req.user._id.toString() === id) {
+    if (req.user.id.toString() === id) {
       return res.status(400).json({
         success: false,
         message: 'Cannot delete your own account'

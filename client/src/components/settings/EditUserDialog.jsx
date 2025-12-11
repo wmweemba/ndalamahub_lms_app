@@ -9,13 +9,17 @@ import {
 import { Button } from '@/components/ui/button';
 import api from '@/utils/api';
 import { getCurrentUser } from '@/utils/roleUtils';
-import { User, Mail, Phone, Shield, Building2 } from 'lucide-react';
+import { User, Mail, Phone, Shield, Building2, Key, Eye, EyeOff } from 'lucide-react';
 
 export default function EditUserDialog({ user, onClose, onUserUpdated }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [companies, setCompanies] = useState([]);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordResetLoading, setPasswordResetLoading] = useState(false);
   const [formData, setFormData] = useState({
     firstName: user.firstName || '',
     lastName: user.lastName || '',
@@ -30,11 +34,18 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
   });
 
   useEffect(() => {
-    // Get current user
-    const userData = getCurrentUser();
-    setCurrentUser(userData);
-    
-    fetchCompanies();
+    try {
+      // Get current user
+      const userData = getCurrentUser();
+      console.log('EditUserDialog - Current user:', userData);
+      console.log('EditUserDialog - User being edited:', user);
+      setCurrentUser(userData);
+      
+      fetchCompanies();
+    } catch (error) {
+      console.error('EditUserDialog - Error in useEffect:', error);
+      setError('Failed to initialize dialog');
+    }
   }, []);
 
   const fetchCompanies = async () => {
@@ -85,6 +96,48 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
     }));
   };
 
+  const handlePasswordReset = async () => {
+    if (!newPassword.trim()) {
+      setError('Please enter a new password');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+
+    try {
+      setPasswordResetLoading(true);
+      setError(null);
+
+      const response = await api.patch(`/users/${user._id}/reset-password`, {
+        newPassword: newPassword
+      });
+
+      if (response.data.success) {
+        alert('Password reset successfully!');
+        setNewPassword('');
+        setShowPasswordReset(false);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to reset password');
+      console.error('Password reset error:', err);
+    } finally {
+      setPasswordResetLoading(false);
+    }
+  };
+
+  const canResetPassword = () => {
+    if (!currentUser) return false;
+    
+    // Only admins can reset passwords, and not their own
+    const isAdmin = ['super_user', 'lender_admin', 'corporate_admin'].includes(currentUser.role);
+    const isNotSelf = user._id !== (currentUser.id || currentUser._id);
+    
+    return isAdmin && isNotSelf;
+  };
+
   const getAvailableRoles = () => {
     const allRoles = [
       { value: 'super_user', label: 'Super User', description: 'System administration' },
@@ -94,6 +147,11 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
       { value: 'lender_user', label: 'Lender User', description: 'Lender employee access' },
       { value: 'corporate_user', label: 'Corporate User', description: 'Basic employee access' }
     ];
+
+    // Return basic roles if currentUser is not loaded yet
+    if (!currentUser) {
+      return [{ value: 'corporate_user', label: 'Corporate User', description: 'Basic employee access' }];
+    }
 
     // Super user can assign any role
     if (currentUser.role === 'super_user') {
@@ -117,6 +175,12 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
   };
 
   const roleOptions = getAvailableRoles();
+
+  // Safety check to prevent rendering with invalid data
+  if (!user || !user._id) {
+    console.error('EditUserDialog - Invalid user data:', user);
+    return null;
+  }
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -270,7 +334,7 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                   value={formData.company}
                   onChange={handleChange}
                   required
-                  disabled={currentUser.role === 'corporate_admin' || currentUser.role === 'corporate_hr'}
+                  disabled={currentUser?.role === 'corporate_admin' || currentUser?.role === 'corporate_hr'}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
                 >
                   <option value="">Select Company</option>
@@ -280,7 +344,7 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                     </option>
                   ))}
                 </select>
-                {(currentUser.role === 'corporate_admin' || currentUser.role === 'corporate_hr') && (
+                {(currentUser?.role === 'corporate_admin' || currentUser?.role === 'corporate_hr') && (
                   <p className="text-xs text-gray-500 mt-1">
                     You can only edit users within your company
                   </p>
@@ -319,6 +383,85 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
             </div>
           </div>
         </form>
+
+        {/* Password Reset Section */}
+        {canResetPassword() && (
+          <div className="border-t pt-6">
+            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4 flex items-center">
+              <Key className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-red-600" />
+              Password Reset
+            </h3>
+            
+            {!showPasswordReset ? (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-800 mb-3">
+                  Reset this user's password. The user will need to use the new password to log in.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowPasswordReset(true)}
+                  className="flex items-center text-red-600 hover:text-red-700 border-red-300 hover:border-red-400"
+                >
+                  <Key className="w-4 h-4 mr-2" />
+                  Reset Password
+                </Button>
+              </div>
+            ) : (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    New Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Enter new password (min 6 characters)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 text-sm pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-gray-400" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-gray-400" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    type="button"
+                    onClick={handlePasswordReset}
+                    disabled={passwordResetLoading || !newPassword.trim()}
+                    className="bg-red-600 hover:bg-red-700 text-white flex items-center justify-center"
+                  >
+                    <Key className="w-4 h-4 mr-2" />
+                    {passwordResetLoading ? 'Resetting...' : 'Confirm Reset'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowPasswordReset(false);
+                      setNewPassword('');
+                      setError(null);
+                    }}
+                    disabled={passwordResetLoading}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <DialogFooter className="pt-4 border-t border-gray-200">
           <Button

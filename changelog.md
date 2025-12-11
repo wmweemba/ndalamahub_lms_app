@@ -8,6 +8,35 @@ and this project adheres to Semantic Versioning.
 - Added
 - Future features will be documented here.
 
+## [0.3.2] - 2025-12-11
+### Fixed
+- **User Management Critical Fixes**:
+  - Fixed user deletion functionality that was redirecting to blank page due to JWT token field mismatch
+  - Corrected all instances of `req.user._id` to `req.user.id` across user management routes to match JWT token payload structure
+  - Fixed EditUserDialog component JavaScript errors caused by null currentUser references
+  - Added proper null checking for currentUser in role validation and UI rendering functions
+
+- **Admin Password Reset System**:
+  - Implemented comprehensive admin password reset functionality for user management
+  - Added new backend endpoint `PATCH /api/users/:id/reset-password` with role-based access control
+  - Enhanced EditUserDialog with password reset section featuring toggle functionality and password visibility controls
+  - Added security restrictions preventing admins from resetting their own passwords through admin interface
+  - Implemented multi-tenant company access validation for password reset operations
+  - Added minimum password length validation (6 characters) and proper error handling
+
+### Enhanced
+- **User Management Security**:
+  - Enhanced role-based access control for password reset functionality (super_user, lender_admin, corporate_admin only)
+  - Added company relationship validation ensuring lender admins can only reset passwords for their corporate clients
+  - Improved error handling and user feedback for all user management operations
+  - Added comprehensive debugging logs for troubleshooting user management workflows
+
+### Technical Notes
+- JWT token payload structure uses `id` field, not `_id` - all server routes updated accordingly
+- Password reset functionality respects existing multi-tenant security boundaries
+- Enhanced component rendering safety with proper null checks and error boundaries
+- Super admins now have full user deletion and password reset capabilities as expected
+
 ## [0.1.0] - 2025-08-01
 ## Added
 - Initial project scaffolding and documentation.

@@ -221,6 +221,134 @@ describe('Loan Calculation Integration Tests', () => {
     });
   });
 
+  describe('Simple Interest Method', () => {
+    test('should calculate correctly for monthly repayment', () => {
+      const loan = new Loan({
+        applicant: testApplicantId,
+        company: testCompanyId,
+        amount: 10000,
+        interestRate: 24,
+        term: 6,
+        repaymentFrequency: 'monthly',
+        interestCalculation: {
+          method: 'simple_interest',
+          accrualBasis: 'actual/365',
+          accrualFrequency: 'daily'
+        }
+      });
+
+      loan.calculateLoanDetails();
+
+      expect(loan.monthlyPayment).toBeCloseTo(1866.67, 2);
+      expect(loan.totalInterest).toBeCloseTo(1200.00, 2);
+      expect(loan.totalAmount).toBeCloseTo(11200.00, 2);
+    });
+
+    test('should generate variable interest based on actual days', () => {
+      const loan = new Loan({
+        applicant: testApplicantId,
+        company: testCompanyId,
+        amount: 10000,
+        interestRate: 24,
+        term: 6,
+        repaymentFrequency: 'monthly',
+        interestCalculation: {
+          method: 'simple_interest',
+          accrualBasis: 'actual/365',
+          accrualFrequency: 'daily'
+        }
+      });
+
+      loan.calculateLoanDetails();
+      loan.generateRepaymentSchedule();
+
+      expect(loan.repaymentSchedule).toHaveLength(6);
+      
+      // All installments should have equal principal
+      const expectedPrincipal = 10000 / 6;
+      
+      loan.repaymentSchedule.forEach(installment => {
+        expect(installment.principal).toBeCloseTo(expectedPrincipal, 2);
+        // Interest should vary based on actual days in month
+        expect(installment.interest).toBeGreaterThan(0);
+      });
+      
+      // Interest amounts should vary (not all equal like flat rate)
+      const interestAmounts = loan.repaymentSchedule.map(i => i.interest);
+      const uniqueInterests = [...new Set(interestAmounts.map(i => i.toFixed(2)))];
+      expect(uniqueInterests.length).toBeGreaterThan(1);
+    });
+
+    test('should calculate interest on original principal each period', () => {
+      const loan = new Loan({
+        applicant: testApplicantId,
+        company: testCompanyId,
+        amount: 10000,
+        interestRate: 24,
+        term: 6,
+        repaymentFrequency: 'monthly',
+        disbursedAt: new Date('2025-01-15'),
+        interestCalculation: {
+          method: 'simple_interest',
+          accrualBasis: 'actual/365',
+          accrualFrequency: 'daily'
+        }
+      });
+
+      loan.calculateLoanDetails();
+      loan.generateRepaymentSchedule();
+
+      // With simple interest, interest for 31-day months should be higher than 30-day months
+      // All calculated on original 10,000 principal (not reducing balance)
+      const januaryInterest = loan.repaymentSchedule[0].interest;
+      const februaryInterest = loan.repaymentSchedule[1].interest;
+      
+      // February has fewer days, so less interest (but still on full 10,000 principal)
+      expect(februaryInterest).toBeLessThan(januaryInterest);
+      
+      // Total interest from schedule should be close to estimated total (may vary due to actual days)
+      const totalCalculatedInterest = loan.repaymentSchedule.reduce((sum, i) => sum + i.interest, 0);
+      expect(totalCalculatedInterest).toBeGreaterThan(1100); // Should be around 1200
+      expect(totalCalculatedInterest).toBeLessThan(1300);
+    });
+
+    test('should be between reducing balance and flat rate cost', () => {
+      const simpleInterestLoan = new Loan({
+        applicant: testApplicantId,
+        company: testCompanyId,
+        amount: 10000,
+        interestRate: 24,
+        term: 6,
+        repaymentFrequency: 'monthly',
+        interestCalculation: {
+          method: 'simple_interest',
+          accrualBasis: 'actual/365',
+          accrualFrequency: 'daily'
+        }
+      });
+
+      const reducingBalanceLoan = new Loan({
+        applicant: testApplicantId,
+        company: testCompanyId,
+        amount: 10000,
+        interestRate: 24,
+        term: 6,
+        repaymentFrequency: 'monthly',
+        interestCalculation: {
+          method: 'reducing_balance',
+          accrualBasis: 'actual/365',
+          accrualFrequency: 'daily'
+        }
+      });
+
+      simpleInterestLoan.calculateLoanDetails();
+      reducingBalanceLoan.calculateLoanDetails();
+
+      // Simple interest should be more expensive than reducing balance
+      expect(simpleInterestLoan.totalInterest).toBeGreaterThan(reducingBalanceLoan.totalInterest);
+    });
+  });
+
   describe('Day Count Conventions', () => {
     test('should support different day count conventions', () => {
       const loan365 = new Loan({

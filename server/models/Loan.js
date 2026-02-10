@@ -4,7 +4,9 @@ const {
   getNextPaymentDate,
   getDaysInPeriod,
   addMonths,
-  calculateFlatRatePayment
+  calculateFlatRatePayment,
+  calculateSimpleInterest,
+  calculateSimpleInterestPayment
 } = require('../utils/interestCalculator');
 
 const loanSchema = new mongoose.Schema({
@@ -400,6 +402,12 @@ loanSchema.methods.calculateLoanDetails = function() {
     this.monthlyPayment = result.monthlyPayment;
     this.totalInterest = result.totalInterest;
     this.totalAmount = principal + this.totalInterest;
+  } else if (method === 'simple_interest') {
+    // Simple interest: Interest on original principal per period
+    const result = calculateSimpleInterestPayment(principal, annualRate, term, frequency, accrualBasis);
+    this.monthlyPayment = result.averagePayment;
+    this.totalInterest = result.totalInterest;
+    this.totalAmount = principal + this.totalInterest;
   } else if (frequency === 'monthly') {
     // For monthly frequency, use standard amortization formula
     const monthlyRate = annualRate / 100 / 12;
@@ -429,6 +437,8 @@ loanSchema.methods.generateRepaymentSchedule = function() {
   
   if (method === 'flat_rate') {
     return this.generateFlatRateSchedule();
+  } else if (method === 'simple_interest') {
+    return this.generateSimpleInterestSchedule();
   } else {
     return this.generateReducingBalanceSchedule();
   }
@@ -516,6 +526,52 @@ loanSchema.methods.generateFlatRateSchedule = function() {
       amount: paymentAmount,
       principal: principalPerInstallment,
       interest: interestPerInstallment,
+      status: 'pending',
+      paidAmount: 0
+    });
+    
+    currentDate = dueDate;
+  }
+  
+  this.repaymentSchedule = schedule;
+};
+
+// Generate schedule for simple interest loans
+loanSchema.methods.generateSimpleInterestSchedule = function() {
+  const schedule = [];
+  const principal = this.amount;
+  const annualRate = this.interestRate;
+  const term = this.term;
+  const frequency = this.repaymentFrequency || 'monthly';
+  const accrualBasis = this.interestCalculation?.accrualBasis || 'actual/365';
+  
+  // In simple interest, interest is calculated on original principal per period
+  const principalPerInstallment = principal / term;
+  
+  const startDate = this.disbursedAt || new Date();
+  let currentDate = new Date(startDate);
+  
+  for (let i = 1; i <= term; i++) {
+    // Calculate next payment date
+    const dueDate = getNextPaymentDate(currentDate, frequency);
+    
+    // Calculate interest for this period on ORIGINAL principal
+    const periodInterest = calculateSimpleInterest(
+      principal,  // Note: Always use original principal, not remaining
+      annualRate,
+      currentDate,
+      dueDate,
+      accrualBasis
+    );
+    
+    const paymentAmount = principalPerInstallment + periodInterest;
+    
+    schedule.push({
+      installmentNumber: i,
+      dueDate: dueDate,
+      amount: paymentAmount,
+      principal: principalPerInstallment,
+      interest: periodInterest,
       status: 'pending',
       paidAmount: 0
     });

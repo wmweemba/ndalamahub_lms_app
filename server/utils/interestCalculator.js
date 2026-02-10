@@ -228,6 +228,74 @@ function calculateFlatRatePayment(principal, annualRate, termMonths) {
   };
 }
 
+/**
+ * Calculate simple interest for a period
+ * Simple interest calculates interest on the original principal per period
+ * Unlike flat rate which calculates total interest upfront, simple interest
+ * calculates interest per period on the original principal
+ * 
+ * @param {Number} principal - Loan principal amount
+ * @param {Number} annualRate - Annual interest rate as percentage
+ * @param {Date} startDate - Period start date
+ * @param {Date} endDate - Period end date
+ * @param {String} accrualBasis - Day count convention (actual/365, actual/360, 30/360)
+ * @returns {Number} Interest for the period
+ */
+function calculateSimpleInterest(principal, annualRate, startDate, endDate, accrualBasis = 'actual/365') {
+  // Simple interest per period on original principal
+  const days = accrualBasis === '30/360' 
+    ? get30_360Days(startDate, endDate)
+    : getActualDays(startDate, endDate);
+  
+  const daysInYear = accrualBasis === 'actual/360' ? 360 : 365;
+  const dailyRate = annualRate / 100 / daysInYear;
+  
+  return principal * dailyRate * days;
+}
+
+/**
+ * Calculate simple interest payment details
+ * For simple interest loans, each payment consists of:
+ * - Interest on original principal for the period
+ * - Equal principal portion
+ * 
+ * @param {Number} principal - Loan principal amount
+ * @param {Number} annualRate - Annual interest rate as percentage
+ * @param {Number} term - Number of payment periods
+ * @param {String} frequency - Payment frequency (weekly, bi_weekly, monthly, quarterly)
+ * @param {String} accrualBasis - Day count convention
+ * @returns {Object} Payment details { averagePayment, totalInterest, interestPerPeriod, principalPerPeriod }
+ */
+function calculateSimpleInterestPayment(principal, annualRate, term, frequency = 'monthly', accrualBasis = 'actual/365') {
+  // Calculate average interest per period
+  const daysInYear = accrualBasis === 'actual/360' ? 360 : 365;
+  const dailyRate = annualRate / 100 / daysInYear;
+  
+  // For simplicity, assume average days per period
+  let avgDaysPerPeriod;
+  if (frequency === 'weekly') {
+    avgDaysPerPeriod = 7;
+  } else if (frequency === 'bi_weekly') {
+    avgDaysPerPeriod = 14;
+  } else if (frequency === 'monthly') {
+    avgDaysPerPeriod = accrualBasis === '30/360' ? 30 : 365 / 12; // ~30.42 days
+  } else if (frequency === 'quarterly') {
+    avgDaysPerPeriod = accrualBasis === '30/360' ? 90 : 365 / 4; // ~91.25 days
+  }
+  
+  const interestPerPeriod = principal * dailyRate * avgDaysPerPeriod;
+  const principalPerPeriod = principal / term;
+  const averagePayment = principalPerPeriod + interestPerPeriod;
+  const totalInterest = interestPerPeriod * term;
+  
+  return {
+    averagePayment,
+    totalInterest,
+    interestPerPeriod,
+    principalPerPeriod
+  };
+}
+
 module.exports = {
   getDailyRate,
   getActualDays,
@@ -242,5 +310,7 @@ module.exports = {
   getPeriodsPerYear,
   getNextPaymentDate,
   calculateFlatRateInterest,
-  calculateFlatRatePayment
+  calculateFlatRatePayment,
+  calculateSimpleInterest,
+  calculateSimpleInterestPayment
 };

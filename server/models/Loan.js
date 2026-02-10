@@ -1,4 +1,10 @@
 const mongoose = require('mongoose');
+const {
+  calculatePeriodInterest,
+  getNextPaymentDate,
+  getDaysInPeriod,
+  addMonths
+} = require('../utils/interestCalculator');
 
 const loanSchema = new mongoose.Schema({
   // Basic loan information
@@ -368,46 +374,93 @@ loanSchema.pre('save', async function(next) {
   next();
 });
 
-// Calculate loan details
+// Calculate loan details using daily interest accrual
 loanSchema.methods.calculateLoanDetails = function() {
   const principal = this.amount;
-  const rate = this.interestRate / 100 / 12; // Monthly interest rate
+  const annualRate = this.interestRate;
   const term = this.term;
+  const accrualBasis = this.interestCalculation?.accrualBasis || 'actual/365';
+  const frequency = this.repaymentFrequency || 'monthly';
   
-  if (rate === 0) {
+  // For zero interest loans
+  if (annualRate === 0) {
     this.monthlyPayment = principal / term;
     this.totalInterest = 0;
-  } else {
-    this.monthlyPayment = (principal * rate * Math.pow(1 + rate, term)) / (Math.pow(1 + rate, term) - 1);
-    this.totalInterest = (this.monthlyPayment * term) - principal;
+    this.totalAmount = principal;
+    this.generateRepaymentSchedule();
+    return;
   }
   
-  this.totalAmount = principal + this.totalInterest;
+  // For monthly frequency, use standard amortization formula
+  if (frequency === 'monthly') {
+    const monthlyRate = annualRate / 100 / 12;
+    this.monthlyPayment = (principal * monthlyRate * Math.pow(1 + monthlyRate, term)) / 
+                          (Math.pow(1 + monthlyRate, term) - 1);
+    this.totalInterest = (this.monthlyPayment * term) - principal;
+    this.totalAmount = principal + this.totalInterest;
+  } else {
+    // For other frequencies, calculate based on payment periods
+    const periodsPerYear = frequency === 'bi_weekly' ? 26 : frequency === 'weekly' ? 52 : 12;
+    const periodRate = annualRate / 100 / periodsPerYear;
+    const totalPeriods = term; // Assuming term is already in correct periods
+    
+    this.monthlyPayment = (principal * periodRate * Math.pow(1 + periodRate, totalPeriods)) / 
+                          (Math.pow(1 + periodRate, totalPeriods) - 1);
+    this.totalInterest = (this.monthlyPayment * totalPeriods) - principal;
+    this.totalAmount = principal + this.totalInterest;
+  }
   
-  // Generate repayment schedule
+  // Generate repayment schedule with accurate dates
   this.generateRepaymentSchedule();
 };
 
-// Generate repayment schedule
+// Generate repayment schedule with actual day calculations
 loanSchema.methods.generateRepaymentSchedule = function() {
   const schedule = [];
-  const monthlyPayment = this.monthlyPayment;
+  const paymentAmount = this.monthlyPayment;
   let remainingPrincipal = this.amount;
-  const monthlyRate = this.interestRate / 100 / 12;
+  const annualRate = this.interestRate;
+  const accrualBasis = this.interestCalculation?.accrualBasis || 'actual/365';
+  const frequency = this.repaymentFrequency || 'monthly';
+  
+  // Start date for schedule (use disbursement date or current date)
+  let currentDate = this.disbursedAt || new Date();
   
   for (let i = 1; i <= this.term; i++) {
-    const interest = remainingPrincipal * monthlyRate;
-    const principal = monthlyPayment - interest;
-    remainingPrincipal -= principal;
+    // Calculate next payment date
+    const dueDate = getNextPaymentDate(currentDate, frequency);
+    
+    // Calculate interest for this period using actual days
+    const periodInterest = calculatePeriodInterest(
+      remainingPrincipal,
+      annualRate,
+      currentDate,
+      dueDate,
+      accrualBasis
+    );
+    
+    // Calculate principal portion
+    const principalPortion = paymentAmount - periodInterest;
+    
+    // Ensure we don't have negative principal in last payment
+    const actualPrincipal = Math.min(principalPortion, remainingPrincipal);
+    const actualInterest = i === this.term ? 
+      (paymentAmount - actualPrincipal) : periodInterest;
+    
+    remainingPrincipal -= actualPrincipal;
     
     schedule.push({
       installmentNumber: i,
-      dueDate: new Date(Date.now() + (i * 30 * 24 * 60 * 60 * 1000)), // Approximate 30 days
-      amount: monthlyPayment,
-      principal: Math.min(principal, remainingPrincipal + principal),
-      interest: interest,
-      status: 'pending'
+      dueDate: dueDate,
+      amount: i === this.term && remainingPrincipal > 0 ? 
+        actualPrincipal + actualInterest : paymentAmount,
+      principal: actualPrincipal,
+      interest: actualInterest,
+      status: 'pending',
+      paidAmount: 0
     });
+    
+    currentDate = dueDate;
   }
   
   this.repaymentSchedule = schedule;

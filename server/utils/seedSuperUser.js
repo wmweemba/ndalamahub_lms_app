@@ -51,7 +51,7 @@ const seedDatabase = async () => {
         // 3. Create the super user account
         const superUser = await User.create({
             username: 'superadmin',
-            password: 'Admin@2025',
+            password: 'Password10$',
             firstName: 'System',
             lastName: 'Administrator',
             email: 'admin@ndalamahub.com',
@@ -65,7 +65,7 @@ const seedDatabase = async () => {
         console.log(`✅ Created super user: ${superUser.username}`);
         console.log('\n🔑 Login credentials:');
         console.log('Username: superadmin');
-        console.log('Password: Admin@2025');
+        console.log('Password: Password10$');
 
     } catch (error) {
         console.error('❌ Database seeding failed:', error);

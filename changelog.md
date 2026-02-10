@@ -10,16 +10,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- New features will be documented here
+- **Phase 0: Loan Engine Enhancement - Week 1, Day 1 ✅ COMPLETED**:
+  - Added interest calculation configuration to Loan schema
+  - Added `interestCalculation` object with method, accrualBasis, and accrualFrequency fields
+  - Added `repaymentFrequency` field supporting weekly, bi-weekly, monthly, and quarterly schedules
+  - Support for multiple amortization methods: reducing_balance, flat_rate, simple_interest, interest_only
+  - Support for day count conventions: actual/365, actual/360, 30/360
+  - Prepares foundation for daily interest accrual implementation
+  - Created MongoDB Atlas connection for ndalamahub-prod database
+  - Fixed password reset utility to properly hash passwords using pre-save hook
+  - Environment configuration completed with .env file setup
+
+- **Phase 0: Loan Engine Enhancement - Week 1, Day 2 ✅ COMPLETED**:
+  - Created comprehensive interest calculator utility (`server/utils/interestCalculator.js`)
+  - Implemented daily interest rate calculations for all three day count conventions
+  - Added functions for calculating days between dates (actual and 30/360)
+  - Built period interest calculator with accurate date handling
+  - Created date manipulation utilities (addMonths, addDays, addWeeks)
+  - Implemented payment frequency helpers (weekly, bi-weekly, monthly, quarterly)
+  - Added 30 comprehensive unit tests with Jest - all passing ✅
+  - Created manual test script demonstrating real-world calculations
+  - Configured Jest testing framework for server-side tests
 
 ### Changed
-- Changes to existing functionality will be documented here
+- Updated super user password reset script to avoid double-hashing
+- Configured MongoDB Atlas connection string for cloud database
+- Updated server package.json test scripts to use Jest
 
 ### Fixed
-- Bug fixes will be documented here
+- Fixed double password hashing issue in reset password utility
 
 ### Removed
-- Removed features will be documented here
+- Removed local MongoDB dependency in favor of MongoDB Atlas
 
 ---
 

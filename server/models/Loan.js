@@ -53,6 +53,37 @@ const loanSchema = new mongoose.Schema({
     trim: true,
     maxlength: [1000, 'Description cannot exceed 1000 characters']
   },
+  
+  // Interest calculation configuration
+  interestCalculation: {
+    method: {
+      type: String,
+      enum: ['reducing_balance', 'flat_rate', 'simple_interest', 'interest_only'],
+      default: 'reducing_balance',
+      required: true
+    },
+    accrualBasis: {
+      type: String,
+      enum: ['actual/365', 'actual/360', '30/360'],
+      default: 'actual/365',
+      required: true
+    },
+    accrualFrequency: {
+      type: String,
+      enum: ['daily', 'monthly'],
+      default: 'daily',
+      required: true
+    }
+  },
+  
+  // Repayment frequency
+  repaymentFrequency: {
+    type: String,
+    enum: ['weekly', 'bi_weekly', 'monthly', 'quarterly'],
+    default: 'monthly',
+    required: true
+  },
+  
   monthlyIncome: {
     type: Number,
     min: [0, 'Monthly income cannot be negative']

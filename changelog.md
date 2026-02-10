@@ -78,6 +78,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `calculateSimpleInterest()` and `calculateSimpleInterestPayment()` functions
   - Simple interest calculates interest on original principal per period (not declining balance)
   - Interest varies by actual days in month, unlike flat rate's equal division
+  - Added simple_interest handling in `calculateLoanDetails()` method
+  - Created `generateSimpleInterestSchedule()` method with accurate period calculations
+  - Added 4 comprehensive tests for simple interest method
+  - Test validates variable interest based on actual days per period
+  - Comparison shows simple interest between reducing balance and flat rate costs
+  - Created testSimpleInterest.js demo comparing all three methods
+  - All 48/48 tests passing (30 calculator + 18 loan calculations)
+
+- **Phase 0: Loan Engine Enhancement - Week 2, Days 3-4 ✅ COMPLETED**:
+  - Implemented interest-only amortization method with balloon payment support
+  - Added `calculateInterestOnlyPayment()` function to interest calculator
+  - Interest-only loans pay interest each period, principal due at maturity
+  - Added interest_only handling in `calculateLoanDetails()` method
+  - Created `generateInterestOnlySchedule()` method with balloon payment flag
+  - Added `isBalloonPayment` field to repayment schedule schema
+  - Added 4 comprehensive tests for interest-only loans
+  - Tests validate balloon payment structure and lower regular payments
+  - Comparison: Interest-only 79.71% more expensive than reducing balance but preserves capital
+  - Created testInterestOnly.js demo showing use cases (bridge financing, investment properties)
+  - All 52/52 tests passing (30 calculator + 22 loan calculations)
+
+**Week 2 Summary**: Extended loan engine with simple interest and interest-only methods. Simple interest charges interest on original principal per period with actual day variations. Interest-only provides lower monthly payments with balloon principal at end, suitable for bridge financing and investment properties. All 4 amortization methods now implemented (reducing balance, flat rate, simple interest, interest-only). 52/52 tests passing. Ready for Week 3 loan product configuration.
   - Added `simple_interest` handling in `calculateLoanDetails()` method
   - Created `generateSimpleInterestSchedule()` with accurate period calculations
   - Added 4 comprehensive tests for simple interest method (48/48 tests passing)

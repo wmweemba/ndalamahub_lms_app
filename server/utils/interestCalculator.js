@@ -198,6 +198,36 @@ function getNextPaymentDate(currentDate, frequency) {
   }
 }
 
+/**
+ * Calculate total interest for flat rate method
+ * Flat rate: Interest = Principal × Rate × Time (years)
+ * @param {Number} principal - Loan amount
+ * @param {Number} annualRate - Annual interest rate percentage
+ * @param {Number} termMonths - Loan term in months
+ * @returns {Number} Total interest amount
+ */
+function calculateFlatRateInterest(principal, annualRate, termMonths) {
+  const termYears = termMonths / 12;
+  return principal * (annualRate / 100) * termYears;
+}
+
+/**
+ * Calculate flat rate monthly payment
+ * @param {Number} principal - Loan amount
+ * @param {Number} annualRate - Annual interest rate percentage
+ * @param {Number} termMonths - Loan term in months
+ * @returns {Object} { monthlyPayment, totalInterest }
+ */
+function calculateFlatRatePayment(principal, annualRate, termMonths) {
+  const totalInterest = calculateFlatRateInterest(principal, annualRate, termMonths);
+  const monthlyPayment = (principal + totalInterest) / termMonths;
+  
+  return {
+    monthlyPayment,
+    totalInterest
+  };
+}
+
 module.exports = {
   getDailyRate,
   getActualDays,
@@ -210,5 +240,7 @@ module.exports = {
   addDays,
   addWeeks,
   getPeriodsPerYear,
-  getNextPaymentDate
+  getNextPaymentDate,
+  calculateFlatRateInterest,
+  calculateFlatRatePayment
 };

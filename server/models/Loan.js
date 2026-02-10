@@ -3,7 +3,8 @@ const {
   calculatePeriodInterest,
   getNextPaymentDate,
   getDaysInPeriod,
-  addMonths
+  addMonths,
+  calculateFlatRatePayment
 } = require('../utils/interestCalculator');
 
 const loanSchema = new mongoose.Schema({
@@ -381,6 +382,7 @@ loanSchema.methods.calculateLoanDetails = function() {
   const term = this.term;
   const accrualBasis = this.interestCalculation?.accrualBasis || 'actual/365';
   const frequency = this.repaymentFrequency || 'monthly';
+  const method = this.interestCalculation?.method || 'reducing_balance';
   
   // For zero interest loans
   if (annualRate === 0) {
@@ -391,8 +393,15 @@ loanSchema.methods.calculateLoanDetails = function() {
     return;
   }
   
-  // For monthly frequency, use standard amortization formula
-  if (frequency === 'monthly') {
+  // Calculate based on method
+  if (method === 'flat_rate') {
+    // Flat rate: Interest = Principal × Rate × Time
+    const result = calculateFlatRatePayment(principal, annualRate, term);
+    this.monthlyPayment = result.monthlyPayment;
+    this.totalInterest = result.totalInterest;
+    this.totalAmount = principal + this.totalInterest;
+  } else if (frequency === 'monthly') {
+    // For monthly frequency, use standard amortization formula
     const monthlyRate = annualRate / 100 / 12;
     this.monthlyPayment = (principal * monthlyRate * Math.pow(1 + monthlyRate, term)) / 
                           (Math.pow(1 + monthlyRate, term) - 1);
@@ -416,6 +425,17 @@ loanSchema.methods.calculateLoanDetails = function() {
 
 // Generate repayment schedule with actual day calculations
 loanSchema.methods.generateRepaymentSchedule = function() {
+  const method = this.interestCalculation?.method || 'reducing_balance';
+  
+  if (method === 'flat_rate') {
+    return this.generateFlatRateSchedule();
+  } else {
+    return this.generateReducingBalanceSchedule();
+  }
+};
+
+// Generate schedule for reducing balance loans
+loanSchema.methods.generateReducingBalanceSchedule = function() {
   const schedule = [];
   const paymentAmount = this.monthlyPayment;
   let remainingPrincipal = this.amount;
@@ -456,6 +476,46 @@ loanSchema.methods.generateRepaymentSchedule = function() {
         actualPrincipal + actualInterest : paymentAmount,
       principal: actualPrincipal,
       interest: actualInterest,
+      status: 'pending',
+      paidAmount: 0
+    });
+    
+    currentDate = dueDate;
+  }
+  
+  this.repaymentSchedule = schedule;
+};
+
+// Generate schedule for flat rate loans
+loanSchema.methods.generateFlatRateSchedule = function() {
+  const schedule = [];
+  const paymentAmount = this.monthlyPayment;
+  const principal = this.amount;
+  const totalInterest = this.totalInterest;
+  const term = this.term;
+  const frequency = this.repaymentFrequency || 'monthly';
+  
+  // In flat rate, principal and interest are divided equally across installments
+  const principalPerInstallment = principal / term;
+  const interestPerInstallment = totalInterest / term;
+  
+  const startDate = this.disbursedAt || new Date();
+  let currentDate = new Date(startDate);
+  let remainingPrincipal = principal;
+  
+  for (let i = 1; i <= term; i++) {
+    // Calculate next payment date
+    const dueDate = getNextPaymentDate(currentDate, frequency);
+    
+    // For flat rate, principal and interest are fixed per installment
+    remainingPrincipal -= principalPerInstallment;
+    
+    schedule.push({
+      installmentNumber: i,
+      dueDate: dueDate,
+      amount: paymentAmount,
+      principal: principalPerInstallment,
+      interest: interestPerInstallment,
       status: 'pending',
       paidAmount: 0
     });

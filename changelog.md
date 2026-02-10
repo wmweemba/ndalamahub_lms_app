@@ -73,6 +73,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Week 1 Summary**: Complete foundation for enterprise-grade loan calculations implemented and tested. Daily interest accrual with accurate date handling replaces fixed 30-day assumptions. Flat rate method added for microfinance market. 44/44 tests passing. Full documentation created.
 
+- **Phase 0: Loan Engine Enhancement - Week 2, Days 1-2 ✅ COMPLETED**:
+  - Implemented simple interest amortization method
+  - Added `calculateSimpleInterest()` and `calculateSimpleInterestPayment()` functions
+  - Simple interest calculates interest on original principal per period (not declining balance)
+  - Interest varies by actual days in month, unlike flat rate's equal division
+  - Added `simple_interest` handling in `calculateLoanDetails()` method
+  - Created `generateSimpleInterestSchedule()` with accurate period calculations
+  - Added 4 comprehensive tests for simple interest method (48/48 tests passing)
+  - Created comparison demo showing simple interest between reducing balance and flat rate costs
+  - Test validates variable interest based on actual days per period
+  - For ZMW 10,000 @ 24% for 6 months: Same total interest as flat rate (~ZMW 1,200) but payment amounts vary by days
+
+- **Phase 0: Loan Engine Enhancement - Week 2, Days 3-4 ✅ COMPLETED**:
+  - Implemented interest-only amortization method with balloon payment
+  - Added `calculateInterestOnlyPayment()` function to interest calculator
+  - Interest-only loans: Pay only interest each period, principal due at maturity
+  - Added `interest_only` handling in `calculateLoanDetails()` method
+  - Created `generateInterestOnlySchedule()` method with balloon payment flag
+  - Added `isBalloonPayment` field to repaymentSchedule schema
+  - Added 4 comprehensive tests for interest-only loans (52/52 tests passing)
+  - Test validates balloon payment flag, lower regular payments, but higher total cost
+  - Comparison: ZMW 50,000 @ 18% for 12 months
+    * Interest-only: ZMW 750/month, ZMW 9,000 total interest, ZMW 50,000 balloon at end
+    * Reducing balance: ZMW 4,584/month, ZMW 5,008 total interest
+    * Interest-only is 79.71% more expensive but preserves capital
+  - Created demo showing use cases (bridge financing, investment properties, business expansion)
+
+**Week 2 In Progress**: Implemented simple interest and interest-only methods. System now supports 4 complete amortization methods. 52/52 tests passing.
+
 ### Changed
 - Updated super user password reset script to avoid double-hashing
 - Configured MongoDB Atlas connection string for cloud database

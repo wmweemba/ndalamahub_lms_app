@@ -10,16 +10,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- New features will be documented here
+- **Phase 0: Loan Engine Enhancement - Week 1, Day 1 ✅ COMPLETED**:
+  - Added interest calculation configuration to Loan schema
+  - Added `interestCalculation` object with method, accrualBasis, and accrualFrequency fields
+  - Added `repaymentFrequency` field supporting weekly, bi-weekly, monthly, and quarterly schedules
+  - Support for multiple amortization methods: reducing_balance, flat_rate, simple_interest, interest_only
+  - Support for day count conventions: actual/365, actual/360, 30/360
+  - Prepares foundation for daily interest accrual implementation
+  - Created MongoDB Atlas connection for ndalamahub-prod database
+  - Fixed password reset utility to properly hash passwords using pre-save hook
+  - Environment configuration completed with .env file setup
 
 ### Changed
-- Changes to existing functionality will be documented here
+- Updated super user password reset script to avoid double-hashing
+- Configured MongoDB Atlas connection string for cloud database
 
 ### Fixed
-- Bug fixes will be documented here
+- Fixed double password hashing issue in reset password utility
 
 ### Removed
-- Removed features will be documented here
+- Removed local MongoDB dependency in favor of MongoDB Atlas
 
 ---
 

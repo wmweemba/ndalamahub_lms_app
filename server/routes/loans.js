@@ -3,6 +3,7 @@ const router = express.Router();
 const Loan = require('../models/Loan');
 const User = require('../models/User');
 const Company = require('../models/Company');
+const LoanProduct = require('../models/LoanProduct');
 const { 
   authenticateToken, 
   authorize, 
@@ -91,6 +92,7 @@ router.get('/', authenticateToken, async (req, res) => {
       .populate('applicant', 'firstName lastName email employeeId department')
       .populate('company', 'name type')
       .populate('lenderCompany', 'name type')
+      .populate('product', 'name category interestRate term amount')
       .populate('approvedBy', 'firstName lastName')
       .populate('disbursedBy', 'firstName lastName')
       .sort({ applicationDate: -1 })
@@ -264,8 +266,10 @@ router.get('/:id', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, authorize('corporate_user'), async (req, res) => {
   try {
     const {
+      productId,
       amount,
       term,
+      interestRate,
       purpose,
       description,
       monthlyIncome,
@@ -273,30 +277,6 @@ router.post('/', authenticateToken, authorize('corporate_user'), async (req, res
       guarantor,
       documents
     } = req.body;
-
-    // Validate required fields
-    if (!amount || !term || !purpose) {
-      return res.status(400).json({
-        success: false,
-        message: 'Amount, term, and purpose are required'
-      });
-    }
-
-    // Validate amount
-    if (amount < 100 || amount > 1000000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Loan amount must be between 100 and 1,000,000'
-      });
-    }
-
-    // Validate term
-    if (term < 1 || term > 60) {
-      return res.status(400).json({
-        success: false,
-        message: 'Loan term must be between 1 and 60 months'
-      });
-    }
 
     // Get user's company and lender company
     const user = await User.findById(req.user.id).populate('company');
@@ -324,6 +304,126 @@ router.post('/', authenticateToken, authorize('corporate_user'), async (req, res
       });
     }
 
+    // Handle product-based application
+    let loanData = {};
+    
+    if (productId) {
+      // Product-based loan application
+      const product = await LoanProduct.findById(productId);
+      
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: 'Product not found'
+        });
+      }
+      
+      if (!product.isActive) {
+        return res.status(400).json({
+          success: false,
+          message: 'Product is not currently available'
+        });
+      }
+      
+      // Validate product belongs to lender
+      if (product.company.toString() !== lenderCompany._id.toString()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Product not available for your lender'
+        });
+      }
+      
+      // Validate amount against product limits
+      if (!product.isAmountValid(amount)) {
+        return res.status(400).json({
+          success: false,
+          message: `Loan amount must be between ${product.amount.currency} ${product.amount.min} and ${product.amount.currency} ${product.amount.max}`
+        });
+      }
+      
+      // Validate term against product limits
+      if (!product.isTermValid(term)) {
+        return res.status(400).json({
+          success: false,
+          message: `Loan term must be between ${product.term.min} and ${product.term.max} months`
+        });
+      }
+      
+      // Use interest rate from product (or allow within range)
+      const loanRate = interestRate || product.interestRate.default;
+      if (!product.isRateValid(loanRate)) {
+        return res.status(400).json({
+          success: false,
+          message: `Interest rate must be between ${product.interestRate.min}% and ${product.interestRate.max}%`
+        });
+      }
+      
+      loanData = {
+        product: productId,
+        amount,
+        term,
+        interestRate: loanRate,
+        purpose: purpose || `${product.name} Application`,
+        description: description || product.description,
+        interestCalculation: {
+          method: product.interestCalculation.method,
+          accrualBasis: product.interestCalculation.dayCountConvention
+        },
+        repaymentFrequency: product.repaymentFrequency[0] // Use first frequency as default
+      };
+      
+      // Calculate fees
+      const processingFee = product.calculateProcessingFee(amount);
+      const insuranceFee = product.calculateInsuranceFee(amount);
+      
+      loanData.fees = {
+        processing: processingFee,
+        insurance: insuranceFee
+      };
+      
+    } else {
+      // Legacy loan application (without product)
+      // Validate required fields
+      if (!amount || !term || !purpose) {
+        return res.status(400).json({
+          success: false,
+          message: 'Amount, term, and purpose are required'
+        });
+      }
+
+      // Validate amount
+      if (amount < 100 || amount > 1000000) {
+        return res.status(400).json({
+          success: false,
+          message: 'Loan amount must be between 100 and 1,000,000'
+        });
+      }
+
+      // Validate term
+      if (term < 1 || term > 60) {
+        return res.status(400).json({
+          success: false,
+          message: 'Loan term must be between 1 and 60 months'
+        });
+      }
+
+      // Check if amount exceeds company's maximum
+      if (amount > lenderCompany.settings.maxLoanAmount) {
+        return res.status(400).json({
+          success: false,
+          message: `Loan amount exceeds maximum allowed amount of ${lenderCompany.settings.maxLoanAmount}`
+        });
+      }
+
+      loanData = {
+        amount,
+        interestRate: interestRate || lenderCompany.settings.interestRate,
+        term,
+        purpose,
+        description: description || ''
+      };
+    }
+
     // Check if user has existing active loans
     const existingLoans = await Loan.find({
       applicant: req.user.id,
@@ -337,53 +437,26 @@ router.post('/', authenticateToken, authorize('corporate_user'), async (req, res
       });
     }
 
-    // Check if amount exceeds company's maximum
-    if (amount > lenderCompany.settings.maxLoanAmount) {
-      return res.status(400).json({
-        success: false,
-        message: `Loan amount exceeds maximum allowed amount of ${lenderCompany.settings.maxLoanAmount}`
-      });
-    }
-
-    // Create loan object
-    const loanData = {
-      applicant: req.user.id,
-      company: company._id,
-      lenderCompany: lenderCompany._id,
-      amount,
-      interestRate: lenderCompany.settings.interestRate,
-      term,
-      purpose,
-      description: description || '',
-      monthlyIncome: monthlyIncome || 0,
-      collateral: collateral || null,
-      guarantor
-    };
-
-    // Add documents if provided
-    if (documents && documents.length > 0) {
-      loanData.documents = documents;
-    }
-
     // Create new loan
     const loan = new Loan({
-      applicant: user._id, // This is correct
+      ...loanData,
+      applicant: user._id,
       company: user.company._id,
-      lenderCompany: user.company.lenderCompany,
-      amount,
-      interestRate: user.company.settings.interestRate,
-      term,
-      purpose,
+      lenderCompany: lenderCompany._id,
+      monthlyIncome: monthlyIncome || 0,
+      collateral: collateral || null,
       guarantor,
-      documents
+      documents: documents || []
     });
+    
     await loan.save();
 
     // Populate references for response
     await loan.populate([
       { path: 'applicant', select: 'firstName lastName email employeeId department' },
       { path: 'company', select: 'name type' },
-      { path: 'lenderCompany', select: 'name type' }
+      { path: 'lenderCompany', select: 'name type' },
+      { path: 'product', select: 'name category interestRate term amount' }
     ]);
 
     res.status(201).json({

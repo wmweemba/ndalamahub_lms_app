@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LoanDetailsDialog } from '@/components/loans/LoanDetailsDialog';
-import LoanApplicationForm from '@/components/loans/LoanApplicationForm';
+import ProductBasedLoanForm from '@/components/loans/ProductBasedLoanForm';
 import api from '@/utils/api';
 import { ROLES } from '@/utils/roleUtils';
 
@@ -302,7 +302,7 @@ export default function LoansPage() {
                 onUpdate={fetchLoans}
             />
 
-            <LoanApplicationForm
+            <ProductBasedLoanForm
                 open={isApplicationFormOpen}
                 onClose={() => setIsApplicationFormOpen(false)}
                 onSuccess={handleLoanApplicationSuccess}

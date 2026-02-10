@@ -32,6 +32,10 @@ const loanSchema = new mongoose.Schema({
     ref: 'Company',
     required: [true, 'Lender company is required']
   },
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'LoanProduct'
+  },
   
   // Loan details
   amount: {

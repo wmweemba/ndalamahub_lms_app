@@ -349,6 +349,134 @@ describe('Loan Calculation Integration Tests', () => {
     });
   });
 
+  describe('Interest-Only Method', () => {
+    test('should calculate correctly with balloon payment', () => {
+      const loan = new Loan({
+        applicant: testApplicantId,
+        company: testCompanyId,
+        amount: 50000,
+        interestRate: 18,
+        term: 12,
+        repaymentFrequency: 'monthly',
+        interestCalculation: {
+          method: 'interest_only',
+          accrualBasis: 'actual/365',
+          accrualFrequency: 'daily'
+        }
+      });
+
+      loan.calculateLoanDetails();
+
+      // Monthly payment should be interest only (no principal)
+      expect(loan.monthlyPayment).toBeCloseTo(750, 0);
+      expect(loan.totalInterest).toBeCloseTo(9000, 0);
+      expect(loan.totalAmount).toBeCloseTo(59000, 0);
+    });
+
+    test('should generate schedule with interest payments and balloon', () => {
+      const loan = new Loan({
+        applicant: testApplicantId,
+        company: testCompanyId,
+        amount: 50000,
+        interestRate: 18,
+        term: 12,
+        repaymentFrequency: 'monthly',
+        interestCalculation: {
+          method: 'interest_only',
+          accrualBasis: 'actual/365',
+          accrualFrequency: 'daily'
+        }
+      });
+
+      loan.calculateLoanDetails();
+      loan.generateRepaymentSchedule();
+
+      expect(loan.repaymentSchedule).toHaveLength(12);
+      
+      // First 11 payments should have no principal
+      for (let i = 0; i < 11; i++) {
+        expect(loan.repaymentSchedule[i].principal).toBe(0);
+        expect(loan.repaymentSchedule[i].interest).toBeGreaterThan(0);
+      }
+      
+      // Last payment should have full principal (balloon)
+      const lastPayment = loan.repaymentSchedule[11];
+      expect(lastPayment.principal).toBe(50000);
+      expect(lastPayment.interest).toBeGreaterThan(0);
+      expect(lastPayment.isBalloonPayment).toBeTruthy();
+      expect(lastPayment.amount).toBeCloseTo(50000 + lastPayment.interest, 2);
+    });
+
+    test('should have lower regular payments than amortizing loans', () => {
+      const interestOnlyLoan = new Loan({
+        applicant: testApplicantId,
+        company: testCompanyId,
+        amount: 50000,
+        interestRate: 18,
+        term: 12,
+        repaymentFrequency: 'monthly',
+        interestCalculation: {
+          method: 'interest_only',
+          accrualBasis: 'actual/365',
+          accrualFrequency: 'daily'
+        }
+      });
+
+      const reducingBalanceLoan = new Loan({
+        applicant: testApplicantId,
+        company: testCompanyId,
+        amount: 50000,
+        interestRate: 18,
+        term: 12,
+        repaymentFrequency: 'monthly',
+        interestCalculation: {
+          method: 'reducing_balance',
+          accrualBasis: 'actual/365',
+          accrualFrequency: 'daily'
+        }
+      });
+
+      interestOnlyLoan.calculateLoanDetails();
+      reducingBalanceLoan.calculateLoanDetails();
+
+      // Interest-only should have much lower regular payments
+      expect(interestOnlyLoan.monthlyPayment).toBeLessThan(reducingBalanceLoan.monthlyPayment);
+      
+      // But higher total interest
+      expect(interestOnlyLoan.totalInterest).toBeGreaterThan(reducingBalanceLoan.totalInterest);
+    });
+
+    test('should vary interest by actual days in month', () => {
+      const loan = new Loan({
+        applicant: testApplicantId,
+        company: testCompanyId,
+        amount: 50000,
+        interestRate: 18,
+        term: 12,
+        repaymentFrequency: 'monthly',
+        disbursedAt: new Date('2025-01-15'),
+        interestCalculation: {
+          method: 'interest_only',
+          accrualBasis: 'actual/365',
+          accrualFrequency: 'daily'
+        }
+      });
+
+      loan.calculateLoanDetails();
+      loan.generateRepaymentSchedule();
+
+      // Interest amounts should vary based on days in month
+      const interestAmounts = loan.repaymentSchedule.map(i => i.interest);
+      const uniqueInterests = [...new Set(interestAmounts.map(i => i.toFixed(2)))];
+      expect(uniqueInterests.length).toBeGreaterThan(1);
+      
+      // February should have lowest interest (fewer days)
+      const februaryInterest = loan.repaymentSchedule[1].interest;
+      const januaryInterest = loan.repaymentSchedule[0].interest;
+      expect(februaryInterest).toBeLessThan(januaryInterest);
+    });
+  });
+
   describe('Day Count Conventions', () => {
     test('should support different day count conventions', () => {
       const loan365 = new Loan({

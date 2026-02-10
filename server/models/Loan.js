@@ -6,7 +6,8 @@ const {
   addMonths,
   calculateFlatRatePayment,
   calculateSimpleInterest,
-  calculateSimpleInterestPayment
+  calculateSimpleInterestPayment,
+  calculateInterestOnlyPayment
 } = require('../utils/interestCalculator');
 
 const loanSchema = new mongoose.Schema({
@@ -201,6 +202,10 @@ const loanSchema = new mongoose.Schema({
     paidAmount: {
       type: Number,
       default: 0
+    },
+    isBalloonPayment: {
+      type: Boolean,
+      default: false
     }
   }],
   
@@ -408,6 +413,12 @@ loanSchema.methods.calculateLoanDetails = function() {
     this.monthlyPayment = result.averagePayment;
     this.totalInterest = result.totalInterest;
     this.totalAmount = principal + this.totalInterest;
+  } else if (method === 'interest_only') {
+    // Interest only: Pay interest each period, principal at end
+    const result = calculateInterestOnlyPayment(principal, annualRate, term, frequency, accrualBasis);
+    this.monthlyPayment = result.interestPayment;
+    this.totalInterest = result.totalInterest;
+    this.totalAmount = principal + this.totalInterest;
   } else if (frequency === 'monthly') {
     // For monthly frequency, use standard amortization formula
     const monthlyRate = annualRate / 100 / 12;
@@ -439,6 +450,8 @@ loanSchema.methods.generateRepaymentSchedule = function() {
     return this.generateFlatRateSchedule();
   } else if (method === 'simple_interest') {
     return this.generateSimpleInterestSchedule();
+  } else if (method === 'interest_only') {
+    return this.generateInterestOnlySchedule();
   } else {
     return this.generateReducingBalanceSchedule();
   }
@@ -574,6 +587,53 @@ loanSchema.methods.generateSimpleInterestSchedule = function() {
       interest: periodInterest,
       status: 'pending',
       paidAmount: 0
+    });
+    
+    currentDate = dueDate;
+  }
+  
+  this.repaymentSchedule = schedule;
+};
+
+// Generate schedule for interest-only loans
+loanSchema.methods.generateInterestOnlySchedule = function() {
+  const schedule = [];
+  const principal = this.amount;
+  const annualRate = this.interestRate;
+  const term = this.term;
+  const frequency = this.repaymentFrequency || 'monthly';
+  const accrualBasis = this.interestCalculation?.accrualBasis || 'actual/365';
+  
+  const startDate = this.disbursedAt || new Date();
+  let currentDate = new Date(startDate);
+  
+  for (let i = 1; i <= term; i++) {
+    // Calculate next payment date
+    const dueDate = getNextPaymentDate(currentDate, frequency);
+    
+    // Calculate interest for this period on original principal
+    const periodInterest = calculateSimpleInterest(
+      principal,
+      annualRate,
+      currentDate,
+      dueDate,
+      accrualBasis
+    );
+    
+    // For interest-only, only interest is paid until last payment
+    const isLastPayment = (i === term);
+    const paymentAmount = isLastPayment ? principal + periodInterest : periodInterest;
+    const principalPaid = isLastPayment ? principal : 0;
+    
+    schedule.push({
+      installmentNumber: i,
+      dueDate: dueDate,
+      amount: paymentAmount,
+      principal: principalPaid,
+      interest: periodInterest,
+      status: 'pending',
+      paidAmount: 0,
+      isBalloonPayment: isLastPayment
     });
     
     currentDate = dueDate;

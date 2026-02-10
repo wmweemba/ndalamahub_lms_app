@@ -296,6 +296,48 @@ function calculateSimpleInterestPayment(principal, annualRate, term, frequency =
   };
 }
 
+/**
+ * Calculate interest-only payment details
+ * For interest-only loans:
+ * - Regular payments are interest only
+ * - Principal is paid as balloon payment at maturity
+ * 
+ * @param {Number} principal - Loan principal amount
+ * @param {Number} annualRate - Annual interest rate as percentage
+ * @param {Number} term - Number of payment periods
+ * @param {String} frequency - Payment frequency (weekly, bi_weekly, monthly, quarterly)
+ * @param {String} accrualBasis - Day count convention
+ * @returns {Object} Payment details { interestPayment, totalInterest, balloonPayment }
+ */
+function calculateInterestOnlyPayment(principal, annualRate, term, frequency = 'monthly', accrualBasis = 'actual/365') {
+  // Calculate average interest payment per period
+  const daysInYear = accrualBasis === 'actual/360' ? 360 : 365;
+  const dailyRate = annualRate / 100 / daysInYear;
+  
+  // Average days per period
+  let avgDaysPerPeriod;
+  if (frequency === 'weekly') {
+    avgDaysPerPeriod = 7;
+  } else if (frequency === 'bi_weekly') {
+    avgDaysPerPeriod = 14;
+  } else if (frequency === 'monthly') {
+    avgDaysPerPeriod = accrualBasis === '30/360' ? 30 : 365 / 12; // ~30.42 days
+  } else if (frequency === 'quarterly') {
+    avgDaysPerPeriod = accrualBasis === '30/360' ? 90 : 365 / 4; // ~91.25 days
+  }
+  
+  const interestPayment = principal * dailyRate * avgDaysPerPeriod;
+  const totalInterest = interestPayment * term;
+  const balloonPayment = principal; // Full principal due at end
+  
+  return {
+    interestPayment,
+    totalInterest,
+    balloonPayment,
+    finalPayment: balloonPayment + interestPayment
+  };
+}
+
 module.exports = {
   getDailyRate,
   getActualDays,
@@ -312,5 +354,6 @@ module.exports = {
   calculateFlatRateInterest,
   calculateFlatRatePayment,
   calculateSimpleInterest,
-  calculateSimpleInterestPayment
+  calculateSimpleInterestPayment,
+  calculateInterestOnlyPayment
 };

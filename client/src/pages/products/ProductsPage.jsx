@@ -26,18 +26,25 @@ export function ProductsPage() {
   ];
 
   useEffect(() => {
-    if (currentUser.role === 'super_user') {
+    if (currentUser?.role === 'super_user') {
       fetchLenders();
     }
+  }, []); // Run once on mount
+
+  useEffect(() => {
     fetchProducts();
   }, [selectedCategory, selectedLender]);
 
   const fetchLenders = async () => {
     try {
-      const response = await api.get('/companies', {
-        params: { type: 'lender' }
-      });
-      setLenders(response.data.data || []);
+      const response = await api.get('/companies');
+      console.log('Companies response:', response.data);
+      
+      // Filter for lender companies only
+      const lenderCompanies = (response.data || []).filter(c => c.type === 'lender');
+      console.log('Lender companies found:', lenderCompanies);
+      
+      setLenders(lenderCompanies);
     } catch (err) {
       console.error('Error fetching lenders:', err);
     }
@@ -54,7 +61,13 @@ export function ProductsPage() {
         params.company = selectedLender;
       }
       
+      console.log('Fetching products with params:', params);
+      console.log('Selected lender ID:', selectedLender);
+      
       const response = await api.get('/products', { params });
+      
+      console.log('Products response:', response.data);
+      console.log('Number of products:', response.data.data?.length);
       
       setProducts(response.data.data || []);
       setError(null);
@@ -123,7 +136,7 @@ export function ProductsPage() {
       </div>
 
       {/* Lender Filter (Super User Only) */}
-      {currentUser.role === 'super_user' && lenders.length > 0 && (
+      {currentUser?.role === 'super_user' && (
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Filter by Lender
@@ -131,9 +144,12 @@ export function ProductsPage() {
           <select
             value={selectedLender}
             onChange={(e) => setSelectedLender(e.target.value)}
-            className="block w-full md:w-64 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            disabled={lenders.length === 0}
+            className="block w-full md:w-64 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
-            <option value="all">All Lenders ({lenders.length})</option>
+            <option value="all">
+              {lenders.length === 0 ? 'Loading lenders...' : `All Lenders (${lenders.length})`}
+            </option>
             {lenders.map((lender) => (
               <option key={lender._id} value={lender._id}>
                 {lender.name}

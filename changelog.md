@@ -10,6 +10,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Frontend Testing & Navigation Enhancements**:
+  - Added Products navigation menu to main navbar
+    - Created ProductsPage component with category filtering
+    - Dynamic product cards showing interest rates, amount ranges, and terms
+    - Calculation method badges (reducing_balance, flat_rate, simple_interest, interest_only)
+    - Company name badges on each product for multi-tenant clarity
+  - Implemented lender filtering for product management (super_user only)
+    - Dynamic lender dropdown populated from companies API
+    - Backend support for company query parameter filtering
+    - Real-time product filtering by both category and lender
+    - Scalable solution for managing hundreds of products across multiple lenders
+  - Added product management UI components
+    - Edit and Delete buttons visible for super_user and lender_admin roles
+    - Role-based permissions via canManageProducts() utility
+    - Visual distinction between lender products via company badges
+  - Created comprehensive test data seeding
+    - Updated seeder.js with 11 users across all roles
+    - 5 companies: 2 lenders (FirstBank, QuickCash), 3 corporates (TechCorp, Mining Corp, RetailMart)
+    - 14 loan products seeded via seedProducts.js (7 types × 2 lenders)
+    - Automated setup script (setup-test-data.sh) for one-command initialization
+  - Created FRONTEND_TEST_PLAN.md (1,300+ lines)
+    - Complete step-by-step testing guide with dummy data
+    - 7 test parts: Setup, Products, Loan Lifecycle, Prepayments, Reports, Edge Cases, Performance
+    - All 4 calculation methods covered with specific test scenarios
+    - Login credentials quick reference table
+    - Expected results for all test cases
+    - Troubleshooting guide included
+
 - **Phase 0: Loan Engine Enhancement - Week 4 ✅ COMPLETED**:
   - Built Prepayment & Early Settlement Engine (`server/models/Loan.js` extended, 600+ lines total)
     - Prepayment schema: Tracks amount, allocation strategy (reduce_term/reduce_payment), principal/interest/fee portions

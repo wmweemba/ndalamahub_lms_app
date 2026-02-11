@@ -10,6 +10,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 0: Loan Engine Enhancement - Week 4 ✅ COMPLETED**:
+  - Built Prepayment & Early Settlement Engine (`server/models/Loan.js` extended, 600+ lines total)
+    - Prepayment schema: Tracks amount, allocation strategy (reduce_term/reduce_payment), principal/interest/fee portions
+    - Early settlement object: Records settlement date, amounts, fees, savings realized
+    - Validation methods: `canAcceptPrepayment()`, `calculateRemainingBalance()`, `calculateAccruedInterest()`
+    - Settlement calculation: `calculateEarlySettlementAmount()` with full breakdown and fees
+    - Prepayment recording: `recordPrepayment()` with interest-first allocation strategy
+    - Schedule recalculation: `recalculateSchedule()` supporting both reduce_term and reduce_payment strategies
+    - Method-specific recalculation: 4 separate functions for reducing_balance, flat_rate, simple_interest, interest_only
+  - Extended Loans API (`server/routes/loans.js`, 4 new endpoints)
+    - `GET /api/loans/:id/settlement-quote`: Returns early settlement breakdown (read-only)
+    - `POST /api/loans/:id/prepayment`: Records prepayment, triggers auto-recalculation, returns before/after summary
+    - `POST /api/loans/:id/early-settlement`: Processes full payoff, marks loan completed
+    - `GET /api/loans/:id/prepayment-history`: Lists all prepayments with summary totals
+    - Authorization: lender_admin only for all prepayment operations
+    - Multi-tenant validation: Checks lenderCompany match for security
+  - Created comprehensive test suite (`server/utils/__tests__/`, 41 new tests)
+    - `prepayment.test.js`: 19 tests for validation, balance calculation, settlement, recording
+    - `prepaymentAPI.test.js`: 20 tests for API endpoints, authorization, multi-tenant isolation
+    - `scheduleRecalculation.test.js`: 12 tests for both strategies across all 4 calculation methods
+    - All 130 tests passing ✅ (99 + 41 new tests)
+  - Built frontend prepayment components
+    - PrepaymentDialog: Recording prepayments with strategy selection (308 lines)
+    - PrepaymentHistoryDialog: Audit trail viewer with summary cards (233 lines)
+    - Integrated into LoanDetailsDialog with action buttons
+    - Added UI components: radio-group, textarea, alert (shadcn/ui compatible)
+    - Installed @radix-ui/react-radio-group dependency
+    - Frontend build successful ✅
+
 - **Phase 0: Loan Engine Enhancement - Week 3 ✅ COMPLETED**:
   - Created comprehensive LoanProduct model (`server/models/LoanProduct.js`, 400+ lines)
     - 9 product categories: personal, business, payday, bridge, microfinance, auto, education, mortgage, other

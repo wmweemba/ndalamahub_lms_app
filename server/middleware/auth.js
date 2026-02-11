@@ -26,7 +26,10 @@ const authorize = (...roles) => {
             return res.status(401).json({ message: 'User not authenticated' });
         }
 
-        if (!roles.includes(req.user.role) && req.user.role !== 'super_user') {
+        // Flatten roles array in case it's passed as authorize(['role1', 'role2'])
+        const allowedRoles = roles.flat();
+
+        if (!allowedRoles.includes(req.user.role) && req.user.role !== 'super_user') {
             return res.status(403).json({ 
                 message: 'Access denied. Insufficient permissions.' 
             });

@@ -3,6 +3,8 @@ import api from '@/utils/api';
 import { getCurrentUser, canManageProducts } from '@/utils/roleUtils';
 import { Button } from '@/components/ui/button';
 import { Pencil, Trash2, Plus } from 'lucide-react';
+import { CreateProductDialog } from '@/components/products/CreateProductDialog';
+import { EditProductDialog } from '@/components/products/EditProductDialog';
 
 export function ProductsPage() {
   const [products, setProducts] = useState([]);
@@ -11,6 +13,9 @@ export function ProductsPage() {
   const [error, setError] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedLender, setSelectedLender] = useState('all');
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const currentUser = getCurrentUser();
 
   const categories = [
@@ -79,6 +84,25 @@ export function ProductsPage() {
     }
   };
 
+  const handleEdit = (product) => {
+    setSelectedProduct(product);
+    setEditDialogOpen(true);
+  };
+
+  const handleDelete = async (productId) => {
+    if (!window.confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/products/${productId}`);
+      fetchProducts(); // Refresh list
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      alert(error.response?.data?.message || 'Failed to delete product');
+    }
+  };
+
   const getMethodBadgeColor = (method) => {
     const colors = {
       'reducing_balance': 'bg-blue-100 text-blue-800',
@@ -110,7 +134,10 @@ export function ProductsPage() {
           </p>
         </div>
         {canManageProducts(currentUser?.role) && (
-          <Button className="flex items-center gap-2">
+          <Button 
+            onClick={() => setCreateDialogOpen(true)}
+            className="flex items-center gap-2"
+          >
             <Plus className="h-4 w-4" />
             Create Product
           </Button>
@@ -204,12 +231,14 @@ export function ProductsPage() {
                   {canManageProducts(currentUser?.role) && (
                     <div className="flex gap-1">
                       <button
+                        onClick={() => handleEdit(product)}
                         className="p-1 hover:bg-gray-100 rounded"
                         title="Edit product"
                       >
                         <Pencil className="h-4 w-4 text-gray-600" />
                       </button>
                       <button
+                        onClick={() => handleDelete(product._id)}
                         className="p-1 hover:bg-red-50 rounded"
                         title="Delete product"
                       >
@@ -274,6 +303,27 @@ export function ProductsPage() {
           Showing {products.length} product{products.length !== 1 ? 's' : ''}
         </div>
       )}
+
+      {/* Create Product Dialog */}
+      <CreateProductDialog 
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onSuccess={() => {
+          fetchProducts();
+          setCreateDialogOpen(false);
+        }}
+      />
+
+      {/* Edit Product Dialog */}
+      <EditProductDialog 
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        product={selectedProduct}
+        onSuccess={() => {
+          fetchProducts();
+          setEditDialogOpen(false);
+        }}
+      />
     </div>
   );
 }

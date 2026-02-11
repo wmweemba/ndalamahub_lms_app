@@ -9,10 +9,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import api from '@/utils/api';
 import { canApproveLoan, canDisburseLoan, getCurrentUser } from '@/utils/roleUtils';
+import { PrepaymentDialog } from './PrepaymentDialog';
+import { PrepaymentHistoryDialog } from './PrepaymentHistoryDialog';
 
 export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
   const [loading, setLoading] = useState(false);
   const [actionError, setActionError] = useState(null);
+  const [prepaymentDialogOpen, setPrepaymentDialogOpen] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
 
   if (!loan) return null;
 
@@ -108,9 +112,17 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
   const canApprove = loan.status === 'pending' || loan.status === 'pending_approval';
   const canReject = loan.status === 'pending' || loan.status === 'pending_approval';
   const canDisburse = loan.status === 'approved';
+  const canPrepay = loan.status === 'active' || loan.status === 'disbursed' || loan.status === 'in_arrears';
+
+  const handlePrepaymentSuccess = (data) => {
+    if (onUpdate) {
+      onUpdate();
+    }
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <>
+      <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
@@ -328,6 +340,27 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
             </Button>
           )}
           
+          {userCanDisburse && canPrepay && (
+            <Button
+              onClick={() => setPrepaymentDialogOpen(true)}
+              disabled={loading}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              Make Prepayment
+            </Button>
+          )}
+          
+          {canPrepay && (
+            <Button
+              onClick={() => setHistoryDialogOpen(true)}
+              disabled={loading}
+              variant="outline"
+              className="border-purple-300 text-purple-600 hover:bg-purple-50"
+            >
+              View History
+            </Button>
+          )}
+          
           <Button
             onClick={onClose}
             variant="outline"
@@ -338,5 +371,19 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
         </div>
       </DialogContent>
     </Dialog>
+
+    <PrepaymentDialog
+      loan={loan}
+      open={prepaymentDialogOpen}
+      onClose={() => setPrepaymentDialogOpen(false)}
+      onSuccess={handlePrepaymentSuccess}
+    />
+    
+    <PrepaymentHistoryDialog
+      loan={loan}
+      open={historyDialogOpen}
+      onClose={() => setHistoryDialogOpen(false)}
+    />
+    </>
   );
 }

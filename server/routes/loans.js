@@ -953,7 +953,12 @@ router.post('/:id/prepayment', authenticateToken, authorize('lender_admin'), asy
       notes || ''
     );
 
-    // Save loan with prepayment
+    // Recalculate schedule based on strategy
+    const oldScheduleLength = loan.repaymentSchedule.length;
+    loan.recalculateSchedule(allocationStrategy);
+    const newScheduleLength = loan.repaymentSchedule.length;
+
+    // Save loan with prepayment and new schedule
     await loan.save();
 
     // Get balances after prepayment
@@ -973,6 +978,13 @@ router.post('/:id/prepayment', authenticateToken, authorize('lender_admin'), asy
           afterInterest: parseFloat(afterInterest.toFixed(2)),
           interestReduction: parseFloat((beforeInterest - afterInterest).toFixed(2))
         },
+        schedule: {
+          oldLength: oldScheduleLength,
+          newLength: newScheduleLength,
+          installmentsReduced: allocationStrategy === 'reduce_term' 
+            ? oldScheduleLength - newScheduleLength 
+            : 0
+        },
         loan: {
           loanNumber: loan.loanNumber,
           status: loan.status,
@@ -980,8 +992,8 @@ router.post('/:id/prepayment', authenticateToken, authorize('lender_admin'), asy
           totalPrepayments: loan.prepayments.length
         },
         nextSteps: allocationStrategy === 'reduce_term' 
-          ? 'Schedule will be recalculated to reduce remaining term'
-          : 'Schedule will be recalculated to reduce monthly payment'
+          ? `Schedule recalculated: ${oldScheduleLength - newScheduleLength} installment(s) removed`
+          : 'Schedule recalculated: monthly payment reduced'
       }
     });
 

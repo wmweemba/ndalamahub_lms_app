@@ -975,4 +975,329 @@ loanSchema.methods.recordPrepayment = function(amount, strategy, userId, notes =
   return prepayment;
 };
 
+/**
+ * Recalculate repayment schedule after prepayment
+ * Generates new schedule based on remaining balance and chosen strategy
+ * @param {string} strategy - 'reduce_term' or 'reduce_payment'
+ * @returns {Array} New repayment schedule
+ */
+loanSchema.methods.recalculateSchedule = function(strategy = 'reduce_term') {
+  if (!['reduce_term', 'reduce_payment'].includes(strategy)) {
+    throw new Error('Strategy must be either "reduce_term" or "reduce_payment"');
+  }
+  
+  // Calculate current remaining balance
+  const remainingBalance = this.calculateRemainingBalance();
+  
+  if (remainingBalance <= 0) {
+    // Loan is fully paid, no schedule needed
+    this.repaymentSchedule = [];
+    return [];
+  }
+  
+  // Count paid installments to determine where we are in the schedule
+  const paidInstallments = this.repaymentSchedule.filter(i => i.status === 'paid').length;
+  const remainingTerm = this.term - paidInstallments;
+  
+  if (remainingTerm <= 0) {
+    // No more installments
+    this.repaymentSchedule = this.repaymentSchedule.filter(i => i.status === 'paid');
+    return this.repaymentSchedule;
+  }
+  
+  // Get the last payment date or disbursement date as starting point
+  const lastPaidInstallment = this.repaymentSchedule
+    .filter(i => i.status === 'paid')
+    .sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt))[0];
+  
+  const startDate = lastPaidInstallment 
+    ? new Date(lastPaidInstallment.paidAt)
+    : (this.disbursedAt || new Date());
+  
+  const method = this.interestCalculation?.method || 'reducing_balance';
+  const annualRate = this.interestRate;
+  const frequency = this.repaymentFrequency || 'monthly';
+  
+  let newSchedule = [];
+  
+  // Generate new schedule based on method
+  if (method === 'reducing_balance') {
+    newSchedule = this._recalculateReducingBalanceSchedule(
+      remainingBalance,
+      remainingTerm,
+      annualRate,
+      frequency,
+      startDate,
+      paidInstallments,
+      strategy
+    );
+  } else if (method === 'flat_rate') {
+    newSchedule = this._recalculateFlatRateSchedule(
+      remainingBalance,
+      remainingTerm,
+      annualRate,
+      frequency,
+      startDate,
+      paidInstallments,
+      strategy
+    );
+  } else if (method === 'simple_interest') {
+    newSchedule = this._recalculateSimpleInterestSchedule(
+      remainingBalance,
+      remainingTerm,
+      annualRate,
+      frequency,
+      startDate,
+      paidInstallments,
+      strategy
+    );
+  } else if (method === 'interest_only') {
+    newSchedule = this._recalculateInterestOnlySchedule(
+      remainingBalance,
+      remainingTerm,
+      annualRate,
+      frequency,
+      startDate,
+      paidInstallments,
+      strategy
+    );
+  }
+  
+  // Keep paid installments and append new schedule
+  const paidSchedule = this.repaymentSchedule.filter(i => i.status === 'paid');
+  this.repaymentSchedule = [...paidSchedule, ...newSchedule];
+  
+  return this.repaymentSchedule;
+};
+
+/**
+ * Recalculate reducing balance schedule
+ * @private
+ */
+loanSchema.methods._recalculateReducingBalanceSchedule = function(
+  remainingBalance, remainingTerm, annualRate, frequency, startDate, paidCount, strategy
+) {
+  const schedule = [];
+  const accrualBasis = this.interestCalculation?.accrualBasis || 'actual/365';
+  
+  let newTerm = remainingTerm;
+  let paymentAmount = this.monthlyPayment;
+  
+  if (strategy === 'reduce_term') {
+    // Keep same payment amount, reduce term
+    // Calculate new term based on remaining balance
+    const periodicRate = (annualRate / 100) / 12; // Monthly for now
+    if (periodicRate > 0) {
+      newTerm = Math.ceil(
+        Math.log(paymentAmount / (paymentAmount - remainingBalance * periodicRate)) / 
+        Math.log(1 + periodicRate)
+      );
+      newTerm = Math.min(newTerm, remainingTerm); // Don't exceed original remaining term
+    }
+  } else {
+    // Keep same term, reduce payment amount
+    const periodicRate = (annualRate / 100) / 12;
+    if (periodicRate > 0) {
+      paymentAmount = (remainingBalance * periodicRate * Math.pow(1 + periodicRate, remainingTerm)) / 
+                      (Math.pow(1 + periodicRate, remainingTerm) - 1);
+    } else {
+      paymentAmount = remainingBalance / remainingTerm;
+    }
+  }
+  
+  let balance = remainingBalance;
+  let currentDate = new Date(startDate);
+  
+  for (let i = 1; i <= newTerm; i++) {
+    // Get next payment date
+    currentDate = getNextPaymentDate(currentDate, frequency);
+    
+    // Calculate interest for this period
+    const daysInPeriod = getDaysInPeriod(
+      i === 1 ? startDate : new Date(schedule[i-2].dueDate),
+      currentDate,
+      accrualBasis
+    );
+    
+    const interest = calculatePeriodInterest(
+      balance,
+      annualRate,
+      daysInPeriod,
+      accrualBasis
+    );
+    
+    const principal = Math.min(paymentAmount - interest, balance);
+    const installmentAmount = principal + interest;
+    
+    schedule.push({
+      installmentNumber: paidCount + i,
+      dueDate: new Date(currentDate),
+      amount: parseFloat(installmentAmount.toFixed(2)),
+      principal: parseFloat(principal.toFixed(2)),
+      interest: parseFloat(interest.toFixed(2)),
+      status: 'pending',
+      paidAmount: 0
+    });
+    
+    balance -= principal;
+    
+    if (balance <= 0.01) break; // Stop if balance paid off
+  }
+  
+  return schedule;
+};
+
+/**
+ * Recalculate flat rate schedule
+ * @private
+ */
+loanSchema.methods._recalculateFlatRateSchedule = function(
+  remainingBalance, remainingTerm, annualRate, frequency, startDate, paidCount, strategy
+) {
+  const schedule = [];
+  
+  let newTerm = remainingTerm;
+  
+  // For flat rate, calculate total interest on remaining balance
+  const totalInterest = (remainingBalance * annualRate / 100 * remainingTerm) / 12;
+  const totalAmount = remainingBalance + totalInterest;
+  
+  let paymentAmount = totalAmount / remainingTerm;
+  
+  if (strategy === 'reduce_term') {
+    // Keep similar payment, reduce term
+    paymentAmount = this.monthlyPayment;
+    newTerm = Math.ceil(totalAmount / paymentAmount);
+    newTerm = Math.min(newTerm, remainingTerm);
+  }
+  
+  const principalPerPayment = remainingBalance / newTerm;
+  const interestPerPayment = totalInterest / newTerm;
+  
+  let currentDate = new Date(startDate);
+  
+  for (let i = 1; i <= newTerm; i++) {
+    currentDate = getNextPaymentDate(currentDate, frequency);
+    
+    schedule.push({
+      installmentNumber: paidCount + i,
+      dueDate: new Date(currentDate),
+      amount: parseFloat(paymentAmount.toFixed(2)),
+      principal: parseFloat(principalPerPayment.toFixed(2)),
+      interest: parseFloat(interestPerPayment.toFixed(2)),
+      status: 'pending',
+      paidAmount: 0
+    });
+  }
+  
+  return schedule;
+};
+
+/**
+ * Recalculate simple interest schedule
+ * @private
+ */
+loanSchema.methods._recalculateSimpleInterestSchedule = function(
+  remainingBalance, remainingTerm, annualRate, frequency, startDate, paidCount, strategy
+) {
+  const schedule = [];
+  const accrualBasis = this.interestCalculation?.accrualBasis || 'actual/365';
+  
+  let newTerm = remainingTerm;
+  const principalPerPayment = remainingBalance / remainingTerm;
+  
+  // Calculate average interest per period
+  const totalInterest = (remainingBalance * annualRate / 100 * remainingTerm) / 12;
+  let paymentAmount = (remainingBalance + totalInterest) / remainingTerm;
+  
+  if (strategy === 'reduce_term') {
+    paymentAmount = this.monthlyPayment;
+    newTerm = Math.ceil((remainingBalance + totalInterest) / paymentAmount);
+    newTerm = Math.min(newTerm, remainingTerm);
+  }
+  
+  let currentDate = new Date(startDate);
+  
+  for (let i = 1; i <= newTerm; i++) {
+    currentDate = getNextPaymentDate(currentDate, frequency);
+    
+    const daysInPeriod = getDaysInPeriod(
+      i === 1 ? startDate : new Date(schedule[i-2].dueDate),
+      currentDate,
+      accrualBasis
+    );
+    
+    const interest = calculateSimpleInterest(
+      remainingBalance,
+      annualRate,
+      daysInPeriod,
+      accrualBasis
+    );
+    
+    const principal = paymentAmount - interest;
+    
+    schedule.push({
+      installmentNumber: paidCount + i,
+      dueDate: new Date(currentDate),
+      amount: parseFloat(paymentAmount.toFixed(2)),
+      principal: parseFloat(principal.toFixed(2)),
+      interest: parseFloat(interest.toFixed(2)),
+      status: 'pending',
+      paidAmount: 0
+    });
+  }
+  
+  return schedule;
+};
+
+/**
+ * Recalculate interest-only schedule with balloon payment
+ * @private
+ */
+loanSchema.methods._recalculateInterestOnlySchedule = function(
+  remainingBalance, remainingTerm, annualRate, frequency, startDate, paidCount, strategy
+) {
+  const schedule = [];
+  const accrualBasis = this.interestCalculation?.accrualBasis || 'actual/365';
+  
+  // For interest-only, strategy doesn't change much - still need full term
+  // But we can adjust the balloon payment amount
+  
+  let currentDate = new Date(startDate);
+  
+  for (let i = 1; i <= remainingTerm; i++) {
+    currentDate = getNextPaymentDate(currentDate, frequency);
+    
+    const daysInPeriod = getDaysInPeriod(
+      i === 1 ? startDate : new Date(schedule[i-2].dueDate),
+      currentDate,
+      accrualBasis
+    );
+    
+    const interest = calculatePeriodInterest(
+      remainingBalance,
+      annualRate,
+      daysInPeriod,
+      accrualBasis
+    );
+    
+    const isFinalPayment = (i === remainingTerm);
+    const principal = isFinalPayment ? remainingBalance : 0;
+    const amount = principal + interest;
+    
+    schedule.push({
+      installmentNumber: paidCount + i,
+      dueDate: new Date(currentDate),
+      amount: parseFloat(amount.toFixed(2)),
+      principal: parseFloat(principal.toFixed(2)),
+      interest: parseFloat(interest.toFixed(2)),
+      status: 'pending',
+      paidAmount: 0,
+      isBalloonPayment: isFinalPayment
+    });
+  }
+  
+  return schedule;
+};
+
 module.exports = mongoose.model('Loan', loanSchema);

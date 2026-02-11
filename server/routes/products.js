@@ -13,6 +13,9 @@ router.get('/', authenticateToken, async (req, res) => {
     // Company-based filtering (multi-tenant isolation)
     if (req.user.role !== 'super_user') {
       filter.company = req.user.company;
+    } else if (req.query.company) {
+      // Allow super_user to filter by specific company
+      filter.company = req.query.company;
     }
     
     // Category filter

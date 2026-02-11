@@ -102,3 +102,23 @@ export const canApplyForLoan = (role) => {
         ROLES.CORPORATE_USER
     ].includes(role);
 };
+
+// Check if user can manage products (create, edit, delete)
+export const canManageProducts = (role) => {
+    return [
+        ROLES.SUPER_USER,
+        ROLES.LENDER_ADMIN
+    ].includes(role);
+};
+
+// Check if user can view products
+export const canViewProducts = (role) => {
+    return [
+        ROLES.SUPER_USER,
+        ROLES.LENDER_ADMIN,
+        ROLES.LENDER_USER,
+        ROLES.CORPORATE_ADMIN,
+        ROLES.CORPORATE_HR,
+        ROLES.CORPORATE_USER
+    ].includes(role);
+};

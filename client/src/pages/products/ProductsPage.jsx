@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import api from '@/utils/api';
-import { getCurrentUser } from '@/utils/roleUtils';
+import { getCurrentUser, canManageProducts } from '@/utils/roleUtils';
+import { Button } from '@/components/ui/button';
+import { Pencil, Trash2, Plus } from 'lucide-react';
 
 export function ProductsPage() {
   const [products, setProducts] = useState([]);
+  const [lenders, setLenders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedLender, setSelectedLender] = useState('all');
   const currentUser = getCurrentUser();
 
   const categories = [
@@ -22,8 +26,22 @@ export function ProductsPage() {
   ];
 
   useEffect(() => {
+    if (currentUser.role === 'super_user') {
+      fetchLenders();
+    }
     fetchProducts();
-  }, [selectedCategory]);
+  }, [selectedCategory, selectedLender]);
+
+  const fetchLenders = async () => {
+    try {
+      const response = await api.get('/companies', {
+        params: { type: 'lender' }
+      });
+      setLenders(response.data.data || []);
+    } catch (err) {
+      console.error('Error fetching lenders:', err);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -31,6 +49,9 @@ export function ProductsPage() {
       const params = {};
       if (selectedCategory !== 'all') {
         params.category = selectedCategory;
+      }
+      if (selectedLender !== 'all') {
+        params.company = selectedLender;
       }
       
       const response = await api.get('/products', { params });
@@ -68,11 +89,19 @@ export function ProductsPage() {
 
   return (
     <div className="py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Loan Products</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Browse and manage loan product offerings
-        </p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Loan Products</h1>
+          <p className="mt-1 text-sm text-gray-600">
+            Browse and manage loan product offerings
+          </p>
+        </div>
+        {canManageProducts(currentUser?.role) && (
+          <Button className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Create Product
+          </Button>
+        )}
       </div>
 
       {/* Category Filter */}
@@ -92,6 +121,27 @@ export function ProductsPage() {
           ))}
         </select>
       </div>
+
+      {/* Lender Filter (Super User Only) */}
+      {currentUser.role === 'super_user' && lenders.length > 0 && (
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Filter by Lender
+          </label>
+          <select
+            value={selectedLender}
+            onChange={(e) => setSelectedLender(e.target.value)}
+            className="block w-full md:w-64 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          >
+            <option value="all">All Lenders ({lenders.length})</option>
+            {lenders.map((lender) => (
+              <option key={lender._id} value={lender._id}>
+                {lender.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -130,14 +180,37 @@ export function ProductsPage() {
               className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow"
             >
               {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div>
+              <div className="mb-4">
+                <div className="flex items-start justify-between mb-2">
                   <h3 className="text-lg font-semibold text-gray-900">
                     {product.name}
                   </h3>
-                  <span className="inline-block mt-1 px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 capitalize">
+                  {canManageProducts(currentUser?.role) && (
+                    <div className="flex gap-1">
+                      <button
+                        className="p-1 hover:bg-gray-100 rounded"
+                        title="Edit product"
+                      >
+                        <Pencil className="h-4 w-4 text-gray-600" />
+                      </button>
+                      <button
+                        className="p-1 hover:bg-red-50 rounded"
+                        title="Delete product"
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 capitalize">
                     {product.category}
                   </span>
+                  {product.company && (
+                    <span className="inline-block px-2 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700">
+                      {product.company.name}
+                    </span>
+                  )}
                 </div>
               </div>
 

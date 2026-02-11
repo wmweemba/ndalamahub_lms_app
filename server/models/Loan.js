@@ -213,6 +213,90 @@ const loanSchema = new mongoose.Schema({
     }
   }],
   
+  // Prepayment tracking
+  prepayments: [{
+    amount: {
+      type: Number,
+      required: true,
+      min: [0.01, 'Prepayment amount must be greater than zero']
+    },
+    date: {
+      type: Date,
+      default: Date.now,
+      required: true
+    },
+    allocationStrategy: {
+      type: String,
+      enum: ['reduce_term', 'reduce_payment'],
+      required: true
+    },
+    principalPortion: {
+      type: Number,
+      required: true,
+      min: [0, 'Principal portion cannot be negative']
+    },
+    interestPortion: {
+      type: Number,
+      required: true,
+      min: [0, 'Interest portion cannot be negative']
+    },
+    feePortion: {
+      type: Number,
+      default: 0,
+      min: [0, 'Fee portion cannot be negative']
+    },
+    notes: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Prepayment notes cannot exceed 500 characters']
+    },
+    recordedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  
+  // Early settlement information
+  earlySettlement: {
+    settled: {
+      type: Boolean,
+      default: false
+    },
+    settlementDate: {
+      type: Date
+    },
+    settlementAmount: {
+      type: Number,
+      min: [0, 'Settlement amount cannot be negative']
+    },
+    earlySettlementFee: {
+      type: Number,
+      default: 0,
+      min: [0, 'Early settlement fee cannot be negative']
+    },
+    principalBalance: {
+      type: Number,
+      min: [0, 'Principal balance cannot be negative']
+    },
+    interestBalance: {
+      type: Number,
+      min: [0, 'Interest balance cannot be negative']
+    },
+    savingsRealized: {
+      type: Number,
+      default: 0
+    },
+    settledBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }
+  },
+  
   // Guarantor information (if required)
   guarantor: {
     name: {
@@ -718,6 +802,177 @@ loanSchema.methods.checkArrearsStatus = function() {
   } else if (daysInArrears > 0) {
       this.status = 'in_arrears';
   }
+};
+
+// ============================================================
+// PREPAYMENT & EARLY SETTLEMENT METHODS
+// ============================================================
+
+/**
+ * Check if loan can accept prepayments
+ * @returns {boolean} True if loan is active and not settled
+ */
+loanSchema.methods.canAcceptPrepayment = function() {
+  // Can only prepay active loans that haven't been settled
+  if (this.earlySettlement?.settled) {
+    return false;
+  }
+  
+  // Can accept prepayments if loan is active or disbursed
+  const acceptableStatuses = ['active', 'disbursed', 'in_arrears'];
+  return acceptableStatuses.includes(this.status);
+};
+
+/**
+ * Calculate remaining principal balance
+ * Takes into account all payments made and prepayments
+ * @returns {number} Remaining principal balance in ZMW
+ */
+loanSchema.methods.calculateRemainingBalance = function() {
+  // Start with original principal
+  let remainingBalance = this.amount;
+  
+  // Subtract principal portions from regular payments
+  this.repaymentSchedule.forEach(installment => {
+    if (installment.status === 'paid') {
+      remainingBalance -= installment.principal;
+    }
+  });
+  
+  // Subtract principal portions from prepayments
+  if (this.prepayments && this.prepayments.length > 0) {
+    this.prepayments.forEach(prepayment => {
+      remainingBalance -= prepayment.principalPortion;
+    });
+  }
+  
+  // Ensure we don't return negative balance
+  return Math.max(0, remainingBalance);
+};
+
+/**
+ * Calculate accrued interest to date
+ * @param {Date} asOfDate - Calculate interest up to this date (defaults to today)
+ * @returns {number} Accrued interest in ZMW
+ */
+loanSchema.methods.calculateAccruedInterest = function(asOfDate = new Date()) {
+  let accruedInterest = 0;
+  
+  // Sum up interest from paid installments
+  this.repaymentSchedule.forEach(installment => {
+    if (installment.status === 'paid' && installment.paidAt <= asOfDate) {
+      accruedInterest += installment.interest;
+    } else if (installment.dueDate <= asOfDate && installment.status !== 'paid') {
+      // Include interest from overdue installments
+      accruedInterest += installment.interest;
+    }
+  });
+  
+  // Subtract interest portions from prepayments
+  if (this.prepayments && this.prepayments.length > 0) {
+    this.prepayments.forEach(prepayment => {
+      if (prepayment.date <= asOfDate) {
+        accruedInterest -= prepayment.interestPortion;
+      }
+    });
+  }
+  
+  return Math.max(0, accruedInterest);
+};
+
+/**
+ * Calculate early settlement amount with fees
+ * @param {Date} settlementDate - Proposed settlement date (defaults to today)
+ * @returns {Object} Settlement breakdown with all amounts
+ */
+loanSchema.methods.calculateEarlySettlementAmount = function(settlementDate = new Date()) {
+  const remainingPrincipal = this.calculateRemainingBalance();
+  const accruedInterest = this.calculateAccruedInterest(settlementDate);
+  
+  // Calculate early settlement fee from product if available
+  let earlySettlementFee = 0;
+  if (this.product && this.populated('product')) {
+    const product = this.product;
+    if (product.fees && product.fees.earlySettlement) {
+      const feeConfig = product.fees.earlySettlement;
+      if (feeConfig.type === 'percentage') {
+        earlySettlementFee = (remainingPrincipal * feeConfig.value) / 100;
+      } else if (feeConfig.type === 'fixed') {
+        earlySettlementFee = feeConfig.value;
+      }
+    }
+  }
+  
+  // Calculate total payoff amount
+  const totalPayoff = remainingPrincipal + accruedInterest + earlySettlementFee;
+  
+  // Calculate interest savings vs continuing with original schedule
+  let futureInterest = 0;
+  this.repaymentSchedule.forEach(installment => {
+    if (installment.status === 'pending' && installment.dueDate > settlementDate) {
+      futureInterest += installment.interest;
+    }
+  });
+  
+  const savingsVsSchedule = futureInterest - accruedInterest - earlySettlementFee;
+  
+  return {
+    principalBalance: parseFloat(remainingPrincipal.toFixed(2)),
+    interestBalance: parseFloat(accruedInterest.toFixed(2)),
+    earlySettlementFee: parseFloat(earlySettlementFee.toFixed(2)),
+    totalPayoff: parseFloat(totalPayoff.toFixed(2)),
+    futureInterestSaved: parseFloat(Math.max(0, savingsVsSchedule).toFixed(2)),
+    settlementDate: settlementDate
+  };
+};
+
+/**
+ * Record a prepayment and allocate it to principal/interest
+ * @param {number} amount - Prepayment amount in ZMW
+ * @param {string} strategy - 'reduce_term' or 'reduce_payment'
+ * @param {ObjectId} userId - User recording the prepayment
+ * @param {string} notes - Optional notes
+ * @returns {Object} Prepayment record
+ */
+loanSchema.methods.recordPrepayment = function(amount, strategy, userId, notes = '') {
+  if (!this.canAcceptPrepayment()) {
+    throw new Error('Loan cannot accept prepayments in current status');
+  }
+  
+  if (amount <= 0) {
+    throw new Error('Prepayment amount must be greater than zero');
+  }
+  
+  // Calculate accrued interest to allocate properly
+  const accruedInterest = this.calculateAccruedInterest();
+  const remainingBalance = this.calculateRemainingBalance();
+  
+  // Allocate payment: interest first, then principal
+  let interestPortion = Math.min(amount, accruedInterest);
+  let principalPortion = amount - interestPortion;
+  
+  // Ensure we don't overpay principal
+  principalPortion = Math.min(principalPortion, remainingBalance);
+  
+  // Create prepayment record
+  const prepayment = {
+    amount: parseFloat(amount.toFixed(2)),
+    date: new Date(),
+    allocationStrategy: strategy,
+    principalPortion: parseFloat(principalPortion.toFixed(2)),
+    interestPortion: parseFloat(interestPortion.toFixed(2)),
+    feePortion: 0, // Can be used for late fees in future
+    notes: notes,
+    recordedBy: userId
+  };
+  
+  // Add to prepayments array
+  if (!this.prepayments) {
+    this.prepayments = [];
+  }
+  this.prepayments.push(prepayment);
+  
+  return prepayment;
 };
 
 module.exports = mongoose.model('Loan', loanSchema);

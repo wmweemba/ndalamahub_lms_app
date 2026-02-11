@@ -1,7 +1,7 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { authService } from '../../services/authService';
-import { getCurrentUser, canAccessCompanies, canAccessReports, canAccessSettings } from '../../utils/roleUtils';
+import { getCurrentUser, canAccessCompanies, canAccessReports, canAccessSettings, canManageUsers } from '../../utils/roleUtils';
 
 export function Navbar() {
     const navigate = useNavigate();
@@ -53,6 +53,14 @@ export function Navbar() {
                             <LoansIcon />
                             <span>Loans</span>
                         </NavLink>
+
+                        {/* Products - Only show to lender users */}
+                        {(currentUser.role === 'super_user' || currentUser.role === 'lender_admin' || currentUser.role === 'lender_user') && (
+                            <NavLink to="/products" active={isActive('/products')}>
+                                <ProductsIcon />
+                                <span>Products</span>
+                            </NavLink>
+                        )}
 
                         {/* Reports - Only show to users who can access reports */}
                         {canAccessReports(currentUser.role) && (
@@ -150,6 +158,18 @@ export function Navbar() {
                             <span>Loans</span>
                         </MobileNavLink>
 
+                        {/* Products - Only show to lender users */}
+                        {(currentUser.role === 'super_user' || currentUser.role === 'lender_admin' || currentUser.role === 'lender_user') && (
+                            <MobileNavLink 
+                                to="/products" 
+                                active={isActive('/products')} 
+                                onClick={closeMobileMenu}
+                            >
+                                <ProductsIcon />
+                                <span>Products</span>
+                            </MobileNavLink>
+                        )}
+
                         {/* Reports - Only show to users who can access reports */}
                         {canAccessReports(currentUser.role) && (
                             <MobileNavLink 
@@ -246,6 +266,22 @@ function LoansIcon() {
     return (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+    );
+}
+
+function ProductsIcon() {
+    return (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+    );
+}
+
+function UsersIcon() {
+    return (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
     );
 }

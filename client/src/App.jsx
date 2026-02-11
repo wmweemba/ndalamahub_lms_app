@@ -4,6 +4,8 @@ import { LoginPage } from './pages/auth/LoginPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import { CompaniesPage } from './pages/companies/CompaniesPage';
 import LoansPage from './pages/loans/LoansPage';
+import ProductsPage from './pages/products/ProductsPage';
+import UsersPage from './pages/users/UsersPage';
 import ReportsPage from './pages/reports/ReportsPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import { Navbar } from './components/layout/Navbar';
@@ -55,6 +57,36 @@ export function App() {
                                     <main className="pt-16 px-4">
                                         <div className="max-w-7xl mx-auto">
                                             <LoansPage />
+                                        </div>
+                                    </main>
+                                </>
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/products"
+                        element={
+                            <ProtectedRoute>
+                                <>
+                                    <Navbar />
+                                    <main className="pt-16 px-4">
+                                        <div className="max-w-7xl mx-auto">
+                                            <ProductsPage />
+                                        </div>
+                                    </main>
+                                </>
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/users"
+                        element={
+                            <ProtectedRoute>
+                                <>
+                                    <Navbar />
+                                    <main className="pt-16 px-4">
+                                        <div className="max-w-7xl mx-auto">
+                                            <UsersPage />
                                         </div>
                                     </main>
                                 </>

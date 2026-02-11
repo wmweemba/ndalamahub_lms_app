@@ -805,4 +805,387 @@ router.put('/:id/repayment', authenticateToken, authorize('lender_admin'), async
   }
 });
 
+// ============================================================
+// PREPAYMENT & EARLY SETTLEMENT ENDPOINTS
+// ============================================================
+
+// @route   GET /api/loans/:id/settlement-quote
+// @desc    Get early settlement quote (read-only, no state change)
+// @access  Private - Lender admin only
+router.get('/:id/settlement-quote', authenticateToken, authorize('lender_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { settlementDate } = req.query;
+
+    const loan = await Loan.findById(id).populate('product', 'name fees');
+    
+    if (!loan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Loan not found'
+      });
+    }
+
+    // Check access permissions (multi-tenant)
+    if (req.user.role !== 'super_user') {
+      // Lender admin can only access loans from their corporate clients
+      if (req.user.role === 'lender_admin') {
+        if (loan.lenderCompany.toString() !== req.user.company.toString()) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied to this loan'
+          });
+        }
+      } else {
+        // Other roles can only access their own company loans
+        if (loan.company.toString() !== req.user.company.toString()) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied to this loan'
+          });
+        }
+      }
+    }
+
+    // Check if loan can be settled
+    if (!loan.canAcceptPrepayment()) {
+      return res.status(400).json({
+        success: false,
+        message: `Loan cannot be settled in current status: ${loan.status}`
+      });
+    }
+
+    // Calculate settlement amount
+    const proposedDate = settlementDate ? new Date(settlementDate) : new Date();
+    const settlement = loan.calculateEarlySettlementAmount(proposedDate);
+
+    res.json({
+      success: true,
+      message: 'Settlement quote generated successfully',
+      data: {
+        loanNumber: loan.loanNumber,
+        currentStatus: loan.status,
+        settlement: settlement,
+        savingsMessage: settlement.futureInterestSaved > 0 
+          ? `Pay off now and save ZMW ${settlement.futureInterestSaved.toFixed(2)} in future interest!`
+          : null
+      }
+    });
+
+  } catch (error) {
+    console.error('Settlement quote error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate settlement quote',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// @route   POST /api/loans/:id/prepayment
+// @desc    Record a prepayment (extra payment beyond schedule)
+// @access  Private - Lender admin only
+router.post('/:id/prepayment', authenticateToken, authorize('lender_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, allocationStrategy, notes } = req.body;
+
+    // Validate inputs
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid prepayment amount is required (must be greater than zero)'
+      });
+    }
+
+    if (!allocationStrategy || !['reduce_term', 'reduce_payment'].includes(allocationStrategy)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Allocation strategy must be either "reduce_term" or "reduce_payment"'
+      });
+    }
+
+    const loan = await Loan.findById(id)
+      .populate('product', 'name fees')
+      .populate('applicant', 'firstName lastName email');
+    
+    if (!loan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Loan not found'
+      });
+    }
+
+    // Check access permissions (multi-tenant)
+    if (req.user.role !== 'super_user') {
+      if (req.user.role === 'lender_admin') {
+        if (loan.lenderCompany.toString() !== req.user.company.toString()) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied to this loan'
+          });
+        }
+      } else {
+        return res.status(403).json({
+          success: false,
+          message: 'Only lender administrators can record prepayments'
+        });
+      }
+    }
+
+    // Check if loan can accept prepayment
+    if (!loan.canAcceptPrepayment()) {
+      return res.status(400).json({
+        success: false,
+        message: `Loan cannot accept prepayments in current status: ${loan.status}`
+      });
+    }
+
+    // Get balances before prepayment
+    const beforeBalance = loan.calculateRemainingBalance();
+    const beforeInterest = loan.calculateAccruedInterest();
+
+    // Record prepayment
+    const prepayment = loan.recordPrepayment(
+      parseFloat(amount),
+      allocationStrategy,
+      req.user.id,
+      notes || ''
+    );
+
+    // Save loan with prepayment
+    await loan.save();
+
+    // Get balances after prepayment
+    const afterBalance = loan.calculateRemainingBalance();
+    const afterInterest = loan.calculateAccruedInterest();
+
+    res.json({
+      success: true,
+      message: 'Prepayment recorded successfully',
+      data: {
+        prepayment: prepayment,
+        summary: {
+          beforeBalance: parseFloat(beforeBalance.toFixed(2)),
+          afterBalance: parseFloat(afterBalance.toFixed(2)),
+          principalReduction: parseFloat((beforeBalance - afterBalance).toFixed(2)),
+          beforeInterest: parseFloat(beforeInterest.toFixed(2)),
+          afterInterest: parseFloat(afterInterest.toFixed(2)),
+          interestReduction: parseFloat((beforeInterest - afterInterest).toFixed(2))
+        },
+        loan: {
+          loanNumber: loan.loanNumber,
+          status: loan.status,
+          applicant: loan.applicant,
+          totalPrepayments: loan.prepayments.length
+        },
+        nextSteps: allocationStrategy === 'reduce_term' 
+          ? 'Schedule will be recalculated to reduce remaining term'
+          : 'Schedule will be recalculated to reduce monthly payment'
+      }
+    });
+
+  } catch (error) {
+    console.error('Prepayment error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to record prepayment',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// @route   POST /api/loans/:id/early-settlement
+// @desc    Settle loan completely (pay off entire remaining balance)
+// @access  Private - Lender admin only
+router.post('/:id/early-settlement', authenticateToken, authorize('lender_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { settlementDate, paymentReference } = req.body;
+
+    const loan = await Loan.findById(id)
+      .populate('product', 'name fees')
+      .populate('applicant', 'firstName lastName email');
+    
+    if (!loan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Loan not found'
+      });
+    }
+
+    // Check access permissions (multi-tenant)
+    if (req.user.role !== 'super_user') {
+      if (req.user.role === 'lender_admin') {
+        if (loan.lenderCompany.toString() !== req.user.company.toString()) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied to this loan'
+          });
+        }
+      } else {
+        return res.status(403).json({
+          success: false,
+          message: 'Only lender administrators can process early settlements'
+        });
+      }
+    }
+
+    // Check if loan can be settled
+    if (!loan.canAcceptPrepayment()) {
+      return res.status(400).json({
+        success: false,
+        message: `Loan cannot be settled in current status: ${loan.status}`
+      });
+    }
+
+    // Check if already settled
+    if (loan.earlySettlement?.settled) {
+      return res.status(400).json({
+        success: false,
+        message: 'Loan has already been settled early',
+        data: {
+          settlementDate: loan.earlySettlement.settlementDate,
+          settlementAmount: loan.earlySettlement.settlementAmount
+        }
+      });
+    }
+
+    // Calculate settlement amount
+    const proposedDate = settlementDate ? new Date(settlementDate) : new Date();
+    const settlement = loan.calculateEarlySettlementAmount(proposedDate);
+
+    // Record settlement
+    loan.earlySettlement = {
+      settled: true,
+      settlementDate: proposedDate,
+      settlementAmount: settlement.totalPayoff,
+      earlySettlementFee: settlement.earlySettlementFee,
+      principalBalance: settlement.principalBalance,
+      interestBalance: settlement.interestBalance,
+      savingsRealized: settlement.futureInterestSaved,
+      settledBy: req.user.id
+    };
+
+    // Mark loan as completed
+    loan.status = 'completed';
+
+    // Mark all remaining installments as cancelled/settled
+    loan.repaymentSchedule.forEach(installment => {
+      if (installment.status === 'pending') {
+        installment.status = 'paid';
+        installment.paidAt = proposedDate;
+        installment.paidAmount = 0; // Settled via early settlement, not individual payment
+      }
+    });
+
+    await loan.save();
+
+    res.json({
+      success: true,
+      message: 'Loan settled successfully',
+      data: {
+        loanNumber: loan.loanNumber,
+        applicant: loan.applicant,
+        settlement: {
+          settlementDate: loan.earlySettlement.settlementDate,
+          totalPaid: loan.earlySettlement.settlementAmount,
+          breakdown: {
+            principal: loan.earlySettlement.principalBalance,
+            interest: loan.earlySettlement.interestBalance,
+            fee: loan.earlySettlement.earlySettlementFee
+          },
+          savingsRealized: loan.earlySettlement.savingsRealized
+        },
+        newStatus: loan.status,
+        paymentReference: paymentReference || null,
+        congratulationsMessage: loan.earlySettlement.savingsRealized > 0
+          ? `Congratulations! You saved ZMW ${loan.earlySettlement.savingsRealized.toFixed(2)} in future interest by settling early!`
+          : 'Loan settled successfully!'
+      }
+    });
+
+  } catch (error) {
+    console.error('Early settlement error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to process early settlement',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// @route   GET /api/loans/:id/prepayment-history
+// @desc    Get all prepayments for a loan
+// @access  Private
+router.get('/:id/prepayment-history', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const loan = await Loan.findById(id)
+      .populate('prepayments.recordedBy', 'firstName lastName email')
+      .select('loanNumber prepayments earlySettlement company lenderCompany');
+    
+    if (!loan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Loan not found'
+      });
+    }
+
+    // Check access permissions (multi-tenant)
+    if (req.user.role !== 'super_user') {
+      if (req.user.role === 'lender_admin') {
+        if (loan.lenderCompany.toString() !== req.user.company.toString()) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied to this loan'
+          });
+        }
+      } else {
+        if (loan.company.toString() !== req.user.company.toString()) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied to this loan'
+          });
+        }
+      }
+    }
+
+    // Calculate summary
+    const totalPrepaid = loan.prepayments.reduce((sum, p) => sum + p.amount, 0);
+    const totalPrincipalPaid = loan.prepayments.reduce((sum, p) => sum + p.principalPortion, 0);
+    const totalInterestPaid = loan.prepayments.reduce((sum, p) => sum + p.interestPortion, 0);
+
+    res.json({
+      success: true,
+      message: 'Prepayment history retrieved successfully',
+      data: {
+        loanNumber: loan.loanNumber,
+        prepayments: loan.prepayments,
+        summary: {
+          totalPrepayments: loan.prepayments.length,
+          totalAmount: parseFloat(totalPrepaid.toFixed(2)),
+          totalPrincipal: parseFloat(totalPrincipalPaid.toFixed(2)),
+          totalInterest: parseFloat(totalInterestPaid.toFixed(2))
+        },
+        earlySettlement: loan.earlySettlement?.settled ? {
+          settled: true,
+          date: loan.earlySettlement.settlementDate,
+          amount: loan.earlySettlement.settlementAmount,
+          savingsRealized: loan.earlySettlement.savingsRealized
+        } : null
+      }
+    });
+
+  } catch (error) {
+    console.error('Prepayment history error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve prepayment history',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
 module.exports = router;

@@ -21,9 +21,13 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
     term: '',
     purpose: '',
     description: '',
-    monthlyIncome: ''
+    monthlyIncome: '',
+    collateralType: '',
+    collateralValue: '',
+    collateralDescription: ''
   });
   const [feeCalculation, setFeeCalculation] = useState(null);
+  const [paymentSchedule, setPaymentSchedule] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -45,6 +49,48 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
       }));
     }
   }, [selectedProduct]);
+
+  // Fetch payment schedule preview when amount or term changes
+  useEffect(() => {
+    const fetchPaymentSchedule = async () => {
+      if (!selectedProduct || !formData.amount || !formData.term) {
+        setPaymentSchedule(null);
+        return;
+      }
+
+      const amount = parseFloat(formData.amount);
+      const term = parseInt(formData.term);
+
+      // Validate amount and term
+      if (amount < selectedProduct.amount.min || amount > selectedProduct.amount.max) {
+        setPaymentSchedule(null);
+        return;
+      }
+
+      if (term < selectedProduct.term.min || term > selectedProduct.term.max) {
+        setPaymentSchedule(null);
+        return;
+      }
+
+      try {
+        const response = await api.post(`/products/${selectedProduct._id}/calculate-schedule`, {
+          amount,
+          term,
+          repaymentFrequency: selectedProduct.repaymentFrequency[0] // Use default frequency
+        });
+
+        if (response.data.success) {
+          setPaymentSchedule(response.data.data);
+        }
+      } catch (err) {
+        console.error('Error fetching payment schedule:', err);
+        setPaymentSchedule(null);
+      }
+    };
+
+    const timeoutId = setTimeout(fetchPaymentSchedule, 500); // Debounce
+    return () => clearTimeout(timeoutId);
+  }, [selectedProduct, formData.amount, formData.term]);
 
   useEffect(() => {
     // Calculate fees when amount changes
@@ -74,9 +120,13 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
       term: '',
       purpose: '',
       description: '',
-      monthlyIncome: ''
+      monthlyIncome: '',
+      collateralType: '',
+      collateralValue: '',
+      collateralDescription: ''
     });
     setFeeCalculation(null);
+    setPaymentSchedule(null);
     setError(null);
   };
 
@@ -124,7 +174,7 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
       const term = parseInt(formData.term);
 
       // Validate against product limits
-      if (!selectedProduct.isAmountValid || amount < selectedProduct.amount.min || amount > selectedProduct.amount.max) {
+      if (amount < selectedProduct.amount.min || amount > selectedProduct.amount.max) {
         throw new Error(`Loan amount must be between ${selectedProduct.amount.currency} ${selectedProduct.amount.min.toLocaleString()} and ${selectedProduct.amount.currency} ${selectedProduct.amount.max.toLocaleString()}`);
       }
 
@@ -139,7 +189,12 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
         term,
         purpose: formData.purpose,
         description: formData.description,
-        monthlyIncome: parseFloat(formData.monthlyIncome)
+        monthlyIncome: parseFloat(formData.monthlyIncome),
+        collateral: formData.collateralType ? {
+          type: formData.collateralType,
+          value: parseFloat(formData.collateralValue) || 0,
+          description: formData.collateralDescription
+        } : undefined
       };
 
       const response = await api.post('/loans', loanData);
@@ -290,7 +345,12 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
                       {Array.from(
                         { length: selectedProduct?.term.max - selectedProduct?.term.min + 1 },
                         (_, i) => selectedProduct?.term.min + i
-                      ).filter(n => n % 6 === 0 || n === selectedProduct?.term.default).map(months => (
+                      ).filter(n => {
+                        // For short-term loans (≤12 months), show all options
+                        if (selectedProduct?.term.max <= 12) return true;
+                        // For long-term loans, show multiples of 6 or default
+                        return n % 6 === 0 || n === selectedProduct?.term.default;
+                      }).map(months => (
                         <option key={months} value={months}>
                           {months} months
                         </option>
@@ -333,6 +393,73 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
               </div>
             </Card>
 
+            {/* Collateral Information (optional for all products) */}
+            {selectedProduct && (
+              <Card className="p-3 sm:p-4">
+                <h3 className="text-base font-medium text-gray-900 mb-3">
+                  Collateral Details {selectedProduct.collateralRequired && <span className="text-red-500">*</span>} {!selectedProduct.collateralRequired && <span className="text-xs text-gray-500">(Optional)</span>}
+                </h3>
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="collateralType" className="text-sm font-medium text-gray-700">
+                      Collateral Type {selectedProduct.collateralRequired && '*'}
+                    </Label>
+                    <select
+                      id="collateralType"
+                      name="collateralType"
+                      value={formData.collateralType}
+                      onChange={handleChange}
+                      required={selectedProduct.collateralRequired}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    >
+                      <option value="">Select collateral type</option>
+                      <option value="property">Property</option>
+                      <option value="vehicle">Vehicle</option>
+                      <option value="equipment">Equipment</option>
+                      <option value="inventory">Inventory</option>
+                      <option value="securities">Securities</option>
+                      <option value="guarantor">Guarantor</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="collateralValue" className="text-sm font-medium text-gray-700">
+                        Estimated Value ({selectedProduct?.amount.currency}) {selectedProduct.collateralRequired && '*'}
+                      </Label>
+                      <Input
+                        id="collateralValue"
+                        name="collateralValue"
+                        type="number"
+                        min="0"
+                        step="1000"
+                        value={formData.collateralValue}
+                        onChange={handleChange}
+                        placeholder="e.g., 50000"
+                        required={selectedProduct.collateralRequired}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="collateralDescription" className="text-sm font-medium text-gray-700">
+                        Description {selectedProduct.collateralRequired && '*'}
+                      </Label>
+                      <Input
+                        id="collateralDescription"
+                        name="collateralDescription"
+                        type="text"
+                        value={formData.collateralDescription}
+                        onChange={handleChange}
+                        placeholder="e.g., Title deed for residential property"
+                        required={selectedProduct.collateralRequired}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             {/* Fee Calculation */}
             {feeCalculation && (
               <Card className="p-3 sm:p-4 bg-gray-50">
@@ -374,6 +501,75 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
                         <span>Fees will be deducted from the loan amount upon disbursement</span>
                       </div>
                     </>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {/* Payment Schedule Preview */}
+            {paymentSchedule && (
+              <Card className="p-3 sm:p-4 bg-green-50 border-green-200">
+                <h3 className="text-base font-medium text-gray-900 mb-3 flex items-center">
+                  <Info className="w-4 h-4 mr-2 text-green-600" />
+                  Repayment Preview
+                </h3>
+                <div className="space-y-3">
+                  {/* Summary */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                    <div className="bg-white p-3 rounded border border-green-200">
+                      <div className="text-gray-600 text-xs mb-1">Monthly Payment</div>
+                      <div className="font-bold text-green-700 text-lg">
+                        {feeCalculation?.currency || 'ZMW'} {paymentSchedule.monthlyPayment?.toLocaleString() || 'N/A'}
+                      </div>
+                    </div>
+                    <div className="bg-white p-3 rounded border border-green-200">
+                      <div className="text-gray-600 text-xs mb-1">Total Repayment</div>
+                      <div className="font-bold text-blue-700 text-lg">
+                        {feeCalculation?.currency || 'ZMW'} {paymentSchedule.totalRepayment?.toLocaleString() || 'N/A'}
+                      </div>
+                    </div>
+                    <div className="bg-white p-3 rounded border border-green-200">
+                      <div className="text-gray-600 text-xs mb-1">Total Interest</div>
+                      <div className="font-bold text-orange-700 text-lg">
+                        {feeCalculation?.currency || 'ZMW'} {paymentSchedule.totalInterest?.toLocaleString() || 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* First 3 Installments Preview */}
+                  {paymentSchedule.schedule && paymentSchedule.schedule.length > 0 && (
+                    <div className="mt-3">
+                      <div className="text-xs font-medium text-gray-700 mb-2">First 3 Installments:</div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border border-gray-200 rounded">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-2 py-1 text-left">#</th>
+                              <th className="px-2 py-1 text-right">Principal</th>
+                              <th className="px-2 py-1 text-right">Interest</th>
+                              <th className="px-2 py-1 text-right">Payment</th>
+                              <th className="px-2 py-1 text-right">Balance</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white">
+                            {paymentSchedule.schedule.slice(0, 3).map((inst, idx) => (
+                              <tr key={idx} className="border-t border-gray-100">
+                                <td className="px-2 py-1">{inst.installmentNumber}</td>
+                                <td className="px-2 py-1 text-right">{inst.principalPayment?.toLocaleString()}</td>
+                                <td className="px-2 py-1 text-right">{inst.interestPayment?.toLocaleString()}</td>
+                                <td className="px-2 py-1 text-right font-medium">{inst.totalPayment?.toLocaleString()}</td>
+                                <td className="px-2 py-1 text-right text-gray-600">{inst.remainingBalance?.toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {paymentSchedule.schedule.length > 3 && (
+                        <div className="text-xs text-gray-500 mt-1 text-center">
+                          ... and {paymentSchedule.schedule.length - 3} more installments
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </Card>

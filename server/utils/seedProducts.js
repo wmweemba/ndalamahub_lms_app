@@ -17,9 +17,9 @@ const productTemplates = [
     interestCalculation: { method: 'reducing_balance', dayCountConvention: 'actual/365' },
     repaymentFrequency: ['monthly', 'bi_weekly'],
     fees: {
-      processingFee: { type: 'percentage', amount: 2 },
+      processingFee: { type: 'percentage', amount: 2.5 },
       latePenalty: { type: 'percentage', amount: 5 },
-      earlySettlementFee: { type: 'percentage', amount: 1 },
+      earlySettlementFee: { type: 'percentage', amount: 2 },
       insuranceFee: { type: 'percentage', amount: 0.5, required: false }
     },
     collateralRequired: false,
@@ -80,13 +80,13 @@ const productTemplates = [
     name: 'Payday Loan - Express',
     description: 'Short-term emergency loan until your next paycheck arrives',
     category: 'payday',
-    interestRate: { min: 5, max: 10, default: 7 },
+    interestRate: { min: 60, max: 96, default: 84 },
     term: { min: 1, max: 3, default: 1 },
     amount: { min: 500, max: 5000, currency: 'ZMW' },
     interestCalculation: { method: 'flat_rate', dayCountConvention: 'actual/365' },
     repaymentFrequency: ['monthly'],
     fees: {
-      processingFee: { type: 'fixed', amount: 50 },
+      processingFee: { type: 'percentage', amount: 5 },
       latePenalty: { type: 'percentage', amount: 10 },
       earlySettlementFee: { type: 'fixed', amount: 0 },
       insuranceFee: { type: 'fixed', amount: 0, required: false }

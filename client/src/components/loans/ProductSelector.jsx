@@ -30,7 +30,8 @@ export default function ProductSelector({ onSelect, selectedProduct }) {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/products?isActive=true');
+      // Use /available endpoint to get products from user's lender
+      const response = await api.get('/products/available');
       if (response.data.success) {
         setProducts(response.data.data);
       }

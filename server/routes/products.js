@@ -1,7 +1,88 @@
 const express = require('express');
 const router = express.Router();
 const LoanProduct = require('../models/LoanProduct');
+const Company = require('../models/Company');
 const { authenticateToken, authorize } = require('../middleware/auth');
+
+// Get products available for loan application (for corporate users, returns lender's products)
+router.get('/available', authenticateToken, async (req, res) => {
+  try {
+    const { category, isActive, search } = req.query;
+    
+    const filter = { isActive: true }; // Only active products for applications
+    
+    // Determine which company's products to show
+    let productCompanyId;
+    
+    if (req.user.role === 'super_user') {
+      // Super user can see all products, or filter by company
+      if (req.query.company) {
+        productCompanyId = req.query.company;
+      }
+      // If no company specified, show all
+    } else {
+      // Get user's company to check if it's a lender or corporate
+      const userCompany = await Company.findById(req.user.company);
+      
+      if (!userCompany) {
+        return res.status(404).json({
+          success: false,
+          message: 'User company not found'
+        });
+      }
+      
+      if (userCompany.type === 'lender') {
+        // Lender users see their own products
+        productCompanyId = req.user.company;
+      } else if (userCompany.type === 'corporate') {
+        // Corporate users see their lender's products
+        if (!userCompany.lenderCompany) {
+          return res.status(400).json({
+            success: false,
+            message: 'Your company is not linked to a lender. Please contact your administrator.'
+          });
+        }
+        productCompanyId = userCompany.lenderCompany;
+      }
+    }
+    
+    // Apply company filter if determined
+    if (productCompanyId) {
+      filter.company = productCompanyId;
+    }
+    
+    // Category filter
+    if (category) {
+      filter.category = category;
+    }
+    
+    // Active status filter (override default if specified)
+    if (isActive !== undefined) {
+      filter.isActive = isActive === 'true';
+    }
+    
+    // Text search
+    if (search) {
+      filter.$text = { $search: search };
+    }
+    
+    const products = await LoanProduct.find(filter)
+      .populate('company', 'name type')
+      .sort({ category: 1, name: 1 });
+    
+    res.json({
+      success: true,
+      data: products
+    });
+  } catch (error) {
+    console.error('Error fetching available products:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching available products',
+      error: error.message
+    });
+  }
+});
 
 // Get all products (filtered by company for non-super users)
 router.get('/', authenticateToken, async (req, res) => {
@@ -387,6 +468,210 @@ router.get('/stats/overview', authenticateToken, authorize(['super_user', 'lende
     res.status(500).json({
       success: false,
       message: 'Error fetching statistics',
+      error: error.message
+    });
+  }
+});
+
+// Calculate repayment schedule preview for a loan
+router.post('/:id/calculate-schedule', authenticateToken, async (req, res) => {
+  try {
+    const product = await LoanProduct.findById(req.params.id);
+    
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    const { amount, term, repaymentFrequency } = req.body;
+    
+    // Validation
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid loan amount is required'
+      });
+    }
+    
+    if (!term || term <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid loan term is required'
+      });
+    }
+    
+    if (!product.isAmountValid(amount)) {
+      return res.status(400).json({
+        success: false,
+        message: `Loan amount must be between ${product.amount.currency} ${product.amount.min} and ${product.amount.currency} ${product.amount.max}`
+      });
+    }
+    
+    if (term < product.term.min || term > product.term.max) {
+      return res.status(400).json({
+        success: false,
+        message: `Loan term must be between ${product.term.min} and ${product.term.max} months`
+      });
+    }
+    
+    // Use interest calculator to generate schedule
+    const interestCalculator = require('../utils/interestCalculator');
+    const frequency = repaymentFrequency || product.repaymentFrequency[0] || 'monthly';
+    const interestRate = product.interestRate.default;
+    const accrualBasis = product.interestCalculation.dayCountConvention || 'actual/365';
+    
+    let schedule = [];
+    let monthlyPayment = 0;
+    let totalRepayment = 0;
+    let totalInterest = 0;
+    
+    // Calculate based on method
+    switch (product.interestCalculation.method) {
+      case 'reducing_balance':
+        // Calculate monthly payment using PMT formula
+        monthlyPayment = interestCalculator.calculateMonthlyPayment(amount, interestRate, term);
+        
+        // Build schedule
+        let balance = amount;
+        const startDate = new Date();
+        
+        for (let i = 1; i <= term; i++) {
+          const dueDate = interestCalculator.addMonths(startDate, i);
+          const prevDate = i === 1 ? startDate : interestCalculator.addMonths(startDate, i - 1);
+          
+          const interestPayment = interestCalculator.calculatePeriodInterest(
+            balance,
+            interestRate,
+            prevDate,
+            dueDate,
+            accrualBasis
+          );
+          
+          const principalPayment = monthlyPayment - interestPayment;
+          balance = Math.max(0, balance - principalPayment);
+          
+          schedule.push({
+            installmentNumber: i,
+            principalPayment,
+            interestPayment,
+            totalPayment: monthlyPayment,
+            remainingBalance: balance
+          });
+          
+          totalRepayment += monthlyPayment;
+          totalInterest += interestPayment;
+        }
+        break;
+        
+      case 'flat_rate':
+        // Flat rate: Interest calculated on original principal for entire term
+        const flatInterest = interestCalculator.calculateFlatRateInterest(amount, interestRate, term);
+        totalInterest = flatInterest;
+        totalRepayment = amount + flatInterest;
+        monthlyPayment = totalRepayment / term;
+        
+        // Build schedule with equal payments
+        let flatBalance = amount;
+        const flatPrincipalPerPayment = amount / term;
+        const flatInterestPerPayment = flatInterest / term;
+        
+        for (let i = 1; i <= term; i++) {
+          flatBalance -= flatPrincipalPerPayment;
+          
+          schedule.push({
+            installmentNumber: i,
+            principalPayment: flatPrincipalPerPayment,
+            interestPayment: flatInterestPerPayment,
+            totalPayment: monthlyPayment,
+            remainingBalance: Math.max(0, flatBalance)
+          });
+        }
+        break;
+        
+      case 'simple_interest':
+        // Simple interest: Interest per period on original principal
+        const simpleInterest = interestCalculator.calculateSimpleInterest(amount, interestRate, term);
+        totalInterest = simpleInterest;
+        totalRepayment = amount + simpleInterest;
+        monthlyPayment = totalRepayment / term;
+        
+        // Build schedule
+        let simpleBalance = amount;
+        const simplePrincipalPerPayment = amount / term;
+        const simpleInterestPerPayment = simpleInterest / term;
+        
+        for (let i = 1; i <= term; i++) {
+          simpleBalance -= simplePrincipalPerPayment;
+          
+          schedule.push({
+            installmentNumber: i,
+            principalPayment: simplePrincipalPerPayment,
+            interestPayment: simpleInterestPerPayment,
+            totalPayment: monthlyPayment,
+            remainingBalance: Math.max(0, simpleBalance)
+          });
+        }
+        break;
+        
+      case 'interest_only':
+        // Interest-only: Pay interest each period, principal at end
+        const monthlyInterest = interestCalculator.calculateInterestOnlyPayment(amount, interestRate);
+        
+        for (let i = 1; i <= term; i++) {
+          const isLastPayment = i === term;
+          const principalPayment = isLastPayment ? amount : 0;
+          const interestPayment = monthlyInterest;
+          const totalPayment = principalPayment + interestPayment;
+          
+          schedule.push({
+            installmentNumber: i,
+            principalPayment,
+            interestPayment,
+            totalPayment,
+            remainingBalance: isLastPayment ? 0 : amount
+          });
+          
+          totalRepayment += totalPayment;
+          totalInterest += interestPayment;
+        }
+        
+        monthlyPayment = monthlyInterest; // Show regular payment (not balloon)
+        break;
+        
+      default:
+        return res.status(400).json({
+          success: false,
+          message: `Unsupported calculation method: ${product.interestCalculation.method}`
+        });
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        amount,
+        term,
+        frequency,
+        method: product.interestCalculation.method,
+        interestRate,
+        monthlyPayment: Math.round(monthlyPayment * 100) / 100,
+        totalRepayment: Math.round(totalRepayment * 100) / 100,
+        totalInterest: Math.round(totalInterest * 100) / 100,
+        schedule: schedule.map(inst => ({
+          installmentNumber: inst.installmentNumber,
+          principalPayment: Math.round(inst.principalPayment * 100) / 100,
+          interestPayment: Math.round(inst.interestPayment * 100) / 100,
+          totalPayment: Math.round(inst.totalPayment * 100) / 100,
+          remainingBalance: Math.round(inst.remainingBalance * 100) / 100
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Error calculating schedule:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error calculating repayment schedule',
       error: error.message
     });
   }

@@ -10,6 +10,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Loan Application Form Enhancements** (February 12, 2026):
+  - Payment schedule preview now working correctly
+    - Fixed API endpoint to manually build schedules using available calculator functions
+    - Removed calls to non-existent schedule generation functions
+    - All 4 calculation methods now properly implemented:
+      - reducing_balance: Manual loop with calculateMonthlyPayment() + calculatePeriodInterest()
+      - flat_rate: Calculate total interest upfront, divide equally
+      - simple_interest: Period-by-period interest calculation
+      - interest_only: Monthly interest payments + balloon principal
+    - Real-time schedule display with monthly payment, total repayment, total interest
+    - First 3 installments table showing principal/interest breakdown
+    - Debounced 500ms API calls to avoid excessive requests
+  - Collateral section now always visible
+    - Changed from conditional to always-shown for all products
+    - Shows "(Optional)" label when not required by product
+    - Shows red asterisk (*) when required by product
+    - Allows optional collateral submission even for products that don't require it
+  - Fixed term dropdown for short-term loans
+    - Shows all available terms for products with max ≤ 12 months
+    - Maintains 6-month intervals for long-term loans (> 12 months max)
+    - Payday Loans now correctly show 1, 2, 3 months options
+    - Bridge Loans show all monthly increments from 3-12
+  - Fixed Payday Loan product configuration
+    - Updated interest rate: 7% → 84% APR (7% per month equivalent)
+    - Changed processing fee: Fixed K50 → 5% percentage-based
+    - Now correctly calculates: K3,000 × 84% × 3/12 = K630 interest
+    - Processing fee: K3,000 × 5% = K150
+    - Monthly payment: K1,210, Total repayment: K3,630 (matches test plan)
+  - Fixed validation bugs
+    - Removed incorrect isAmountValid function check (was checking existence, not calling)
+    - Removed duplicate useEffect for payment schedule fetching
+    - Amount validation now works correctly for all loan amounts
+
 - **Frontend Testing & Product Management Enhancements**:
   - Created complete product CRUD dialogs
     - CreateProductDialog: Comprehensive form with all LoanProduct schema fields (450+ lines)

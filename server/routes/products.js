@@ -592,15 +592,17 @@ router.post('/:id/calculate-schedule', authenticateToken, async (req, res) => {
         
       case 'simple_interest':
         // Simple interest: Interest per period on original principal
-        const simpleInterest = interestCalculator.calculateSimpleInterest(amount, interestRate, term);
-        totalInterest = simpleInterest;
-        totalRepayment = amount + simpleInterest;
+        // Formula: Total Interest = Principal × Rate × (Term in months / 12)
+        // For 6 months at 24%: K50,000 × 0.24 × (6/12) = K6,000
+        const simpleInterestTotal = amount * (interestRate / 100) * (term / 12);
+        totalInterest = simpleInterestTotal;
+        totalRepayment = amount + simpleInterestTotal;
         monthlyPayment = totalRepayment / term;
         
-        // Build schedule
+        // Build schedule with equal payments
         let simpleBalance = amount;
         const simplePrincipalPerPayment = amount / term;
-        const simpleInterestPerPayment = simpleInterest / term;
+        const simpleInterestPerPayment = simpleInterestTotal / term;
         
         for (let i = 1; i <= term; i++) {
           simpleBalance -= simplePrincipalPerPayment;
@@ -617,7 +619,9 @@ router.post('/:id/calculate-schedule', authenticateToken, async (req, res) => {
         
       case 'interest_only':
         // Interest-only: Pay interest each period, principal at end
-        const monthlyInterest = interestCalculator.calculateInterestOnlyPayment(amount, interestRate);
+        // Formula: Monthly Interest = Principal × (Rate / 12)
+        // For 24 months at 14%: K40,000 × 0.14 / 12 = K466.67 per month
+        const monthlyInterest = (amount * (interestRate / 100)) / 12;
         
         for (let i = 1; i <= term; i++) {
           const isLastPayment = i === term;

@@ -117,13 +117,13 @@ const productTemplates = [
     interestRate: { min: 18, max: 36, default: 24 },
     term: { min: 3, max: 12, default: 6 },
     amount: { min: 50000, max: 1000000, currency: 'ZMW' },
-    interestCalculation: { method: 'interest_only', dayCountConvention: 'actual/360' },
+    interestCalculation: { method: 'simple_interest', dayCountConvention: 'actual/365' },
     repaymentFrequency: ['monthly'],
     fees: {
-      processingFee: { type: 'percentage', amount: 2.5 },
+      processingFee: { type: 'percentage', amount: 4 },
       latePenalty: { type: 'percentage', amount: 8 },
       earlySettlementFee: { type: 'percentage', amount: 0 },
-      insuranceFee: { type: 'percentage', amount: 1.5, required: true }
+      insuranceFee: { type: 'percentage', amount: 0, required: false }
     },
     collateralRequired: true,
     collateralTypes: ['property'],
@@ -222,13 +222,13 @@ const productTemplates = [
     interestRate: { min: 10, max: 18, default: 14 },
     term: { min: 12, max: 60, default: 36 },
     amount: { min: 5000, max: 150000, currency: 'ZMW' },
-    interestCalculation: { method: 'simple_interest', dayCountConvention: 'actual/365' },
+    interestCalculation: { method: 'interest_only', dayCountConvention: 'actual/365' },
     repaymentFrequency: ['monthly'],
     fees: {
-      processingFee: { type: 'percentage', amount: 1 },
+      processingFee: { type: 'percentage', amount: 1.5 },
       latePenalty: { type: 'percentage', amount: 3 },
       earlySettlementFee: { type: 'fixed', amount: 0 },
-      insuranceFee: { type: 'percentage', amount: 0.5, required: false }
+      insuranceFee: { type: 'percentage', amount: 0, required: false }
     },
     collateralRequired: false,
     collateralTypes: ['guarantor'],

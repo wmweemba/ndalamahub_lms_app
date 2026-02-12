@@ -43,6 +43,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Removed duplicate useEffect for payment schedule fetching
     - Amount validation now works correctly for all loan amounts
 
+### Fixed
+- **Bridge Loan Product Configuration** (February 12, 2026):
+  - Corrected calculation method: interest_only → simple_interest
+  - Updated processing fee: 2.5% → 4% (K50,000 loan = K2,000 fee)
+  - Removed insurance fee: 1.5% required → 0% (not needed for bridge loans)
+  - Fixed simple_interest calculation in API endpoint:
+    - Formula: totalInterest = amount × (rate/100) × (term/12)
+    - Monthly payment: (amount + totalInterest) / term
+    - Example: K50,000 @ 24% for 6 months = K6,000 interest, K9,333.33 monthly
+  - Test results now match expected: K56,000 total repayment
+
+- **Education Loan Product Configuration** (February 12, 2026):
+  - Corrected calculation method: simple_interest → interest_only
+  - Updated processing fee: 1% → 1.5% (K40,000 loan = K600 fee)
+  - Removed insurance fee: 0.5% optional → 0% (not applicable)
+  - Fixed interest_only calculation in API endpoint:
+    - **Critical Bug**: Function call `calculateInterestOnlyPayment(amount, interestRate)` had parameter mismatch
+      - Function expects 5 params: (principal, annualRate, term, frequency, accrualBasis)
+      - Was called with only 2 params
+      - Function returns object {interestPayment, totalInterest, balloonPayment, finalPayment}
+      - Code treated return value as number, causing undefined/NaN cascade
+    - **Solution**: Replaced with direct formula: `monthlyInterest = (amount × (interestRate / 100)) / 12`
+    - Now correctly calculates:
+      - K40,000 @ 14% for 24 months = K466.67 monthly interest
+      - 23 payments of K466.67 (interest only)
+      - 1 final payment of K40,466.67 (interest + full principal balloon)
+      - Total interest: K11,200, Total repayment: K51,200
+  - Payment schedule preview now displays correctly (was showing all N/A values)
+  - Balloon payment structure properly represented in schedule
+
 - **Frontend Testing & Product Management Enhancements**:
   - Created complete product CRUD dialogs
     - CreateProductDialog: Comprehensive form with all LoanProduct schema fields (450+ lines)

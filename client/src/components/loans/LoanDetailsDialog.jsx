@@ -7,6 +7,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import api from '@/utils/api';
 import { canApproveLoan, canDisburseLoan, getCurrentUser } from '@/utils/roleUtils';
 import { PrepaymentDialog } from './PrepaymentDialog';
@@ -17,6 +19,12 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
   const [actionError, setActionError] = useState(null);
   const [prepaymentDialogOpen, setPrepaymentDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [showApprovalForm, setShowApprovalForm] = useState(false);
+  const [showRejectionForm, setShowRejectionForm] = useState(false);
+  const [showDisbursementForm, setShowDisbursementForm] = useState(false);
+  const [approvalComment, setApprovalComment] = useState('');
+  const [rejectionComment, setRejectionComment] = useState('');
+  const [disbursementNotes, setDisbursementNotes] = useState('');
 
   if (!loan) return null;
 
@@ -55,14 +63,19 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
   };
 
   const handleApprove = async () => {
-    if (!window.confirm('Are you sure you want to approve this loan?')) return;
+    if (!approvalComment.trim()) {
+      setActionError('Please provide a comment for approval');
+      return;
+    }
     
     setLoading(true);
     setActionError(null);
     try {
       await api.put(`/loans/${loan._id}/approve`, {
-        approvalNotes: 'Approved via loan management interface'
+        approvalNotes: approvalComment
       });
+      setShowApprovalForm(false);
+      setApprovalComment('');
       onUpdate();
       onClose();
     } catch (err) {
@@ -73,15 +86,19 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
   };
 
   const handleReject = async () => {
-    const reason = window.prompt('Please provide a reason for rejection:');
-    if (!reason) return;
+    if (!rejectionComment.trim()) {
+      setActionError('Please provide a reason for rejection');
+      return;
+    }
     
     setLoading(true);
     setActionError(null);
     try {
       await api.put(`/loans/${loan._id}/reject`, {
-        approvalNotes: reason
+        approvalNotes: rejectionComment
       });
+      setShowRejectionForm(false);
+      setRejectionComment('');
       onUpdate();
       onClose();
     } catch (err) {
@@ -92,14 +109,20 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
   };
 
   const handleDisburse = async () => {
-    if (!window.confirm('Are you sure you want to disburse this loan?')) return;
+    if (!disbursementNotes.trim()) {
+      setActionError('Please provide disbursement notes');
+      return;
+    }
     
     setLoading(true);
     setActionError(null);
     try {
       await api.put(`/loans/${loan._id}/disburse`, {
-        disbursementMethod: 'bank_transfer'
+        disbursementMethod: 'bank_transfer',
+        disbursementNotes: disbursementNotes
       });
+      setShowDisbursementForm(false);
+      setDisbursementNotes('');
       onUpdate();
       onClose();
     } catch (err) {
@@ -302,72 +325,225 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
         )}
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t">
+        <div className="flex flex-col gap-4 mt-6 pt-6 border-t">
           {actionError && (
             <div className="w-full bg-red-50 border border-red-200 text-red-600 rounded-lg p-3 text-sm">
               {actionError}
             </div>
           )}
           
-          {userCanApprove && canApprove && (
-            <Button
-              onClick={handleApprove}
-              disabled={loading}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              {loading ? 'Processing...' : 'Approve Loan'}
-            </Button>
+          {/* Approval Form */}
+          {userCanApprove && canApprove && showApprovalForm && (
+            <Card className="border-green-200 bg-green-50">
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="approval-comment" className="text-sm font-medium">
+                      Approval Comment <span className="text-red-500">*</span>
+                    </Label>
+                    <Textarea
+                      id="approval-comment"
+                      value={approvalComment}
+                      onChange={(e) => setApprovalComment(e.target.value)}
+                      placeholder="e.g., Verified employment and salary. Approved for processing."
+                      rows={3}
+                      className="mt-2 bg-white"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleApprove}
+                      disabled={loading || !approvalComment.trim()}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      {loading ? 'Processing...' : 'Confirm Approval'}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setShowApprovalForm(false);
+                        setApprovalComment('');
+                        setActionError(null);
+                      }}
+                      disabled={loading}
+                      variant="outline"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Rejection Form */}
+          {userCanApprove && canReject && showRejectionForm && (
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="rejection-comment" className="text-sm font-medium">
+                      Rejection Reason <span className="text-red-500">*</span>
+                    </Label>
+                    <Textarea
+                      id="rejection-comment"
+                      value={rejectionComment}
+                      onChange={(e) => setRejectionComment(e.target.value)}
+                      placeholder="e.g., Loan amount exceeds 5x monthly salary policy. Please reapply for lower amount."
+                      rows={3}
+                      className="mt-2 bg-white"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleReject}
+                      disabled={loading || !rejectionComment.trim()}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      {loading ? 'Processing...' : 'Confirm Rejection'}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setShowRejectionForm(false);
+                        setRejectionComment('');
+                        setActionError(null);
+                      }}
+                      disabled={loading}
+                      variant="outline"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Disbursement Form */}
+          {userCanDisburse && canDisburse && showDisbursementForm && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="disbursement-notes" className="text-sm font-medium">
+                      Disbursement Notes <span className="text-red-500">*</span>
+                    </Label>
+                    <Textarea
+                      id="disbursement-notes"
+                      value={disbursementNotes}
+                      onChange={(e) => setDisbursementNotes(e.target.value)}
+                      placeholder="e.g., Funds transferred to account ending 1234"
+                      rows={3}
+                      className="mt-2 bg-white"
+                    />
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Disbursement Summary</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Principal Amount:</span>
+                        <span className="font-medium">{formatCurrency(loan.amount)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Processing Fee:</span>
+                        <span className="font-medium text-red-600">-{formatCurrency(loan.processingFee || 0)}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="font-medium text-gray-700">Net Disbursement:</span>
+                        <span className="font-bold text-blue-600">
+                          {formatCurrency((loan.amount || 0) - (loan.processingFee || 0))}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleDisburse}
+                      disabled={loading || !disbursementNotes.trim()}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {loading ? 'Processing...' : 'Confirm Disbursement'}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setShowDisbursementForm(false);
+                        setDisbursementNotes('');
+                        setActionError(null);
+                      }}
+                      disabled={loading}
+                      variant="outline"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
           
-          {userCanApprove && canReject && (
-            <Button
-              onClick={handleReject}
-              disabled={loading}
-              variant="outline"
-              className="border-red-300 text-red-600 hover:bg-red-50"
-            >
-              {loading ? 'Processing...' : 'Reject Loan'}
-            </Button>
+          {/* Action Buttons - Only show when forms are hidden */}
+          {!showApprovalForm && !showRejectionForm && !showDisbursementForm && (
+            <div className="flex flex-wrap gap-3">
+              {userCanApprove && canApprove && (
+                <Button
+                  onClick={() => setShowApprovalForm(true)}
+                  disabled={loading}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Approve Loan
+                </Button>
+              )}
+              
+              {userCanApprove && canReject && (
+                <Button
+                  onClick={() => setShowRejectionForm(true)}
+                  disabled={loading}
+                  variant="outline"
+                  className="border-red-300 text-red-600 hover:bg-red-50"
+                >
+                  Reject Loan
+                </Button>
+              )}
+              
+              {userCanDisburse && canDisburse && (
+                <Button
+                  onClick={() => setShowDisbursementForm(true)}
+                  disabled={loading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Disburse Loan
+                </Button>
+              )}
+              
+              {userCanDisburse && canPrepay && (
+                <Button
+                  onClick={() => setPrepaymentDialogOpen(true)}
+                  disabled={loading}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  Make Prepayment
+                </Button>
+              )}
+              
+              {canPrepay && (
+                <Button
+                  onClick={() => setHistoryDialogOpen(true)}
+                  disabled={loading}
+                  variant="outline"
+                  className="border-purple-300 text-purple-600 hover:bg-purple-50"
+                >
+                  View History
+                </Button>
+              )}
+              
+              <Button
+                onClick={onClose}
+                variant="outline"
+                disabled={loading}
+              >
+                Close
+              </Button>
+            </div>
           )}
-          
-          {userCanDisburse && canDisburse && (
-            <Button
-              onClick={handleDisburse}
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {loading ? 'Processing...' : 'Disburse Loan'}
-            </Button>
-          )}
-          
-          {userCanDisburse && canPrepay && (
-            <Button
-              onClick={() => setPrepaymentDialogOpen(true)}
-              disabled={loading}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
-            >
-              Make Prepayment
-            </Button>
-          )}
-          
-          {canPrepay && (
-            <Button
-              onClick={() => setHistoryDialogOpen(true)}
-              disabled={loading}
-              variant="outline"
-              className="border-purple-300 text-purple-600 hover:bg-purple-50"
-            >
-              View History
-            </Button>
-          )}
-          
-          <Button
-            onClick={onClose}
-            variant="outline"
-            disabled={loading}
-          >
-            Close
-          </Button>
         </div>
       </DialogContent>
     </Dialog>

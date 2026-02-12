@@ -43,6 +43,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Removed duplicate useEffect for payment schedule fetching
     - Amount validation now works correctly for all loan amounts
 
+- **Loan Disbursement Workflow** (February 12, 2026):
+  - Added comprehensive disbursement form with notes field
+    - Replaced simple "Disburse Loan" button with full form UI
+    - Required disbursement notes field for audit trail (e.g., "Funds transferred to account ending 1234")
+    - Blue-themed Card matching approval (green) and rejection (red) form patterns
+    - Confirm/Cancel buttons with proper validation and state management
+  - Added disbursement summary display
+    - Shows principal amount, processing fee, and net disbursement
+    - Calculates net amount customer receives: Amount - Processing Fee
+    - Example: K50,000 - K2,000 fee = K48,000 net disbursement
+    - Provides transparency before disbursement confirmation
+  - Updated "Disburse Loan" button behavior
+    - Now toggles disbursement form instead of direct action
+    - Only shows when approval/rejection/disbursement forms are hidden
+    - Maintains consistent UX across all loan actions
+
+- **Loan Schema Processing Fees** (February 12, 2026):
+  - Added `fees` field to Loan schema
+    - Structure: `{ processing: Number, insurance: Number }`
+    - Stores calculated fees from product configuration at loan creation
+    - Min validation: 0 (fees cannot be negative)
+  - Added virtual fields for easy access
+    - `processingFee`: Returns `fees.processing` or 0
+    - `insuranceFee`: Returns `fees.insurance` or 0
+    - `totalUpfrontFees`: Sum of processing + insurance fees
+    - `netDisbursement`: Loan amount minus total upfront fees
+  - Enabled virtuals in JSON/Object output
+    - `toJSON: { virtuals: true }`
+    - `toObject: { virtuals: true }`
+    - Ensures virtual fields are included in API responses
+  - Created utility scripts for fee population
+    - `utils/updateLoanFees.js`: Updates existing loans with product-calculated fees
+    - `utils/fixTestLoans.js`: Links test loans to correct products and populates fees
+    - Example: Bridge Loan K50,000 × 4% = K2,000 processing fee
+
 ### Fixed
 - **Bridge Loan Product Configuration** (February 12, 2026):
   - Corrected calculation method: interest_only → simple_interest

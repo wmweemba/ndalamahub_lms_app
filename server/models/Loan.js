@@ -114,6 +114,20 @@ const loanSchema = new mongoose.Schema({
     }
   },
   
+  // Fees
+  fees: {
+    processing: {
+      type: Number,
+      default: 0,
+      min: [0, 'Processing fee cannot be negative']
+    },
+    insurance: {
+      type: Number,
+      default: 0,
+      min: [0, 'Insurance fee cannot be negative']
+    }
+  },
+  
   // Calculated fields
   totalAmount: {
     type: Number
@@ -469,6 +483,27 @@ loanSchema.pre('save', async function(next) {
   
   next();
 });
+
+// Virtual fields for easy access to fee calculations
+loanSchema.virtual('processingFee').get(function() {
+  return this.fees?.processing || 0;
+});
+
+loanSchema.virtual('insuranceFee').get(function() {
+  return this.fees?.insurance || 0;
+});
+
+loanSchema.virtual('totalUpfrontFees').get(function() {
+  return (this.fees?.processing || 0) + (this.fees?.insurance || 0);
+});
+
+loanSchema.virtual('netDisbursement').get(function() {
+  return this.amount - this.totalUpfrontFees;
+});
+
+// Ensure virtuals are included in JSON/Object output
+loanSchema.set('toJSON', { virtuals: true });
+loanSchema.set('toObject', { virtuals: true });
 
 // Calculate loan details using daily interest accrual
 loanSchema.methods.calculateLoanDetails = function() {

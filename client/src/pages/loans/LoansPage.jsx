@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { LoanDetailsDialog } from '@/components/loans/LoanDetailsDialog';
 import ProductBasedLoanForm from '@/components/loans/ProductBasedLoanForm';
 import api from '@/utils/api';
@@ -8,17 +17,30 @@ import { ROLES } from '@/utils/roleUtils';
 
 export default function LoansPage() {
     const [loans, setLoans] = useState([]);
+    const [filteredLoans, setFilteredLoans] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedLoan, setSelectedLoan] = useState(null);
     const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
     const [isApplicationFormOpen, setIsApplicationFormOpen] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
+    
+    // Filter states
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [companyFilter, setCompanyFilter] = useState('all');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [companies, setCompanies] = useState([]);
 
     useEffect(() => {
         fetchLoans();
         fetchCurrentUser();
+        fetchCompanies();
     }, []);
+
+    // Apply filters whenever loans or filter criteria change
+    useEffect(() => {
+        applyFilters();
+    }, [loans, statusFilter, companyFilter, searchTerm]);
 
     const fetchCurrentUser = async () => {
         try {
@@ -28,6 +50,17 @@ export default function LoansPage() {
             }
         } catch (err) {
             console.error('Failed to fetch current user:', err);
+        }
+    };
+
+    const fetchCompanies = async () => {
+        try {
+            const response = await api.get('/companies');
+            if (response.data.success) {
+                setCompanies(response.data.data.companies || []);
+            }
+        } catch (err) {
+            console.error('Failed to fetch companies:', err);
         }
     };
 
@@ -46,6 +79,50 @@ export default function LoansPage() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const applyFilters = () => {
+        let filtered = [...loans];
+
+        // Status filter
+        if (statusFilter !== 'all') {
+            filtered = filtered.filter(loan => loan.status === statusFilter);
+        }
+
+        // Company filter
+        if (companyFilter !== 'all') {
+            filtered = filtered.filter(loan => loan.company?._id === companyFilter);
+        }
+
+        // Search filter (loan number, applicant name, email)
+        if (searchTerm) {
+            const search = searchTerm.toLowerCase();
+            filtered = filtered.filter(loan => 
+                loan.loanNumber?.toLowerCase().includes(search) ||
+                loan.applicant?.firstName?.toLowerCase().includes(search) ||
+                loan.applicant?.lastName?.toLowerCase().includes(search) ||
+                loan.applicant?.email?.toLowerCase().includes(search)
+            );
+        }
+
+        setFilteredLoans(filtered);
+    };
+
+    // Get unique companies from loans
+    const getCompaniesWithLoans = () => {
+        const companyMap = new Map();
+        loans.forEach(loan => {
+            if (loan.company && loan.company._id) {
+                companyMap.set(loan.company._id, loan.company);
+            }
+        });
+        return Array.from(companyMap.values());
+    };
+
+    const resetFilters = () => {
+        setStatusFilter('all');
+        setCompanyFilter('all');
+        setSearchTerm('');
     };
 
     const handleLoanClick = async (loanId) => {
@@ -99,6 +176,8 @@ export default function LoansPage() {
 
     if (loading) return <div className="p-4 md:p-8">Loading loans...</div>;
 
+    const displayLoans = filteredLoans.length > 0 ? filteredLoans : (statusFilter === 'all' && companyFilter === 'all' && !searchTerm ? loans : []);
+
     return (
         <div className="p-4 md:p-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -120,15 +199,113 @@ export default function LoansPage() {
                 </div>
             ) : null}
 
-            {loans.length === 0 ? (
+            {/* Filters Section */}
+            <Card className="p-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {/* Search */}
+                    <div>
+                        <Label htmlFor="search" className="text-sm font-medium mb-2 block">
+                            Search
+                        </Label>
+                        <Input
+                            id="search"
+                            type="text"
+                            placeholder="Loan #, Name, Email..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full"
+                        />
+                    </div>
+
+                    {/* Status Filter */}
+                    <div>
+                        <Label htmlFor="status-filter" className="text-sm font-medium mb-2 block">
+                            Status
+                        </Label>
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger id="status-filter">
+                                <SelectValue placeholder="All Statuses" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Statuses</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="pending_approval">Pending Approval</SelectItem>
+                                <SelectItem value="approved">Approved</SelectItem>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="disbursed">Disbursed</SelectItem>
+                                <SelectItem value="completed">Completed</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                                <SelectItem value="defaulted">Defaulted</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {/* Company Filter - Only show for lender admins and super users */}
+                    {currentUser && [ROLES.SUPER_USER, ROLES.LENDER_ADMIN].includes(currentUser.role) && (
+                        <div>
+                            <Label htmlFor="company-filter" className="text-sm font-medium mb-2 block">
+                                Company
+                            </Label>
+                            <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                                <SelectTrigger id="company-filter">
+                                    <SelectValue placeholder="All Companies" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Companies</SelectItem>
+                                    {getCompaniesWithLoans().map((company) => (
+                                        <SelectItem key={company._id} value={company._id}>
+                                            {company.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
+                    {/* Filter Actions */}
+                    <div className="flex items-end gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={resetFilters}
+                            className="w-full"
+                        >
+                            Reset Filters
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Results Count */}
+                <div className="mt-4 text-sm text-gray-600">
+                    Showing <span className="font-medium">{displayLoans.length}</span> of{' '}
+                    <span className="font-medium">{loans.length}</span> loans
+                </div>
+            </Card>
+
+            {displayLoans.length === 0 ? (
                 <div className="bg-white rounded-lg shadow p-8 text-center">
                     <div className="text-gray-500 mb-4">
                         <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No loans found</h3>
-                    <p className="text-gray-500">There are no loan applications to display.</p>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        {loans.length === 0 ? 'No loans found' : 'No loans match your filters'}
+                    </h3>
+                    <p className="text-gray-500">
+                        {loans.length === 0 
+                            ? 'There are no loan applications to display.' 
+                            : 'Try adjusting your filters to see more results.'
+                        }
+                    </p>
+                    {loans.length > 0 && (
+                        <Button
+                            variant="outline"
+                            onClick={resetFilters}
+                            className="mt-4"
+                        >
+                            Clear Filters
+                        </Button>
+                    )}
                 </div>
             ) : (
                 <>
@@ -142,6 +319,9 @@ export default function LoansPage() {
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Applicant
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Loan Type
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Company
@@ -164,7 +344,7 @@ export default function LoansPage() {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {loans.map((loan) => (
+                                {displayLoans.map((loan) => (
                                     <tr 
                                         key={loan._id} 
                                         className="hover:bg-gray-50 cursor-pointer"
@@ -182,6 +362,11 @@ export default function LoansPage() {
                                                     {loan.applicant?.email}
                                                 </div>
                                             </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 capitalize">
+                                                {loan.product?.category || loan.product?.name || 'N/A'}
+                                            </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             {loan.company?.name}
@@ -220,7 +405,7 @@ export default function LoansPage() {
 
                     {/* Mobile Card View - Visible on mobile and tablet */}
                     <div className="lg:hidden space-y-4">
-                        {loans.map((loan) => (
+                        {displayLoans.map((loan) => (
                             <Card 
                                 key={loan._id} 
                                 className="p-4 cursor-pointer hover:shadow-md transition-shadow"
@@ -245,6 +430,14 @@ export default function LoansPage() {
                                             {loan.applicant?.firstName} {loan.applicant?.lastName}
                                         </p>
                                         <p className="text-sm text-gray-600">{loan.applicant?.email}</p>
+                                    </div>
+
+                                    {/* Loan Type */}
+                                    <div>
+                                        <p className="text-sm text-gray-500">Loan Type</p>
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 capitalize">
+                                            {loan.product?.category || loan.product?.name || 'N/A'}
+                                        </span>
                                     </div>
 
                                     {/* Company */}

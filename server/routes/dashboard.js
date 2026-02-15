@@ -86,92 +86,125 @@ router.get('/lender-stats', authenticateToken, authorizeMinRole('lender_admin'),
 
         // Get all corporate companies linked to this lender
         const corporateClients = await Company.find({
-            lenderCompany: req.user.company,
-            isActive: true,
-            type: 'corporate'
-        });
-
-        console.log('Found corporate clients:', corporateClients.length);
-
-        // Get all corporate client IDs
-        const corporateClientIds = corporateClients.map(client => client._id);
-
-        // Get active users from all corporate clients
-        const activeUsers = await User.countDocuments({
-            company: { $in: corporateClientIds },
-            isActive: true
-        });
-
-        // Get users from the lender company itself
-        const lenderUsers = await User.countDocuments({
-            company: req.user.company,
-            isActive: true
-        });
-
-        // Total active users (lender + all corporate clients)
-        const totalActiveUsers = activeUsers + lenderUsers;
-
-        // Get all loans for corporate clients and lender company
-        const allLoans = await Loan.find({
-            $or: [
-                { company: { $in: corporateClientIds } }, // Loans from corporate clients
-                { lenderCompany: req.user.company },       // Loans processed by this lender
-                { company: req.user.company }              // Direct loans from lender company
-            ]
-        }).populate('applicant', 'firstName lastName')
-          .populate('company', 'name type');
-
-        console.log('Found total loans:', allLoans.length);
-
-        // Calculate loan statistics
-        const totalLoans = allLoans.length;
-        const activeLoans = allLoans.filter(loan => loan.status === 'active').length;
-        const pendingLoans = allLoans.filter(loan => 
-            loan.status === 'pending' || 
-            loan.status === 'pending_approval' || 
-            loan.status === 'pending_documents' || 
-            loan.status === 'under_review' ||
-            loan.status === 'pending_disbursement'
-        ).length;
-        const approvedLoans = allLoans.filter(loan => loan.status === 'approved').length;
-        const disbursedLoans = allLoans.filter(loan => loan.status === 'disbursed').length;
-        const completedLoans = allLoans.filter(loan => loan.status === 'completed').length;
-        const rejectedLoans = allLoans.filter(loan => loan.status === 'rejected').length;
-
-        // Calculate loan amounts
-        const totalLoanAmount = allLoans.reduce((sum, loan) => sum + loan.amount, 0);
-        const activeLoanAmount = allLoans
-            .filter(loan => loan.status === 'active')
-            .reduce((sum, loan) => sum + loan.amount, 0);
-        const pendingLoanAmount = allLoans
-            .filter(loan => 
+            // Calculate loan statistics
+            const totalLoans = allLoans.length;
+            const activeLoans = allLoans.filter(loan => loan.status === 'active').length;
+            const pendingLoans = allLoans.filter(loan => 
                 loan.status === 'pending' || 
                 loan.status === 'pending_approval' || 
                 loan.status === 'pending_documents' || 
                 loan.status === 'under_review' ||
                 loan.status === 'pending_disbursement'
-            )
-            .reduce((sum, loan) => sum + loan.amount, 0);
+            ).length;
+            const approvedLoans = allLoans.filter(loan => loan.status === 'approved').length;
+            const disbursedLoans = allLoans.filter(loan => loan.status === 'disbursed').length;
+            const completedLoans = allLoans.filter(loan => loan.status === 'completed').length;
+            const rejectedLoans = allLoans.filter(loan => loan.status === 'rejected').length;
 
-        // Get recent loan applications (last 10)
-        const recentApplications = allLoans
-            .sort((a, b) => new Date(b.applicationDate) - new Date(a.applicationDate))
-            .slice(0, 10)
-            .map(loan => ({
-                id: loan._id,
-                loanNumber: loan.loanNumber,
-                applicantName: loan.applicant ? `${loan.applicant.firstName} ${loan.applicant.lastName}` : 'N/A',
-                companyName: loan.company ? loan.company.name : 'N/A',
-                amount: loan.amount,
-                status: loan.status,
-                applicationDate: loan.applicationDate,
-                purpose: loan.purpose
-            }));
+            // Calculate loan amounts
+            const totalLoanAmount = allLoans.reduce((sum, loan) => sum + loan.amount, 0);
+            const activeLoanAmount = allLoans
+                .filter(loan => loan.status === 'active')
+                .reduce((sum, loan) => sum + loan.amount, 0);
+            const pendingLoanAmount = allLoans
+                .filter(loan => 
+                    loan.status === 'pending' || 
+                    loan.status === 'pending_approval' || 
+                    loan.status === 'pending_documents' || 
+                    loan.status === 'under_review' ||
+                    loan.status === 'pending_disbursement'
+                )
+                .reduce((sum, loan) => sum + loan.amount, 0);
 
-        // Get pending approvals that need attention
-        const pendingApprovals = allLoans.filter(loan => 
-            loan.status === 'pending' || 
-            loan.status === 'pending_approval' || 
+            // Outstanding balance: sum of remaining principal for all active loans
+            let totalOutstandingBalance = 0;
+            for (const loan of allLoans) {
+              if (loan.status === 'active' && typeof loan.calculateRemainingBalance === 'function') {
+                totalOutstandingBalance += loan.calculateRemainingBalance();
+              } else if (loan.status === 'active' && loan.repaymentSchedule) {
+                // fallback if method not available (shouldn't happen)
+                let remaining = loan.amount;
+                loan.repaymentSchedule.forEach(inst => {
+                  if (inst.status === 'paid') remaining -= inst.principal;
+                });
+                totalOutstandingBalance += Math.max(0, remaining);
+              }
+            }
+
+            // Total interest earned: sum of all paid interest for all loans
+            let totalInterestEarned = 0;
+            for (const loan of allLoans) {
+              if (loan.repaymentSchedule) {
+                loan.repaymentSchedule.forEach(inst => {
+                  if (inst.status === 'paid') totalInterestEarned += inst.interest;
+                });
+              }
+              // Add interest from prepayments (if any)
+              if (loan.prepayments) {
+                loan.prepayments.forEach(prep => {
+                  if (prep.interestPortion) totalInterestEarned += prep.interestPortion;
+                });
+              }
+            }
+
+            // Get recent loan applications (last 10)
+            const recentApplications = allLoans
+                .sort((a, b) => new Date(b.applicationDate) - new Date(a.applicationDate))
+                .slice(0, 10)
+                .map(loan => ({
+                    id: loan._id,
+                    loanNumber: loan.loanNumber,
+                    applicantName: loan.applicant ? `${loan.applicant.firstName} ${loan.applicant.lastName}` : 'N/A',
+                    companyName: loan.company ? loan.company.name : 'N/A',
+                    amount: loan.amount,
+                    status: loan.status,
+                    applicationDate: loan.applicationDate,
+                    purpose: loan.purpose
+                }));
+
+            // Get pending approvals that need attention
+            const pendingApprovals = allLoans.filter(loan => 
+                loan.status === 'pending' || 
+                loan.status === 'pending_approval' || 
+                loan.status === 'pending_documents' || 
+                loan.status === 'under_review'
+            );
+
+            // Get loans ready for disbursement
+            const readyForDisbursement = allLoans.filter(loan => 
+                loan.status === 'approved'
+            );
+
+            res.json({
+                success: true,
+                data: {
+                    lenderCompany: {
+                        name: lenderCompany.name,
+                        type: lenderCompany.type
+                    },
+                    portfolioSummary: {
+                        activeCompanies: corporateClients.length,
+                        activeCorporates: corporateClients.length, // Same as activeCompanies for lenders
+                        activeUsers: totalActiveUsers,
+                        totalLoans,
+                        activeLoans,
+                        pendingLoans,
+                        approvedLoans,
+                        disbursedLoans,
+                        completedLoans,
+                        rejectedLoans,
+                        totalLoanAmount,
+                        activeLoanAmount,
+                        pendingLoanAmount,
+                        totalOutstandingBalance,
+                        totalInterestEarned
+                    },
+                    recentApplications,
+                    pendingApprovals: pendingApprovals.length,
+                    readyForDisbursement: readyForDisbursement.length,
+                    needsAttention: pendingApprovals.length
+                }
+            });
             loan.status === 'pending_documents' || 
             loan.status === 'under_review'
         );
@@ -264,20 +297,52 @@ router.get('/hr-stats', authenticateToken, authorizeMinRole('corporate_hr'), asy
         const rejectedLoans = companyLoans.filter(loan => loan.status === 'rejected').length;
         const completedLoans = companyLoans.filter(loan => loan.status === 'completed').length;
 
-        // Calculate amounts
-        const totalLoanAmount = companyLoans.reduce((sum, loan) => sum + loan.amount, 0);
-        const pendingLoanAmount = companyLoans
-            .filter(loan => 
-                loan.status === 'pending' || 
-                loan.status === 'pending_approval' || 
-                loan.status === 'pending_documents' || 
-                loan.status === 'under_review' ||
-                loan.status === 'pending_disbursement'
-            )
-            .reduce((sum, loan) => sum + loan.amount, 0);
-        const activeLoanAmount = companyLoans
-            .filter(loan => loan.status === 'active')
-            .reduce((sum, loan) => sum + loan.amount, 0);
+
+                // Calculate amounts
+                const totalLoanAmount = companyLoans.reduce((sum, loan) => sum + loan.amount, 0);
+                const pendingLoanAmount = companyLoans
+                        .filter(loan => 
+                                loan.status === 'pending' || 
+                                loan.status === 'pending_approval' || 
+                                loan.status === 'pending_documents' || 
+                                loan.status === 'under_review' ||
+                                loan.status === 'pending_disbursement'
+                        )
+                        .reduce((sum, loan) => sum + loan.amount, 0);
+                const activeLoanAmount = companyLoans
+                        .filter(loan => loan.status === 'active')
+                        .reduce((sum, loan) => sum + loan.amount, 0);
+
+                // Outstanding balance: sum of remaining principal for all active loans
+                let totalOutstandingBalance = 0;
+                for (const loan of companyLoans) {
+                    if (loan.status === 'active' && typeof loan.calculateRemainingBalance === 'function') {
+                        totalOutstandingBalance += loan.calculateRemainingBalance();
+                    } else if (loan.status === 'active' && loan.repaymentSchedule) {
+                        // fallback if method not available (shouldn't happen)
+                        let remaining = loan.amount;
+                        loan.repaymentSchedule.forEach(inst => {
+                            if (inst.status === 'paid') remaining -= inst.principal;
+                        });
+                        totalOutstandingBalance += Math.max(0, remaining);
+                    }
+                }
+
+                // Total interest earned: sum of all paid interest for all loans
+                let totalInterestEarned = 0;
+                for (const loan of companyLoans) {
+                    if (loan.repaymentSchedule) {
+                        loan.repaymentSchedule.forEach(inst => {
+                            if (inst.status === 'paid') totalInterestEarned += inst.interest;
+                        });
+                    }
+                    // Add interest from prepayments (if any)
+                    if (loan.prepayments) {
+                        loan.prepayments.forEach(prep => {
+                            if (prep.interestPortion) totalInterestEarned += prep.interestPortion;
+                        });
+                    }
+                }
 
         // Get recent loan applications (last 10)
         const recentApplications = companyLoans
@@ -328,7 +393,9 @@ router.get('/hr-stats', authenticateToken, authorizeMinRole('corporate_hr'), asy
                     completedLoans,
                     totalLoanAmount,
                     pendingLoanAmount,
-                    activeLoanAmount
+                    activeLoanAmount,
+                    totalOutstandingBalance,
+                    totalInterestEarned
                 },
                 employeeStats: {
                     totalEmployees,

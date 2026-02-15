@@ -723,17 +723,45 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
 });
 
 // @route   PUT /api/loans/:id/repayment
-// @desc    Record loan repayment
+// @desc    Record loan repayment with payment details
 // @access  Private (Lender Admin only)
 router.put('/:id/repayment', authenticateToken, authorize('lender_admin'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { installmentNumber, amount } = req.body;
+    const { 
+      installmentNumber, 
+      amount,
+      paymentDate,
+      paymentMethod,
+      referenceNumber,
+      notes
+    } = req.body;
 
     if (!installmentNumber || !amount) {
       return res.status(400).json({
         success: false,
         message: 'Installment number and amount are required'
+      });
+    }
+
+    if (!paymentDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment date is required'
+      });
+    }
+
+    if (!paymentMethod) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment method is required'
+      });
+    }
+
+    if (!referenceNumber || !referenceNumber.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reference number is required'
       });
     }
 
@@ -767,11 +795,24 @@ router.put('/:id/repayment', authenticateToken, authorize('lender_admin'), async
       });
     }
 
-    // Update installment
+    // Update installment with payment details
     installment.paidAmount += parseFloat(amount);
     installment.paidAt = new Date();
+    installment.paymentDate = new Date(paymentDate);
+    installment.paymentMethod = paymentMethod;
+    installment.referenceNumber = referenceNumber.trim();
+    if (notes && notes.trim()) {
+      installment.paymentNotes = notes.trim();
+    }
 
-    if (installment.paidAmount >= installment.amount) {
+    // Calculate remaining amount
+    const remaining = installment.amount - installment.paidAmount;
+    
+    // Mark as paid if remaining is less than 1 cent (handles rounding errors)
+    if (remaining < 0.01) {
+      installment.status = 'paid';
+      installment.paidAmount = installment.amount; // Normalize to exact amount
+    } else if (installment.paidAmount >= installment.amount) {
       installment.status = 'paid';
     } else {
       installment.status = 'partial';

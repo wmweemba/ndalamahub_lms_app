@@ -221,6 +221,22 @@ const loanSchema = new mongoose.Schema({
       type: Number,
       default: 0
     },
+    // Payment tracking details
+    paymentDate: {
+      type: Date
+    },
+    paymentMethod: {
+      type: String,
+      enum: ['bank_transfer', 'cash', 'cheque', 'mobile_money', 'direct_debit', 'standing_order', 'other']
+    },
+    referenceNumber: {
+      type: String,
+      trim: true
+    },
+    paymentNotes: {
+      type: String,
+      trim: true
+    },
     isBalloonPayment: {
       type: Boolean,
       default: false
@@ -1114,24 +1130,42 @@ loanSchema.methods._recalculateReducingBalanceSchedule = function(
 ) {
   const schedule = [];
   const accrualBasis = this.interestCalculation?.accrualBasis || 'actual/365';
+  const periodicRate = (annualRate / 100) / 12; // Monthly for now
   
   let newTerm = remainingTerm;
-  let paymentAmount = this.monthlyPayment;
+  let paymentAmount;
   
   if (strategy === 'reduce_term') {
     // Keep same payment amount, reduce term
-    // Calculate new term based on remaining balance
-    const periodicRate = (annualRate / 100) / 12; // Monthly for now
-    if (periodicRate > 0) {
-      newTerm = Math.ceil(
-        Math.log(paymentAmount / (paymentAmount - remainingBalance * periodicRate)) / 
-        Math.log(1 + periodicRate)
-      );
-      newTerm = Math.min(newTerm, remainingTerm); // Don't exceed original remaining term
+    paymentAmount = this.monthlyPayment;
+    
+    // Calculate new term based on remaining balance using amortization formula
+    if (periodicRate > 0 && paymentAmount > 0) {
+      // Formula: n = -log(1 - r*P/A) / log(1 + r)
+      // where P = principal, A = payment, r = rate
+      const rateTimesPrincipal = periodicRate * remainingBalance;
+      const denominator = paymentAmount - rateTimesPrincipal;
+      
+      // Safety check: payment must be greater than interest
+      if (denominator > 0) {
+        newTerm = Math.ceil(
+          -Math.log(1 - rateTimesPrincipal / paymentAmount) / Math.log(1 + periodicRate)
+        );
+        
+        // Ensure newTerm is reasonable
+        if (newTerm > remainingTerm || newTerm < 1 || !isFinite(newTerm)) {
+          newTerm = remainingTerm;
+        }
+      } else {
+        // Payment is too small for the balance, use original term
+        newTerm = remainingTerm;
+      }
+    } else if (periodicRate === 0) {
+      // No interest, simple division
+      newTerm = Math.ceil(remainingBalance / paymentAmount);
     }
   } else {
     // Keep same term, reduce payment amount
-    const periodicRate = (annualRate / 100) / 12;
     if (periodicRate > 0) {
       paymentAmount = (remainingBalance * periodicRate * Math.pow(1 + periodicRate, remainingTerm)) / 
                       (Math.pow(1 + periodicRate, remainingTerm) - 1);
@@ -1161,8 +1195,21 @@ loanSchema.methods._recalculateReducingBalanceSchedule = function(
       accrualBasis
     );
     
-    const principal = Math.min(paymentAmount - interest, balance);
-    const installmentAmount = principal + interest;
+    // For last installment, use exact remaining balance
+    let principal, installmentAmount;
+    if (i === newTerm || balance <= paymentAmount) {
+      principal = balance;
+      installmentAmount = principal + interest;
+    } else {
+      principal = paymentAmount - interest;
+      installmentAmount = paymentAmount;
+      
+      // Safety check: principal can't be negative
+      if (principal < 0) {
+        principal = 0;
+        installmentAmount = interest;
+      }
+    }
     
     schedule.push({
       installmentNumber: paidCount + i,

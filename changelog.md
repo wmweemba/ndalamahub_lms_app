@@ -216,6 +216,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Installed @radix-ui/react-radio-group dependency
     - Frontend build successful ✅
 
+  ### Added
+  - **Repayment Schedule Export (Excel)** (February 15, 2026):
+    - Backend: Added per-loan Excel export endpoint `GET /api/loans/:id/repayment-schedule/export/excel` which returns an XLSX file of the repayment schedule.
+    - Frontend: Implemented `Export Repayment Schedule (Excel)` button in the loan details dialog with `handleExportRepaymentSchedule` that downloads the generated XLSX file.
+    - Includes loading and error states; the export is available for loans with populated repayment schedules.
+
 - **Phase 0: Loan Engine Enhancement - Week 3 ✅ COMPLETED**:
   - Created comprehensive LoanProduct model (`server/models/LoanProduct.js`, 400+ lines)
     - 9 product categories: personal, business, payday, bridge, microfinance, auto, education, mortgage, other

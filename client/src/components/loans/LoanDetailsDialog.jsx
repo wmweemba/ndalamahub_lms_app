@@ -1,3 +1,5 @@
+
+
 import { useState } from 'react';
 import {
   Dialog,
@@ -42,6 +44,7 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
   };
 
   const formatDate = (date) => {
+
     if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -50,66 +53,6 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
-
-  const getStatusColor = (status) => {
-    const statusColors = {
-      'pending': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      'pending_approval': 'bg-orange-100 text-orange-800 border-orange-200',
-      'approved': 'bg-blue-100 text-blue-800 border-blue-200',
-      'disbursed': 'bg-green-100 text-green-800 border-green-200',
-      'active': 'bg-green-100 text-green-800 border-green-200',
-      'completed': 'bg-gray-100 text-gray-800 border-gray-200',
-      'rejected': 'bg-red-100 text-red-800 border-red-200',
-      'defaulted': 'bg-red-200 text-red-900 border-red-300'
-    };
-    return statusColors[status] || 'bg-gray-100 text-gray-800 border-gray-200';
-  };
-
-  const handleApprove = async () => {
-    if (!approvalComment.trim()) {
-      setActionError('Please provide a comment for approval');
-      return;
-    }
-    
-    setLoading(true);
-    setActionError(null);
-    try {
-      await api.put(`/loans/${loan._id}/approve`, {
-        approvalNotes: approvalComment
-      });
-      setShowApprovalForm(false);
-      setApprovalComment('');
-      onUpdate();
-      onClose();
-    } catch (err) {
-      setActionError(err.response?.data?.message || 'Failed to approve loan');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleReject = async () => {
-    if (!rejectionComment.trim()) {
-      setActionError('Please provide a reason for rejection');
-      return;
-    }
-    
-    setLoading(true);
-    setActionError(null);
-    try {
-      await api.put(`/loans/${loan._id}/reject`, {
-        approvalNotes: rejectionComment
-      });
-      setShowRejectionForm(false);
-      setRejectionComment('');
-      onUpdate();
-      onClose();
-    } catch (err) {
-      setActionError(err.response?.data?.message || 'Failed to reject loan');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleDisburse = async () => {
@@ -147,278 +90,279 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
     }
   };
 
+  const handleExportRepaymentSchedule = async () => {
+    setLoading(true);
+    setActionError(null);
+    try {
+      const res = await api.get(`/loans/${loan._id}/repayment-schedule/export/excel`, { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const filename = `repayment_schedule_${loan.loanNumber || loan._id}.xlsx`;
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setActionError(err.response?.data?.message || 'Failed to export repayment schedule');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>Loan Details - {loan.loanNumber}</span>
-            <span className={`px-3 py-1 text-sm rounded-full border ${getStatusColor(loan.status)}`}>
-              {loan.status.replace('_', ' ').toUpperCase()}
-            </span>
-          </DialogTitle>
-        </DialogHeader>
+        <DialogContent className="max-w-3xl sm:max-w-[95vw]">
+          <DialogHeader>
+            <DialogTitle>Loan Details</DialogTitle>
+          </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Basic Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Loan Number</label>
-                <p className="font-mono">{loan.loanNumber}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Amount</label>
-                <p className="text-lg font-semibold">{formatCurrency(loan.amount)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Interest Rate</label>
-                <p>{loan.interestRate}% per annum</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Term</label>
-                <p>{loan.term} months</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Purpose</label>
-                <p>{loan.purpose}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Applicant Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Applicant Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Name</label>
-                <p>{loan.applicant?.firstName} {loan.applicant?.lastName}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Email</label>
-                <p>{loan.applicant?.email}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Employee ID</label>
-                <p>{loan.applicant?.employeeId || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Department</label>
-                <p>{loan.applicant?.department || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Company</label>
-                <p>{loan.company?.name}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Timeline Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Timeline</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Application Date</label>
-                <p>{formatDate(loan.applicationDate)}</p>
-              </div>
-              {loan.approvedAt && (
+          {/* Loan Details Content */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Basic Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Basic Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Approved Date</label>
-                  <p>{formatDate(loan.approvedAt)}</p>
+                  <label className="text-sm font-medium text-gray-500">Loan Number</label>
+                  <p className="font-mono">{loan.loanNumber}</p>
                 </div>
-              )}
-              {loan.disbursedAt && (
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Disbursed Date</label>
-                  <p>{formatDate(loan.disbursedAt)}</p>
+                  <label className="text-sm font-medium text-gray-500">Amount</label>
+                  <p className="text-lg font-semibold">{formatCurrency(loan.amount)}</p>
                 </div>
-              )}
-              {loan.startDate && (
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Start Date</label>
-                  <p>{formatDate(loan.startDate)}</p>
+                  <label className="text-sm font-medium text-gray-500">Interest Rate</label>
+                  <p>{loan.interestRate}% per annum</p>
                 </div>
-              )}
-              {loan.endDate && (
                 <div>
-                  <label className="text-sm font-medium text-gray-500">End Date</label>
-                  <p>{formatDate(loan.endDate)}</p>
+                  <label className="text-sm font-medium text-gray-500">Term</label>
+                  <p>{loan.term} months</p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Financial Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Financial Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Principal Amount</label>
-                <p>{formatCurrency(loan.amount)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Interest Amount</label>
-                <p>{formatCurrency(loan.totalInterest)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Total Amount</label>
-                <p className="text-lg font-semibold">{formatCurrency(loan.totalAmount)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Monthly Payment</label>
-                <p>{formatCurrency(loan.monthlyPayment)}</p>
-              </div>
-              {loan.remainingBalance !== undefined && (
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Remaining Balance</label>
-                  <p>{formatCurrency(loan.remainingBalance)}</p>
+                  <label className="text-sm font-medium text-gray-500">Purpose</label>
+                  <p>{loan.purpose}</p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
 
-        {/* Approval Notes */}
-        {loan.approvalNotes && (
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="text-lg">Notes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-700">{loan.approvalNotes}</p>
-              {loan.approvedBy && (
-                <p className="text-sm text-gray-500 mt-2">
-                  By: {loan.approvedBy.firstName} {loan.approvedBy.lastName}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
+            {/* Applicant Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Applicant Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Name</label>
+                  <p>{loan.applicant?.firstName} {loan.applicant?.lastName}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Email</label>
+                  <p>{loan.applicant?.email}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Employee ID</label>
+                  <p>{loan.applicant?.employeeId || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Department</label>
+                  <p>{loan.applicant?.department || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Company</label>
+                  <p>{loan.company?.name}</p>
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* Guarantor Information */}
-        {loan.guarantor && (
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="text-lg">Guarantor Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Name</label>
-                <p>{loan.guarantor.name}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Phone</label>
-                <p>{loan.guarantor.phone}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Relationship</label>
-                <p>{loan.guarantor.relationship}</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+            {/* Timeline Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Timeline</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Application Date</label>
+                  <p>{formatDate(loan.applicationDate)}</p>
+                </div>
+                {loan.approvedAt && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Approved Date</label>
+                    <p>{formatDate(loan.approvedAt)}</p>
+                  </div>
+                )}
+                {loan.disbursedAt && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Disbursed Date</label>
+                    <p>{formatDate(loan.disbursedAt)}</p>
+                  </div>
+                )}
+                {loan.startDate && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Start Date</label>
+                    <p>{formatDate(loan.startDate)}</p>
+                  </div>
+                )}
+                {loan.endDate && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">End Date</label>
+                    <p>{formatDate(loan.endDate)}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-        {/* Repayment Schedule */}
-        {loan.repaymentSchedule && loan.repaymentSchedule.length > 0 && (
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="text-lg">Repayment Schedule ({loan.repaymentSchedule.length} installments)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b">
-                    <tr className="text-left">
-                      <th className="pb-2 font-semibold">#</th>
-                      <th className="pb-2 font-semibold">Due Date</th>
-                      <th className="pb-2 font-semibold text-right">Amount</th>
-                      <th className="pb-2 font-semibold text-right hidden sm:table-cell">Principal</th>
-                      <th className="pb-2 font-semibold text-right hidden sm:table-cell">Interest</th>
-                      <th className="pb-2 font-semibold">Status</th>
-                      <th className="pb-2 font-semibold hidden md:table-cell">Payment Details</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loan.repaymentSchedule.map((installment, index) => {
-                      // Calculate display status considering rounding errors
-                      const remaining = installment.amount - (installment.paidAmount || 0);
-                      const displayStatus = remaining < 0.01 && installment.paidAmount > 0 ? 'paid' : installment.status;
-                      
-                      return (
-                      <tr key={index} className="border-b last:border-0 hover:bg-gray-50">
-                        <td className="py-3">{installment.installmentNumber || index + 1}</td>
-                        <td className="py-3">
-                          {installment.dueDate ? new Date(installment.dueDate).toLocaleDateString() : 'N/A'}
-                        </td>
-                        <td className="py-3 text-right font-medium">
-                          K{(installment.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                        <td className="py-3 text-right hidden sm:table-cell text-gray-500">
-                          K{(installment.principal || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                        <td className="py-3 text-right hidden sm:table-cell text-gray-500">
-                          K{(installment.interest || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                        <td className="py-3">
-                          <Badge
-                            variant={
-                              displayStatus === 'paid' ? 'default' :
-                              displayStatus === 'partial' ? 'secondary' :
-                              displayStatus === 'overdue' ? 'destructive' :
-                              'outline'
-                            }
-                            className={
-                              displayStatus === 'paid' ? 'bg-green-600 hover:bg-green-700' :
-                              displayStatus === 'partial' ? 'bg-yellow-600 hover:bg-yellow-700' :
-                              ''
-                            }
-                          >
-                            {displayStatus || 'pending'}
-                          </Badge>
-                        </td>
-                        <td className="py-3 text-xs text-gray-500 hidden md:table-cell">
-                          {displayStatus === 'paid' && installment.paymentDate && (
-                            <div className="space-y-0.5">
-                              <div>Paid: {new Date(installment.paymentDate).toLocaleDateString()}</div>
-                              {installment.paymentMethod && (
-                                <div className="capitalize">{installment.paymentMethod.replace(/_/g, ' ')}</div>
-                              )}
-                              {installment.referenceNumber && (
-                                <div>Ref: {installment.referenceNumber}</div>
-                              )}
-                            </div>
-                          )}
-                          {displayStatus === 'partial' && installment.paidAmount && installment.paidAmount > 0 && (
-                            <div>
-                              Partial: K{installment.paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </div>
-                          )}
-                        </td>
+            {/* Financial Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Financial Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Principal Amount</label>
+                  <p>{formatCurrency(loan.amount)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Interest Amount</label>
+                  <p>{formatCurrency(loan.totalInterest)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Total Amount</label>
+                  <p className="text-lg font-semibold">{formatCurrency(loan.totalAmount)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Monthly Payment</label>
+                  <p>{formatCurrency(loan.monthlyPayment)}</p>
+                </div>
+                {loan.remainingBalance !== undefined && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Remaining Balance</label>
+                    <p>{formatCurrency(loan.remainingBalance)}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Approval Notes */}
+          {loan.approvalNotes && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="text-lg">Notes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-700">{loan.approvalNotes}</p>
+                {loan.approvedBy && (
+                  <p className="text-sm text-gray-500 mt-2">
+                    By: {loan.approvedBy.firstName} {loan.approvedBy.lastName}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Guarantor Information */}
+          {loan.guarantor && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="text-lg">Guarantor Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Name</label>
+                  <p>{loan.guarantor.name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Phone</label>
+                  <p>{loan.guarantor.phone}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Relationship</label>
+                  <p>{loan.guarantor.relationship}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Repayment Schedule */}
+          {loan.repaymentSchedule && loan.repaymentSchedule.length > 0 && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="text-lg">Repayment Schedule ({loan.repaymentSchedule.length} installments)</CardTitle>
+                <Button
+                  variant="outline"
+                  className="ml-auto mt-2"
+                  onClick={handleExportRepaymentSchedule}
+                  disabled={loading}
+                >
+                  {loading ? 'Exporting...' : 'Export Repayment Schedule (Excel)'}
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="border-b">
+                      <tr className="text-left">
+                        <th className="pb-2 font-semibold">#</th>
+                        <th className="pb-2 font-semibold">Due Date</th>
+                        <th className="pb-2 font-semibold text-right">Amount</th>
+                        <th className="pb-2 font-semibold text-right hidden sm:table-cell">Principal</th>
+                        <th className="pb-2 font-semibold text-right hidden sm:table-cell">Interest</th>
+                        <th className="pb-2 font-semibold">Status</th>
+                        <th className="pb-2 font-semibold hidden md:table-cell">Payment Details</th>
                       </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                    </thead>
+                    <tbody>
+                      {loan.repaymentSchedule.map((installment, index) => {
+                        const remaining = installment.amount - (installment.paidAmount || 0);
+                        const displayStatus = remaining < 0.01 && installment.paidAmount > 0 ? 'paid' : installment.status;
+                        return (
+                          <tr key={index} className="border-b last:border-0 hover:bg-gray-50">
+                            <td className="py-3">{installment.installmentNumber || index + 1}</td>
+                            <td className="py-3">{installment.dueDate ? new Date(installment.dueDate).toLocaleDateString() : 'N/A'}</td>
+                            <td className="py-3 text-right font-medium">K{(installment.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td className="py-3 text-right hidden sm:table-cell text-gray-500">K{(installment.principal || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td className="py-3 text-right hidden sm:table-cell text-gray-500">K{(installment.interest || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td className="py-3">
+                              <Badge
+                                variant={displayStatus === 'paid' ? 'default' : displayStatus === 'partial' ? 'secondary' : displayStatus === 'overdue' ? 'destructive' : 'outline'}
+                                className={displayStatus === 'paid' ? 'bg-green-600 hover:bg-green-700' : displayStatus === 'partial' ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
+                              >
+                                {displayStatus || 'pending'}
+                              </Badge>
+                            </td>
+                            <td className="py-3 text-xs text-gray-500 hidden md:table-cell">
+                              {displayStatus === 'paid' && installment.paymentDate && (
+                                <div className="space-y-0.5">
+                                  <div>Paid: {new Date(installment.paymentDate).toLocaleDateString()}</div>
+                                  {installment.paymentMethod && <div className="capitalize">{installment.paymentMethod.replace(/_/g, ' ')}</div>}
+                                  {installment.referenceNumber && <div>Ref: {installment.referenceNumber}</div>}
+                                </div>
+                              )}
+                              {displayStatus === 'partial' && installment.paidAmount && installment.paidAmount > 0 && (
+                                <div>Partial: K{installment.paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-        {/* Action Buttons */}
-        <div className="flex flex-col gap-4 mt-6 pt-6 border-t">
+          {/* Action Buttons */}
+          <div className="flex flex-col gap-4 mt-6 pt-6 border-t">
           {actionError && (
             <div className="w-full bg-red-50 border border-red-200 text-red-600 rounded-lg p-3 text-sm">
-              {actionError}
+                    {actionError}
             </div>
           )}
           

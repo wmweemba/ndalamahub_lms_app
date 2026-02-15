@@ -1,3 +1,5 @@
+  const debugSchedule = [];
+// ...existing code...
 const mongoose = require('mongoose');
 const {
   calculatePeriodInterest,
@@ -11,6 +13,35 @@ const {
 } = require('../utils/interestCalculator');
 
 const loanSchema = new mongoose.Schema({
+    // Grace period and moratorium
+    gracePeriod: {
+      type: Number, // Number of months (or periods) for grace
+      default: 0,
+      min: [0, 'Grace period cannot be negative'],
+      max: [12, 'Grace period cannot exceed 12 months']
+    },
+    graceType: {
+      type: String,
+      enum: ['principal_only', 'full_moratorium', 'none'],
+      default: 'none'
+    },
+    moratorium: {
+      isActive: {
+        type: Boolean,
+        default: false
+      },
+      startDate: {
+        type: Date
+      },
+      endDate: {
+        type: Date
+      },
+      reason: {
+        type: String,
+        trim: true,
+        maxlength: [500, 'Moratorium reason cannot exceed 500 characters']
+      }
+    },
   // Basic loan information
   loanNumber: {
     type: String,
@@ -236,6 +267,19 @@ const loanSchema = new mongoose.Schema({
     paymentNotes: {
       type: String,
       trim: true
+    },
+    isGrace: {
+      type: Boolean,
+      default: false
+    },
+    isMoratorium: {
+      type: Boolean,
+      default: false
+    },
+    graceType: {
+      type: String,
+      enum: ['principal_only', 'full_moratorium', 'none'],
+      default: 'none'
     },
     isBalloonPayment: {
       type: Boolean,
@@ -583,7 +627,8 @@ loanSchema.methods.calculateLoanDetails = function() {
 
 // Generate repayment schedule with actual day calculations
 loanSchema.methods.generateRepaymentSchedule = function() {
-  const method = this.interestCalculation?.method || 'reducing_balance';
+  // Support both interestCalculation.method and top-level method for backward compatibility
+  const method = this.interestCalculation?.method || this.method || 'reducing_balance';
   
   if (method === 'flat_rate') {
     return this.generateFlatRateSchedule();
@@ -598,6 +643,14 @@ loanSchema.methods.generateRepaymentSchedule = function() {
 
 // Generate schedule for reducing balance loans
 loanSchema.methods.generateReducingBalanceSchedule = function() {
+    if (process.env.NODE_ENV === 'test') {
+      // eslint-disable-next-line no-console
+      console.log('DEBUG_GRACE_THIS_VALUES', {
+        gracePeriod: this.gracePeriod,
+        graceType: this.graceType,
+        moratorium: this.moratorium
+      });
+    }
   const schedule = [];
   const paymentAmount = this.monthlyPayment;
   let remainingPrincipal = this.amount;
@@ -608,10 +661,38 @@ loanSchema.methods.generateReducingBalanceSchedule = function() {
   // Start date for schedule (use disbursement date or current date)
   let currentDate = this.disbursedAt || new Date();
   
+  if (process.env.NODE_ENV === 'test') {
+    // eslint-disable-next-line no-console
+    console.log('DEBUG_GRACE_INPUTS', {
+      gracePeriod: this.gracePeriod,
+      graceType: this.graceType,
+      moratorium: this.moratorium
+    });
+  }
   for (let i = 1; i <= this.term; i++) {
     // Calculate next payment date
     const dueDate = getNextPaymentDate(currentDate, frequency);
-    
+
+    // Grace period logic
+    let graceType = this.graceType || 'none';
+    let isGrace = false;
+    // Align grace period to 0-based array (first N installments are grace)
+    if (this.gracePeriod && (i - 1) < this.gracePeriod && graceType !== 'none') {
+      isGrace = true;
+    }
+
+    // Moratorium logic
+    let isMoratorium = false;
+    if (this.moratorium && this.moratorium.isActive && this.moratorium.startDate && this.moratorium.endDate) {
+      // Compare only date part for moratorium window
+      const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+      const startOnly = new Date(this.moratorium.startDate.getFullYear(), this.moratorium.startDate.getMonth(), this.moratorium.startDate.getDate());
+      const endOnly = new Date(this.moratorium.endDate.getFullYear(), this.moratorium.endDate.getMonth(), this.moratorium.endDate.getDate());
+      if (dueDateOnly >= startOnly && dueDateOnly <= endOnly) {
+        isMoratorium = true;
+      }
+    }
+
     // Calculate interest for this period using actual days
     const periodInterest = calculatePeriodInterest(
       remainingPrincipal,
@@ -620,32 +701,101 @@ loanSchema.methods.generateReducingBalanceSchedule = function() {
       dueDate,
       accrualBasis
     );
-    
-    // Calculate principal portion
-    const principalPortion = paymentAmount - periodInterest;
-    
-    // Ensure we don't have negative principal in last payment
-    const actualPrincipal = Math.min(principalPortion, remainingPrincipal);
-    const actualInterest = i === this.term ? 
-      (paymentAmount - actualPrincipal) : periodInterest;
-    
+
+    let principalPortion = paymentAmount - periodInterest;
+    let actualPrincipal = Math.min(principalPortion, remainingPrincipal);
+    let actualInterest = i === this.term ? (paymentAmount - actualPrincipal) : periodInterest;
+    let installmentAmount = paymentAmount;
+
+    // Apply grace/moratorium
+
+    if (isMoratorium) {
+      // Moratorium overrides grace: skip both principal and interest
+      actualPrincipal = 0;
+      actualInterest = 0;
+      installmentAmount = 0;
+    } else if (isGrace) {
+      if (graceType === 'principal_only') {
+        actualPrincipal = 0;
+        installmentAmount = actualInterest;
+        if (process.env.NODE_ENV === 'test' && i <= 4) {
+          // eslint-disable-next-line no-console
+          console.log('[DEBUG_PRINCIPAL_ONLY_GRACE]', {
+            installment: i,
+            isGrace,
+            graceType,
+            actualPrincipal,
+            actualInterest,
+            installmentAmount
+          });
+        }
+      } else if (graceType === 'full_moratorium') {
+        actualPrincipal = 0;
+        actualInterest = 0;
+        installmentAmount = 0;
+      }
+    }
+
     remainingPrincipal -= actualPrincipal;
-    
-    schedule.push({
+
+
+    // Explicitly coerce isGrace and isMoratorium to boolean
+    const inst = {
       installmentNumber: i,
       dueDate: dueDate,
-      amount: i === this.term && remainingPrincipal > 0 ? 
-        actualPrincipal + actualInterest : paymentAmount,
+      amount: installmentAmount,
       principal: actualPrincipal,
       interest: actualInterest,
       status: 'pending',
-      paidAmount: 0
+      paidAmount: 0,
+      isGrace: Boolean(isGrace),
+      isMoratorium: Boolean(isMoratorium)
+    };
+    if (process.env.NODE_ENV === 'test' && i <= 4) {
+      // eslint-disable-next-line no-console
+      console.log('[DEBUG_FINAL_INST_BEFORE_PUSH]', {
+        installment: i,
+        isGrace: inst.isGrace,
+        isMoratorium: inst.isMoratorium,
+        graceType,
+        actualPrincipal,
+        actualInterest,
+        installmentAmount
+      });
+    }
+    debugSchedule.push({
+      i,
+      dueDate,
+      isGrace: inst.isGrace,
+      isMoratorium: inst.isMoratorium,
+      graceType,
+      actualPrincipal,
+      actualInterest,
+      installmentAmount
     });
-    
+    schedule.push(inst);
+  // Only print debug info for test runs
+  if (process.env.NODE_ENV === 'test') {
+    // eslint-disable-next-line no-console
+    console.log('DEBUG_GRACE_MORATORIUM', JSON.stringify(debugSchedule, null, 2));
+  }
+
     currentDate = dueDate;
   }
   
   this.repaymentSchedule = schedule;
+  // Targeted debug for grace/moratorium test: print first 5 installments
+  if (process.env.NODE_ENV === 'test') {
+    // eslint-disable-next-line no-console
+    console.log('DEBUG_GRACE_MORATORIUM_FLAGS', schedule.slice(0, 5).map(inst => ({
+      installmentNumber: inst.installmentNumber,
+      isGrace: inst.isGrace,
+      isMoratorium: inst.isMoratorium,
+      principal: inst.principal,
+      interest: inst.interest,
+      amount: inst.amount
+    })));
+  }
 };
 
 // Generate schedule for flat rate loans
@@ -668,20 +818,58 @@ loanSchema.methods.generateFlatRateSchedule = function() {
   for (let i = 1; i <= term; i++) {
     // Calculate next payment date
     const dueDate = getNextPaymentDate(currentDate, frequency);
-    
-    // For flat rate, principal and interest are fixed per installment
-    remainingPrincipal -= principalPerInstallment;
-    
+
+    // Grace period logic
+    let graceType = this.graceType || 'none';
+    let isGrace = false;
+    if (this.gracePeriod && (i - 1) < this.gracePeriod && graceType !== 'none') {
+      isGrace = true;
+    }
+
+    // Moratorium logic
+    let isMoratorium = false;
+    if (this.moratorium && this.moratorium.isActive && this.moratorium.startDate && this.moratorium.endDate) {
+      const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+      const startOnly = new Date(this.moratorium.startDate.getFullYear(), this.moratorium.startDate.getMonth(), this.moratorium.startDate.getDate());
+      const endOnly = new Date(this.moratorium.endDate.getFullYear(), this.moratorium.endDate.getMonth(), this.moratorium.endDate.getDate());
+      if (dueDateOnly >= startOnly && dueDateOnly <= endOnly) {
+        isMoratorium = true;
+      }
+    }
+
+    let actualPrincipal = principalPerInstallment;
+    let actualInterest = interestPerInstallment;
+    let installmentAmount = paymentAmount;
+
+    if (isMoratorium) {
+      actualPrincipal = 0;
+      actualInterest = 0;
+      installmentAmount = 0;
+    } else if (isGrace) {
+      if (graceType === 'principal_only') {
+        actualPrincipal = 0;
+        installmentAmount = actualInterest;
+      } else if (graceType === 'full_moratorium') {
+        actualPrincipal = 0;
+        actualInterest = 0;
+        installmentAmount = 0;
+      }
+    }
+
+    remainingPrincipal -= actualPrincipal;
+
     schedule.push({
       installmentNumber: i,
       dueDate: dueDate,
-      amount: paymentAmount,
-      principal: principalPerInstallment,
-      interest: interestPerInstallment,
+      amount: installmentAmount,
+      principal: actualPrincipal,
+      interest: actualInterest,
       status: 'pending',
-      paidAmount: 0
+      paidAmount: 0,
+      isGrace: isGrace === true,
+      isMoratorium: isMoratorium === true
     });
-    
+
     currentDate = dueDate;
   }
   
@@ -706,8 +894,25 @@ loanSchema.methods.generateSimpleInterestSchedule = function() {
   for (let i = 1; i <= term; i++) {
     // Calculate next payment date
     const dueDate = getNextPaymentDate(currentDate, frequency);
-    
-    // Calculate interest for this period on ORIGINAL principal
+
+    // Grace period logic
+    let graceType = this.graceType || 'none';
+    let isGrace = false;
+    if (this.gracePeriod && (i - 1) < this.gracePeriod && graceType !== 'none') {
+      isGrace = true;
+    }
+
+    // Moratorium logic
+    let isMoratorium = false;
+    if (this.moratorium && this.moratorium.isActive && this.moratorium.startDate && this.moratorium.endDate) {
+      const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+      const startOnly = new Date(this.moratorium.startDate.getFullYear(), this.moratorium.startDate.getMonth(), this.moratorium.startDate.getDate());
+      const endOnly = new Date(this.moratorium.endDate.getFullYear(), this.moratorium.endDate.getMonth(), this.moratorium.endDate.getDate());
+      if (dueDateOnly >= startOnly && dueDateOnly <= endOnly) {
+        isMoratorium = true;
+      }
+    }
+
     const periodInterest = calculateSimpleInterest(
       principal,  // Note: Always use original principal, not remaining
       annualRate,
@@ -715,19 +920,38 @@ loanSchema.methods.generateSimpleInterestSchedule = function() {
       dueDate,
       accrualBasis
     );
-    
-    const paymentAmount = principalPerInstallment + periodInterest;
-    
+
+    let actualPrincipal = principalPerInstallment;
+    let actualInterest = periodInterest;
+    let installmentAmount = principalPerInstallment + periodInterest;
+
+    if (isMoratorium) {
+      actualPrincipal = 0;
+      actualInterest = 0;
+      installmentAmount = 0;
+    } else if (isGrace) {
+      if (graceType === 'principal_only') {
+        actualPrincipal = 0;
+        installmentAmount = actualInterest;
+      } else if (graceType === 'full_moratorium') {
+        actualPrincipal = 0;
+        actualInterest = 0;
+        installmentAmount = 0;
+      }
+    }
+
     schedule.push({
       installmentNumber: i,
       dueDate: dueDate,
-      amount: paymentAmount,
-      principal: principalPerInstallment,
-      interest: periodInterest,
+      amount: installmentAmount,
+      principal: actualPrincipal,
+      interest: actualInterest,
       status: 'pending',
-      paidAmount: 0
+      paidAmount: 0,
+      isGrace: isGrace === true,
+      isMoratorium: isMoratorium === true
     });
-    
+
     currentDate = dueDate;
   }
   
@@ -749,8 +973,25 @@ loanSchema.methods.generateInterestOnlySchedule = function() {
   for (let i = 1; i <= term; i++) {
     // Calculate next payment date
     const dueDate = getNextPaymentDate(currentDate, frequency);
-    
-    // Calculate interest for this period on original principal
+
+    // Grace period logic
+    let graceType = this.graceType || 'none';
+    let isGrace = false;
+    if (this.gracePeriod && (i - 1) < this.gracePeriod && graceType !== 'none') {
+      isGrace = true;
+    }
+
+    // Moratorium logic
+    let isMoratorium = false;
+    if (this.moratorium && this.moratorium.isActive && this.moratorium.startDate && this.moratorium.endDate) {
+      const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+      const startOnly = new Date(this.moratorium.startDate.getFullYear(), this.moratorium.startDate.getMonth(), this.moratorium.startDate.getDate());
+      const endOnly = new Date(this.moratorium.endDate.getFullYear(), this.moratorium.endDate.getMonth(), this.moratorium.endDate.getDate());
+      if (dueDateOnly >= startOnly && dueDateOnly <= endOnly) {
+        isMoratorium = true;
+      }
+    }
+
     const periodInterest = calculateSimpleInterest(
       principal,
       annualRate,
@@ -758,23 +999,37 @@ loanSchema.methods.generateInterestOnlySchedule = function() {
       dueDate,
       accrualBasis
     );
-    
-    // For interest-only, only interest is paid until last payment
+
     const isLastPayment = (i === term);
-    const paymentAmount = isLastPayment ? principal + periodInterest : periodInterest;
-    const principalPaid = isLastPayment ? principal : 0;
-    
+    let paymentAmount = isLastPayment ? principal + periodInterest : periodInterest;
+    let principalPaid = isLastPayment ? principal : 0;
+
+    if (isMoratorium) {
+      principalPaid = 0;
+      paymentAmount = 0;
+    } else if (isGrace) {
+      if (graceType === 'principal_only') {
+        principalPaid = 0;
+        paymentAmount = periodInterest;
+      } else if (graceType === 'full_moratorium') {
+        principalPaid = 0;
+        paymentAmount = 0;
+      }
+    }
+
     schedule.push({
       installmentNumber: i,
       dueDate: dueDate,
       amount: paymentAmount,
       principal: principalPaid,
-      interest: periodInterest,
+      interest: isLastPayment ? periodInterest : paymentAmount,
       status: 'pending',
       paidAmount: 0,
-      isBalloonPayment: isLastPayment
+      isBalloonPayment: isLastPayment,
+      isGrace: isGrace === true,
+      isMoratorium: isMoratorium === true
     });
-    
+
     currentDate = dueDate;
   }
   
@@ -871,7 +1126,7 @@ loanSchema.methods.canAcceptPrepayment = function() {
   
   // Can accept prepayments if loan is active or disbursed
   const acceptableStatuses = ['active', 'disbursed', 'in_arrears'];
-  return acceptableStatuses.includes(this.status);
+  const paymentAmount = this.monthlyPayment || 0;
 };
 
 /**

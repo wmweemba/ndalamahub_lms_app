@@ -24,7 +24,13 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
     monthlyIncome: '',
     collateralType: '',
     collateralValue: '',
-    collateralDescription: ''
+    collateralDescription: '',
+    gracePeriod: 0,
+    graceType: 'none',
+    moratoriumActive: false,
+    moratoriumStart: '',
+    moratoriumEnd: '',
+    moratoriumReason: ''
   });
   const [feeCalculation, setFeeCalculation] = useState(null);
   const [paymentSchedule, setPaymentSchedule] = useState(null);
@@ -194,6 +200,14 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
           type: formData.collateralType,
           value: parseFloat(formData.collateralValue) || 0,
           description: formData.collateralDescription
+        } : undefined,
+        gracePeriod: parseInt(formData.gracePeriod) || 0,
+        graceType: formData.graceType,
+        moratorium: formData.moratoriumActive ? {
+          isActive: true,
+          startDate: formData.moratoriumStart || undefined,
+          endDate: formData.moratoriumEnd || undefined,
+          reason: formData.moratoriumReason || undefined
         } : undefined
       };
 
@@ -359,6 +373,82 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
                   </div>
                 </div>
 
+                {/* Grace Period & Moratorium Fields */}
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="gracePeriod" className="text-sm font-medium text-gray-700">Grace Period (months)</Label>
+                    <Input
+                      id="gracePeriod"
+                      name="gracePeriod"
+                      type="number"
+                      min="0"
+                      max="12"
+                      value={formData.gracePeriod}
+                      onChange={handleChange}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="graceType" className="text-sm font-medium text-gray-700">Grace Type</Label>
+                    <select
+                      id="graceType"
+                      name="graceType"
+                      value={formData.graceType}
+                      onChange={handleChange}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    >
+                      <option value="none">None</option>
+                      <option value="principal_only">Principal Only</option>
+                      <option value="full_moratorium">Full Moratorium</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        name="moratoriumActive"
+                        checked={formData.moratoriumActive}
+                        onChange={handleChange}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Apply Moratorium</span>
+                    </label>
+                  </div>
+                  {formData.moratoriumActive && (
+                    <div className="grid grid-cols-1 gap-3">
+                      <Label htmlFor="moratoriumStart" className="text-sm font-medium text-gray-700">Moratorium Start Date</Label>
+                      <Input
+                        id="moratoriumStart"
+                        name="moratoriumStart"
+                        type="date"
+                        value={formData.moratoriumStart}
+                        onChange={handleChange}
+                        className="mt-1"
+                      />
+                      <Label htmlFor="moratoriumEnd" className="text-sm font-medium text-gray-700">Moratorium End Date</Label>
+                      <Input
+                        id="moratoriumEnd"
+                        name="moratoriumEnd"
+                        type="date"
+                        value={formData.moratoriumEnd}
+                        onChange={handleChange}
+                        className="mt-1"
+                      />
+                      <Label htmlFor="moratoriumReason" className="text-sm font-medium text-gray-700">Moratorium Reason</Label>
+                      <Input
+                        id="moratoriumReason"
+                        name="moratoriumReason"
+                        type="text"
+                        value={formData.moratoriumReason}
+                        onChange={handleChange}
+                        placeholder="e.g., COVID-19, Emergency, etc."
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
+                </div>
                 <div>
                   <Label htmlFor="purpose" className="text-sm font-medium text-gray-700">
                     Loan Purpose *
@@ -375,7 +465,6 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
                     maxLength="200"
                   />
                 </div>
-
                 <div>
                   <Label htmlFor="description" className="text-sm font-medium text-gray-700">
                     Additional Details (Optional)

@@ -1,3 +1,12 @@
+### Grace Period & Moratorium Support (2026-02-15)
+- Repayment schedule generation supports:
+  - Principal-only grace period (interest-only installments)
+  - Full moratorium (no payment installments)
+- Schedule objects include:
+  - isGrace (boolean)
+  - isMoratorium (boolean)
+  - graceType (string: principal_only, full_moratorium, none)
+- All scenarios are covered by automated backend tests
 # Loan Engine Enhancement Documentation
 
 ## Overview

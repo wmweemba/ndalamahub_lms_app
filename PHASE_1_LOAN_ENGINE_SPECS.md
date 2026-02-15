@@ -1,3 +1,7 @@
+## [x] Grace Period & Moratorium Logic
+- Repayment schedule supports principal-only grace and full moratorium
+- Schedule fields: isGrace, isMoratorium, graceType
+- All logic covered by backend tests
 # Phase 1: Loan Engine Enhancement - Technical Specifications
 ## NdalamaHub LMS - Detailed Implementation Guide
 

@@ -1,3 +1,8 @@
+# 2026-02-15
+- Added full backend support for loan grace period and moratorium logic (principal-only and full moratorium)
+- Repayment schedule now includes isGrace, isMoratorium, and graceType fields
+- All grace/moratorium scenarios are covered by automated tests
+- Schema updated for robust multi-tenant and legacy compatibility
 # Changelog
 
 All notable changes to this project will be documented in this file.

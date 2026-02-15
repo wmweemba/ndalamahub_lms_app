@@ -726,6 +726,17 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
 // @desc    Record loan repayment with payment details
 // @access  Private (Lender Admin only)
 router.put('/:id/repayment', authenticateToken, authorize('lender_admin'), async (req, res) => {
+      // Validate payment date is not in the future
+      const paymentDateObj = new Date(paymentDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      paymentDateObj.setHours(0, 0, 0, 0);
+      if (paymentDateObj > today) {
+        return res.status(400).json({
+          success: false,
+          message: 'Payment date cannot be in the future. Please use today or a past date.'
+        });
+      }
   try {
     const { id } = req.params;
     const { 

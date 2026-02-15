@@ -25,7 +25,7 @@ import { AlertCircle, CheckCircle2, DollarSign, Calendar, CreditCard, Hash, File
  * 
  * Features:
  * - Payment amount (pre-filled with installment amount)
- * - Payment date (allows future dates for testing/simulation - WILL BE REVERTED TO REAL-TIME ONLY)
+ * - Payment date (PRODUCTION: Today or past dates only)
  * - Payment method (Bank Transfer, Cash, Cheque, Mobile Money, etc.)
  * - Reference number (transaction ID)
  * - Notes (optional)
@@ -191,16 +191,7 @@ export function RecordPaymentDialog({ loan, installment, open, onClose, onSucces
             </div>
           </div>
 
-          {/* Warning about future payments (testing mode) */}
-          {!isFullyPaid && (
-            <Alert className="bg-yellow-50 border-yellow-300">
-              <AlertCircle className="h-4 w-4 text-yellow-600" />
-              <AlertDescription className="text-yellow-800 text-sm">
-              <strong>Testing Mode:</strong> Future-dated payments are currently enabled for testing and simulation purposes.
-              This will be reverted to real-time payments only in production.
-            </AlertDescription>
-          </Alert>
-          )}
+          {/* ...existing code... */}
 
           {/* Show form only if not fully paid */}
           {!isFullyPaid && (
@@ -243,10 +234,10 @@ export function RecordPaymentDialog({ loan, installment, open, onClose, onSucces
                 onChange={(e) => handleChange('paymentDate', e.target.value)}
                 disabled={loading}
                 required
-                max="2099-12-31"
+                max={new Date().toISOString().split('T')[0]}
               />
               <p className="text-xs text-gray-500">
-                📅 Testing: Future dates allowed. Production: Only today or past dates will be permitted.
+                📅 Only today or past dates are allowed for payment recording.
               </p>
             </div>
 

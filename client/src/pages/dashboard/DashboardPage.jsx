@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import StatCard from '@/components/dashboard/StatCard';
+import ProgressBar from '@/components/dashboard/ProgressBar';
+import TrendChart from '@/components/dashboard/TrendChart';
 import api from '@/utils/api';
 import { getCurrentUser, ROLES } from '@/utils/roleUtils';
 
@@ -167,112 +170,45 @@ export default function DashboardPage() {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Active Companies Card */}
+          <StatCard
+            title="Active Companies"
+            value={adminStats.activeCompanies}
+            icon={<svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>}
+            subtitle={`${adminStats.activeCorporates} corporate clients`}
+            color="blue"
+          />
+          <StatCard
+            title="Active Loans"
+            value={adminStats.activeLoans}
+            icon={<svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+            subtitle={`Total: K${adminStats.totalLoanAmount.toLocaleString()}`}
+            color="green"
+          />
+          <StatCard
+            title="Active Users"
+            value={adminStats.activeUsers}
+            icon={<svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>}
+            subtitle="Across all companies"
+            color="purple"
+          />
+          <StatCard
+            title="System Status"
+            value="Active"
+            icon={<svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+            subtitle="All services operational"
+            color="emerald"
+          />
+        </div>
+        {/* Example Trend Chart for Loan Growth */}
+        <div className="mt-8">
           <Card className="p-6 bg-white shadow-lg rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active Companies</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                  {adminStats.activeCompanies}
-                </h3>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-full">
-                <svg 
-                  className="w-6 h-6 text-blue-600" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              </div>
-            </div>
-            <div className="mt-4">
-              <p className="text-sm text-gray-600">
-                {adminStats.activeCorporates} corporate clients
-              </p>
-            </div>
-          </Card>
-
-          {/* Active Loans Card */}
-          <Card className="p-6 bg-white shadow-lg rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active Loans</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                  {adminStats.activeLoans}
-                </h3>
-              </div>
-              <div className="p-3 bg-green-100 rounded-full">
-                <svg 
-                  className="w-6 h-6 text-green-600" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-            <div className="mt-4">
-              <p className="text-sm text-gray-600">
-                Total: K{adminStats.totalLoanAmount.toLocaleString()}
-              </p>
-            </div>
-          </Card>
-
-          {/* Active Users Card */}
-          <Card className="p-6 bg-white shadow-lg rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active Users</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                  {adminStats.activeUsers}
-                </h3>
-              </div>
-              <div className="p-3 bg-purple-100 rounded-full">
-                <svg 
-                  className="w-6 h-6 text-purple-600" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              </div>
-            </div>
-            <div className="mt-4">
-              <p className="text-sm text-gray-600">
-                Across all companies
-              </p>
-            </div>
-          </Card>
-
-          {/* System Health Card */}
-          <Card className="p-6 bg-white shadow-lg rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">System Status</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                  Active
-                </h3>
-              </div>
-              <div className="p-3 bg-emerald-100 rounded-full">
-                <svg 
-                  className="w-6 h-6 text-emerald-600" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-            <div className="mt-4">
-              <p className="text-sm text-gray-600">
-                All services operational
-              </p>
-            </div>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Loan Growth Trend (Sample)</h3>
+            <TrendChart
+              data={[10, 20, 30, 40, 60, 80, 100]}
+              labels={["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"]}
+              type="line"
+              title="Loans Issued"
+            />
           </Card>
         </div>
       </div>

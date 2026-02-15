@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Frontend Test Plan Progress** (February 15, 2026):
+  - Checked off all items for scenarios 1 through 5.2 in the test completion checklist.
+
+### Added
+- **Dashboard Portfolio Metrics Enhancements** (February 15, 2026):
+  - Lender dashboard now displays Outstanding Balance and Total Interest Earned for the lender's portfolio.
+  - Corporate admin/HR dashboard now displays Outstanding Balance and Total Interest Earned for the company's loans.
+  - Metrics update live as portfolio changes.
+
 ### Added
 - **Loan Application Form Enhancements** (February 12, 2026):
   - Payment schedule preview now working correctly

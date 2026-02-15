@@ -25,17 +25,11 @@ export function PrepaymentDialog({ loan, open, onClose, onSuccess }) {
   const [notes, setNotes] = useState('');
   const [settlementQuote, setSettlementQuote] = useState(null);
   const [loadingQuote, setLoadingQuote] = useState(false);
+  const [showQuote, setShowQuote] = useState(false);
 
   const formatCurrency = (value) => {
     return `ZMW ${parseFloat(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
-
-  // Fetch settlement quote when dialog opens
-  useEffect(() => {
-    if (open && loan) {
-      fetchSettlementQuote();
-    }
-  }, [open, loan]);
 
   const fetchSettlementQuote = async () => {
     if (!loan) return;
@@ -118,6 +112,8 @@ export function PrepaymentDialog({ loan, open, onClose, onSuccess }) {
     setStrategy('reduce_term');
     setNotes('');
     setError(null);
+    setShowQuote(false);
+    setSettlementQuote(null);
     onClose();
   };
 
@@ -140,67 +136,125 @@ export function PrepaymentDialog({ loan, open, onClose, onSuccess }) {
           </Alert>
         )}
 
-        {/* Settlement Quote Card */}
-        {loadingQuote ? (
+        {/* Get Settlement Quote Button */}
+        {!showQuote && (
+          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <CardContent className="pt-6">
+              <div className="text-center space-y-3">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mb-2">
+                  <CheckCircle className="h-6 w-6 text-blue-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900">Early Settlement Quote</h3>
+                <p className="text-sm text-gray-600 max-w-md mx-auto">
+                  Get a detailed quote to settle this loan completely today. 
+                  See exactly how much you'll pay and how much interest you'll save.
+                </p>
+                <Button
+                  onClick={() => {
+                    setShowQuote(true);
+                    fetchSettlementQuote();
+                  }}
+                  disabled={loadingQuote}
+                  className="bg-blue-600 hover:bg-blue-700 mt-4"
+                  size="lg"
+                >
+                  {loadingQuote ? 'Loading...' : 'Get Settlement Quote'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Settlement Quote Details */}
+        {showQuote && loadingQuote && (
           <Card>
             <CardContent className="pt-6">
               <p className="text-sm text-gray-500 text-center">Loading settlement quote...</p>
             </CardContent>
           </Card>
-        ) : settlementQuote && (
+        )}
+
+        {showQuote && !loadingQuote && settlementQuote && (
           <Card className="bg-blue-50 border-blue-200">
             <CardContent className="pt-6">
+              <h3 className="font-semibold text-lg mb-4 text-gray-900">Settlement Quote Details</h3>
               <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-700">Current Balance:</span>
-                  <span className="text-lg font-bold text-gray-900">
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-sm text-gray-600">Settlement Date:</span>
+                  <span className="text-sm font-medium">
+                    {new Date().toLocaleDateString('en-GB', { 
+                      day: '2-digit', 
+                      month: 'short', 
+                      year: 'numeric' 
+                    })}
+                  </span>
+                </div>
+                <div className="border-t border-blue-200"></div>
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-sm text-gray-600">Remaining Principal:</span>
+                  <span className="text-base font-semibold text-gray-900">
                     {formatCurrency(settlementQuote.principalBalance)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Accrued Interest:</span>
-                  <span className="text-sm font-semibold">
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-sm text-gray-600">Accrued Interest (to date):</span>
+                  <span className="text-base font-semibold text-gray-900">
                     {formatCurrency(settlementQuote.interestBalance)}
                   </span>
                 </div>
                 {settlementQuote.earlySettlementFee > 0 && (
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center py-2">
                     <span className="text-sm text-gray-600">Early Settlement Fee:</span>
-                    <span className="text-sm font-semibold text-orange-600">
+                    <span className="text-base font-semibold text-orange-600">
                       {formatCurrency(settlementQuote.earlySettlementFee)}
                     </span>
                   </div>
                 )}
-                <div className="border-t pt-2 mt-2 flex justify-between items-center">
-                  <span className="font-medium text-gray-900">Total Payoff Amount:</span>
-                  <span className="text-xl font-bold text-blue-600">
+                <div className="border-t-2 border-blue-300 pt-3 mt-2 flex justify-between items-center">
+                  <span className="font-semibold text-gray-900">Total Settlement Amount:</span>
+                  <span className="text-2xl font-bold text-blue-600">
                     {formatCurrency(settlementQuote.totalPayoff)}
                   </span>
                 </div>
+                
                 {settlementQuote.futureInterestSaved > 0 && (
-                  <div className="bg-green-100 rounded-md p-3 mt-2">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                      <div>
-                        <p className="text-sm font-medium text-green-800">
-                          Save {formatCurrency(settlementQuote.futureInterestSaved)}
+                  <div className="bg-green-100 rounded-lg p-4 mt-4">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-green-800">
+                          You'll Save {formatCurrency(settlementQuote.futureInterestSaved)}
                         </p>
-                        <p className="text-xs text-green-700">
-                          by settling early vs continuing with schedule
+                        <p className="text-xs text-green-700 mt-1">
+                          By settling today vs continuing with the full repayment schedule
                         </p>
+                        {settlementQuote.remainingInstallments > 0 && (
+                          <p className="text-xs text-green-700 mt-1">
+                            • Skip {settlementQuote.remainingInstallments} remaining payment{settlementQuote.remainingInstallments !== 1 ? 's' : ''}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
                 )}
               </div>
               
-              <Button
-                onClick={handleEarlySettlement}
-                disabled={loading}
-                className="w-full mt-4 bg-blue-600 hover:bg-blue-700"
-              >
-                {loading ? 'Processing...' : 'Settle Loan Completely'}
-              </Button>
+              <div className="flex gap-2 mt-6">
+                <Button
+                  onClick={() => setShowQuote(false)}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Back
+                </Button>
+                <Button
+                  onClick={handleEarlySettlement}
+                  disabled={loading}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                >
+                  {loading ? 'Processing...' : 'Settle Loan Now'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

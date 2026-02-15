@@ -9,16 +9,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import api from '@/utils/api';
 import { canApproveLoan, canDisburseLoan, getCurrentUser } from '@/utils/roleUtils';
 import { PrepaymentDialog } from './PrepaymentDialog';
-import { PrepaymentHistoryDialog } from './PrepaymentHistoryDialog';
+import PaymentHistoryDialog from './PaymentHistoryDialog';
+import { RecordPaymentDialog } from './RecordPaymentDialog';
 
 export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
   const [loading, setLoading] = useState(false);
   const [actionError, setActionError] = useState(null);
   const [prepaymentDialogOpen, setPrepaymentDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [recordPaymentDialogOpen, setRecordPaymentDialogOpen] = useState(false);
+  const [selectedInstallment, setSelectedInstallment] = useState(null);
   const [showApprovalForm, setShowApprovalForm] = useState(false);
   const [showRejectionForm, setShowRejectionForm] = useState(false);
   const [showDisbursementForm, setShowDisbursementForm] = useState(false);
@@ -324,6 +328,92 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
           </Card>
         )}
 
+        {/* Repayment Schedule */}
+        {loan.repaymentSchedule && loan.repaymentSchedule.length > 0 && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Repayment Schedule ({loan.repaymentSchedule.length} installments)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b">
+                    <tr className="text-left">
+                      <th className="pb-2 font-semibold">#</th>
+                      <th className="pb-2 font-semibold">Due Date</th>
+                      <th className="pb-2 font-semibold text-right">Amount</th>
+                      <th className="pb-2 font-semibold text-right hidden sm:table-cell">Principal</th>
+                      <th className="pb-2 font-semibold text-right hidden sm:table-cell">Interest</th>
+                      <th className="pb-2 font-semibold">Status</th>
+                      <th className="pb-2 font-semibold hidden md:table-cell">Payment Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loan.repaymentSchedule.map((installment, index) => {
+                      // Calculate display status considering rounding errors
+                      const remaining = installment.amount - (installment.paidAmount || 0);
+                      const displayStatus = remaining < 0.01 && installment.paidAmount > 0 ? 'paid' : installment.status;
+                      
+                      return (
+                      <tr key={index} className="border-b last:border-0 hover:bg-gray-50">
+                        <td className="py-3">{installment.installmentNumber || index + 1}</td>
+                        <td className="py-3">
+                          {installment.dueDate ? new Date(installment.dueDate).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="py-3 text-right font-medium">
+                          K{(installment.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-3 text-right hidden sm:table-cell text-gray-500">
+                          K{(installment.principal || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-3 text-right hidden sm:table-cell text-gray-500">
+                          K{(installment.interest || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-3">
+                          <Badge
+                            variant={
+                              displayStatus === 'paid' ? 'default' :
+                              displayStatus === 'partial' ? 'secondary' :
+                              displayStatus === 'overdue' ? 'destructive' :
+                              'outline'
+                            }
+                            className={
+                              displayStatus === 'paid' ? 'bg-green-600 hover:bg-green-700' :
+                              displayStatus === 'partial' ? 'bg-yellow-600 hover:bg-yellow-700' :
+                              ''
+                            }
+                          >
+                            {displayStatus || 'pending'}
+                          </Badge>
+                        </td>
+                        <td className="py-3 text-xs text-gray-500 hidden md:table-cell">
+                          {displayStatus === 'paid' && installment.paymentDate && (
+                            <div className="space-y-0.5">
+                              <div>Paid: {new Date(installment.paymentDate).toLocaleDateString()}</div>
+                              {installment.paymentMethod && (
+                                <div className="capitalize">{installment.paymentMethod.replace(/_/g, ' ')}</div>
+                              )}
+                              {installment.referenceNumber && (
+                                <div>Ref: {installment.referenceNumber}</div>
+                              )}
+                            </div>
+                          )}
+                          {displayStatus === 'partial' && installment.paidAmount && installment.paidAmount > 0 && (
+                            <div>
+                              Partial: K{installment.paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Action Buttons */}
         <div className="flex flex-col gap-4 mt-6 pt-6 border-t">
           {actionError && (
@@ -515,13 +605,22 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
               )}
               
               {userCanDisburse && canPrepay && (
-                <Button
-                  onClick={() => setPrepaymentDialogOpen(true)}
-                  disabled={loading}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  Make Prepayment
-                </Button>
+                <>
+                  <Button
+                    onClick={() => setRecordPaymentDialogOpen(true)}
+                    disabled={loading}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    Record Payment
+                  </Button>
+                  <Button
+                    onClick={() => setPrepaymentDialogOpen(true)}
+                    disabled={loading}
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    Make Prepayment
+                  </Button>
+                </>
               )}
               
               {canPrepay && (
@@ -529,9 +628,9 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
                   onClick={() => setHistoryDialogOpen(true)}
                   disabled={loading}
                   variant="outline"
-                  className="border-purple-300 text-purple-600 hover:bg-purple-50"
+                  className="border-blue-300 text-blue-600 hover:bg-blue-50"
                 >
-                  View History
+                  View Payment History
                 </Button>
               )}
               
@@ -555,11 +654,31 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
       onSuccess={handlePrepaymentSuccess}
     />
     
-    <PrepaymentHistoryDialog
+    <PaymentHistoryDialog
       loan={loan}
       open={historyDialogOpen}
       onClose={() => setHistoryDialogOpen(false)}
     />
-    </>
+    
+    <RecordPaymentDialog
+      loan={loan}
+      installment={selectedInstallment || (loan.repaymentSchedule && loan.repaymentSchedule.find(inst => {
+        // Find first unpaid or partially paid installment with remaining balance
+        if (inst.status === 'paid') return false;
+        if (inst.status === 'partial') {
+          const remaining = inst.amount - (inst.paidAmount || 0);
+          // Skip if remaining is less than 1 cent (rounding error)
+          return remaining >= 0.01;
+        }
+        return inst.status === 'pending' || inst.status === 'overdue';
+      }))}
+      open={recordPaymentDialogOpen}
+      onClose={() => {
+        setRecordPaymentDialogOpen(false);
+        setSelectedInstallment(null);
+      }}
+      onSuccess={handlePrepaymentSuccess}
+    />
+  </>
   );
 }

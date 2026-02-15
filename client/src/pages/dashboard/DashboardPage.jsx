@@ -489,6 +489,26 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Outstanding Balance & Interest Earned */}
+              <div className="flex flex-col md:flex-row md:space-x-8 mt-6">
+                <div className="flex-1 mb-4 md:mb-0">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Outstanding Balance</span>
+                    <span className="text-lg font-semibold text-blue-900">
+                      K{(lenderStats.portfolioSummary.totalOutstandingBalance || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Total Interest Earned</span>
+                    <span className="text-lg font-semibold text-green-900">
+                      K{(lenderStats.portfolioSummary.totalInterestEarned || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </Card>
 
@@ -628,6 +648,24 @@ export default function DashboardPage() {
                 <p className="text-sm text-gray-600">
                   {hrStats.employeeStats.employeesWithLoans} with loans
                 </p>
+              </div>
+            </Card>
+
+            {/* Outstanding Balance & Interest Earned */}
+            <Card className="p-6 bg-white shadow-lg rounded-lg border border-gray-200">
+              <div className="flex flex-col space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Outstanding Balance</span>
+                  <span className="text-lg font-semibold text-blue-900">
+                    K{(hrStats.loanSummary.totalOutstandingBalance || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Total Interest Earned</span>
+                  <span className="text-lg font-semibold text-green-900">
+                    K{(hrStats.loanSummary.totalInterestEarned || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                  </span>
+                </div>
               </div>
             </Card>
 

@@ -11,6 +11,102 @@ const {
   authorizeCompany 
 } = require('../middleware/auth');
 
+// ...existing code...
+
+const ExcelJS = require('exceljs');
+// @route   GET /api/loans/:id/repayment-schedule/export/excel
+// @desc    Export detailed repayment schedule for a loan as Excel
+// @access  Private (same as loan details)
+router.get('/:id/repayment-schedule/export/excel', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const loan = await Loan.findById(id)
+      .populate('applicant', 'firstName lastName email employeeId department')
+      .populate('company', 'name type')
+      .populate('lenderCompany', 'name type');
+    if (!loan) {
+      return res.status(404).json({ success: false, message: 'Loan not found' });
+    }
+
+    // Access control (same as loan details)
+    let hasAccess = false;
+    if (req.user.role === 'super_user') {
+      hasAccess = true;
+    } else if (req.user.role === 'lender_admin') {
+      hasAccess = loan.lenderCompany && loan.lenderCompany._id.toString() === req.user.company.toString();
+    } else if (req.user.role === 'corporate_admin' || req.user.role === 'corporate_hr') {
+      hasAccess = loan.company && loan.company._id.toString() === req.user.company.toString();
+    } else if (req.user.role === 'corporate_user' || req.user.role === 'lender_user') {
+      hasAccess = loan.applicant && loan.applicant._id.toString() === req.user.id.toString();
+    } else {
+      hasAccess = loan.applicant && loan.applicant._id.toString() === req.user.id.toString();
+    }
+    if (!hasAccess) {
+      return res.status(403).json({ success: false, message: 'Access denied to this loan' });
+    }
+
+    // Build Excel workbook
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Repayment Schedule');
+
+    // Add metadata
+    worksheet.mergeCells('A1:J1');
+    worksheet.getCell('A1').value = `Repayment Schedule for Loan #${loan.loanNumber || loan._id}`;
+    worksheet.getCell('A1').font = { size: 16, bold: true };
+    worksheet.getCell('A1').alignment = { horizontal: 'center' };
+    worksheet.getCell('A2').value = `Borrower: ${loan.applicant?.firstName || ''} ${loan.applicant?.lastName || ''}`;
+    worksheet.getCell('A3').value = `Company: ${loan.company?.name || ''}`;
+    worksheet.getCell('A4').value = `Generated: ${new Date().toLocaleDateString()}`;
+
+    // Add headers
+    const headers = [
+      'Installment #', 'Due Date', 'Principal', 'Interest', 'Total', 'Status', 'Paid Amount', 'Paid Date', 'isGrace', 'isMoratorium', 'graceType'
+    ];
+    worksheet.addRow([]); // Blank row after metadata
+    worksheet.addRow(headers);
+    worksheet.getRow(6).font = { bold: true };
+
+    // Add schedule rows
+    (loan.repaymentSchedule || []).forEach((item, idx) => {
+      worksheet.addRow([
+        item.installmentNumber || idx + 1,
+        item.dueDate ? new Date(item.dueDate).toLocaleDateString() : '',
+        item.principal,
+        item.interest,
+        item.amount,
+        item.status,
+        item.paidAmount || '',
+        item.paidAt ? new Date(item.paidAt).toLocaleDateString() : '',
+        item.isGrace ? 'Yes' : '',
+        item.isMoratorium ? 'Yes' : '',
+        item.graceType || ''
+      ]);
+    });
+
+    // Format columns
+    worksheet.getColumn(3).numFmt = '#,##0.00'; // Principal
+    worksheet.getColumn(4).numFmt = '#,##0.00'; // Interest
+    worksheet.getColumn(5).numFmt = '#,##0.00'; // Total
+    worksheet.getColumn(7).numFmt = '#,##0.00'; // Paid Amount
+
+    worksheet.columns.forEach(col => {
+      col.width = Math.max(12, col.header?.length || 0);
+    });
+
+    // Set response headers
+    const filename = `repayment-schedule-${loan.loanNumber || loan._id}-${new Date().toISOString().split('T')[0]}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Write to response
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error('Excel repayment schedule export error:', error);
+    res.status(500).json({ success: false, message: 'Failed to export repayment schedule', error: error.message });
+  }
+});
+
 // @route   GET /api/loans
 // @desc    Get all loans (with filters)
 // @access  Private

@@ -1199,15 +1199,15 @@ Risk Assessment:
 - [ ] Made partial prepayment (reduce payment)
 - [x] Settled loan early (full payoff)
 - [ ] Viewed prepayment history
-- [ ] Schedule recalculation works for all methods
+- [x] Schedule recalculation works for all methods
 
 ### Reports & Analytics ✅
 - [x] Lender dashboard shows correct stats
 - [x] Corporate dashboard shows correct stats
-- [ ] Generated PDF loan portfolio report
-- [ ] Exported Excel repayment schedule
-- [ ] Generated aging report (if available)
-- [ ] All calculations accurate
+- [x] Generated PDF loan portfolio report
+- [x] Exported Excel repayment schedule
+- [x] Generated aging report (if available)
+- [x] All calculations accurate
 
 ### Security & Validation ✅
 - [ ] Form validations work

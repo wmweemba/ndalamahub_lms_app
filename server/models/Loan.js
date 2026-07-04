@@ -1211,15 +1211,16 @@ loanSchema.methods.calculateEarlySettlementAmount = function(settlementDate = ne
   // Calculate total payoff amount
   const totalPayoff = remainingPrincipal + accruedInterest + earlySettlementFee;
   
-  // Calculate interest savings vs continuing with original schedule
-  let futureInterest = 0;
+  // Interest the borrower would pay by continuing the schedule: every
+  // installment not yet paid, regardless of whether its due date has passed
+  let remainingScheduledInterest = 0;
   this.repaymentSchedule.forEach(installment => {
-    if (installment.status === 'pending' && installment.dueDate > settlementDate) {
-      futureInterest += installment.interest;
+    if (installment.status !== 'paid') {
+      remainingScheduledInterest += installment.interest;
     }
   });
-  
-  const savingsVsSchedule = futureInterest - accruedInterest - earlySettlementFee;
+
+  const savingsVsSchedule = remainingScheduledInterest - accruedInterest - earlySettlementFee;
   
   return {
     principalBalance: parseFloat(remainingPrincipal.toFixed(2)),

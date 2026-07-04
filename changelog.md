@@ -1,3 +1,9 @@
+# 2026-07-04 (Phase 01 execution, Addendum A)
+- Applied `docs/01-security-critical-fixes.md` Addendum A to `Loan.calculateEarlySettlementAmount()` (`server/models/Loan.js`): future-scheduled interest for settlement savings now sums every unpaid installment (not just installments still due in the future), fixing the case where `savingsVsSchedule` went negative and was silently clamped to 0 on loans settled mid-schedule
+- Test suite: 132/133 → **133/133**. Exactly the targeted test (`Prepayment API Endpoints › calculates interest savings correctly`) flipped red→green; no other test changed, matching the addendum's predicted blast radius
+- Manual verifications (Step 8): still not performed. Attempted to run the server against the demo Atlas database (now cleared for this by William) but `MONGODB_URI`'s hostname (`ndalamahub-lms-app.c3jl7cs.mongodb.net`) does not resolve — confirmed via direct queries against both the local resolver and `8.8.8.8`, both returning `NXDOMAIN`, ruling out a local network/sandbox restriction. This looks like a stale/incorrect connection string or a deleted/renamed Atlas cluster, not a "no test data" issue — flagged for William to check the actual current Atlas connection string.
+- Still unmerged — see flags in the Phase 01 execution report
+
 # 2026-07-04 (Phase 01 execution)
 - Executed `docs/01-security-critical-fixes.md` on branch `phase/01-security-critical-fixes` (unmerged — see flag below)
 - Removed public `POST /api/auth/register` endpoint (`server/routes/auth.js`); the authenticated `POST /api/users` path is the only user-creation route now

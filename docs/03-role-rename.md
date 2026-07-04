@@ -4,7 +4,20 @@
 
 ## Objective
 
-Rename all roles to the locked, industry-standard names from `docs/DECISIONS.md`, remove the two ghost roles (`client_admin`, `staff`) by replacing the logic keyed on them with correct real roles, extend repayment-recording authority to `lender_officer` (locked decision), and migrate existing database documents. After this phase, no old role string exists anywhere in code or data.
+Rename all roles to the locked, industry-standard names from `docs/DECISIONS.md`, **correct the role hierarchy** so lender roles sit strictly above employer roles (locked decision 2026-07-04 — the old ordering placing `lender_user` below employer roles was an oversight), remove the two ghost roles (`client_admin`, `staff`) by replacing the logic keyed on them with correct real roles, extend repayment-recording authority to `lender_officer` (locked decision), and migrate existing database documents. After this phase, no old role string exists anywhere in code or data.
+
+The corrected hierarchy (used everywhere a level number appears in this phase):
+
+| Level | New role | (old role, old level) |
+|---|---|---|
+| 5 | `platform_admin` | `super_user`, 5 |
+| 4 | `lender_admin` | `lender_admin`, 4 |
+| 3 | `lender_officer` | `lender_user`, **1** |
+| 2 | `employer_admin` | `corporate_admin`, **3** |
+| 1 | `employer_hr` | `corporate_hr`, **2** |
+| 0 | `borrower` | `corporate_user`, 0 |
+
+This is a deliberate **reorder**, not just a renumbering — and because `authorizeMinRole()` compares by these numbers, Step 5b audits every call site so the reorder changes access only where intended.
 
 | Old | New |
 |---|---|
@@ -44,13 +57,13 @@ const ROLES = {
 };
 ```
 
-1b. `server/models/User.js:46` — schema enum becomes `['platform_admin', 'lender_admin', 'lender_officer', 'employer_admin', 'employer_hr', 'borrower']`; default `'borrower'`. Line 58–60 `department` required-function: `this.role === 'borrower' || this.role === 'employer_hr'`. Lines 104–115 `hasPermission` hierarchy: rename keys per the table (same numeric levels: platform_admin 5, lender_admin 4, employer_admin 3, employer_hr 2, lender_officer 1, borrower 0).
+1b. `server/models/User.js:46` — schema enum becomes `['platform_admin', 'lender_admin', 'lender_officer', 'employer_admin', 'employer_hr', 'borrower']`; default `'borrower'`. Line 58–60 `department` required-function: `this.role === 'borrower' || this.role === 'employer_hr'`. Lines 104–115 `hasPermission` hierarchy: rename keys **and apply the corrected levels** from the Objective table (platform_admin 5, lender_admin 4, lender_officer 3, employer_admin 2, employer_hr 1, borrower 0).
 
 ### Step 2 — Middleware
 
 `server/middleware/auth.js`:
 - `authorize` (line 32) and `authorizeRole` (line 50): `'super_user'` → `'platform_admin'` in the implicit-bypass comparisons.
-- `authorizeMinRole` hierarchy map (lines 64–71) and the Phase-01 `hasMinRole` helper: rename keys, same levels as Step 1b. While here, **dedupe**: define the hierarchy once as a module-level `const ROLE_HIERARCHY = {...}` and have `authorizeMinRole` and `hasMinRole` both read it. This is the only structural change permitted in this file.
+- `authorizeMinRole` hierarchy map (lines 64–71) and the Phase-01 `hasMinRole` helper: rename keys and apply the **corrected levels** from Step 1b (this moves `lender_officer` from level 1 to level 3 — the deliberate reorder). While here, **dedupe**: define the hierarchy once as a module-level `const ROLE_HIERARCHY = {...}` and have `authorizeMinRole` and `hasMinRole` both read it. This is the only structural change permitted in this file. The access consequences of the reorder are audited in Step 5b — do not skip it.
 
 ### Step 3 — Mechanical server rename
 
@@ -93,6 +106,43 @@ In `server/routes/loans.js`, change the route guards on these four routes from `
 Then update each route's **inner tenancy branch** so `lender_officer` takes the same lender-side path as `lender_admin`: everywhere inside those four handlers that reads `if (req.user.role === 'lender_admin') { ...lenderCompany check... }`, change the condition to `if (req.user.role === 'lender_admin' || req.user.role === 'lender_officer')`. (Phase 04 replaces these blocks wholesale; keep the edit minimal here.)
 
 Read-only visibility for employer roles already holds on the read paths (loan details/summary/schedule export check `loan.company` against the caller) — verify by inspection, change nothing.
+
+### Step 5a — Hierarchy reorder: close the user-creation escalation path
+
+The reorder lets `lender_officer` (now level 3) pass the `authorizeMinRole('employer_hr')` gate on `POST /api/users` — but the route's role-assignment validation blocks only cover employer-side callers and (from Phase 01) `lender_admin`. Unpatched, an officer would skip both blocks and could create a `lender_admin` or `platform_admin`. Two changes inside `router.post('/', ...)` in `server/routes/users.js`:
+
+1. Extend the Phase-01 lender guard's condition from `req.user.role === 'lender_admin'` to `(req.user.role === 'lender_admin' || req.user.role === 'lender_officer')` (same company/`platform_admin` restrictions apply to both).
+2. Add a universal no-escalation rule immediately after the existing validation blocks, using the deduped hierarchy (import `ROLE_HIERARCHY` or compare via `hasMinRole`):
+
+```js
+        // No caller may create a user with a role above their own level
+        if (!hasMinRole(req.user.role, role)) {
+            return res.status(403).json({
+                success: false,
+                message: 'You cannot create users with a role senior to your own'
+            });
+        }
+```
+
+(`hasMinRole(callerRole, targetRole)` is true when caller level ≥ target level, so an officer can create employer-side users and borrowers but not `lender_admin`; a `lender_admin` can create anything below `platform_admin` — the Phase-01 explicit `super_user`/`platform_admin` block stays as belt-and-braces.)
+
+Apply the same two-part reasoning to the other `employer_hr`-gated user-management routes the officer now reaches (`PATCH /:id/status`, `DELETE /:id`): their inner same-company checks already constrain officers to their own (lender) company's users until Phase 04 broadens them deliberately — verify by inspection, change nothing beyond Step 5a.1–2.
+
+### Step 5b — `authorizeMinRole` effective-access audit (required)
+
+Re-grep every call site (`grep -rn "authorizeMinRole(" server/routes`) — 21 sites as of planning; line numbers may have shifted after Phases 01–02. For **each** site, record in the session report: route, old effective role list, new effective role list. The only permitted delta, at every site, is **`lender_officer` gaining access** (the deliberate reorder) — plus the Step 4c ghost-role fix. Any other role gaining or losing access anywhere is a regression: fix it before the phase is complete.
+
+Expected results, precomputed for verification (old levels in parentheses):
+
+| Gate (new name) | Sites (pre-phase lines) | Old access | New access | Delta |
+|---|---|---|---|---|
+| `employer_hr` (was `corporate_hr`, 2→1) | dashboard.js:239; users.js:22, 161, 321, 640; reports.js:46, 252, 303, 366, 440, 1128 | corporate_hr, corporate_admin, lender_admin, super_user | + `lender_officer` | intended |
+| `employer_admin` (was `corporate_admin`, 3→2) | dashboard.js:11; system.js:194; reports.js:809, 1010 | corporate_admin, lender_admin, super_user | + `lender_officer` | intended |
+| `lender_admin` (4→4) | dashboard.js:72; system.js:11, 50 | lender_admin, super_user | unchanged | none |
+| `platform_admin` (was `super_user`, 5→5) | system.js:103, 166 | super_user | unchanged | none |
+| `lender_admin` (was ghost `client_admin` → level 0, passed everyone) | reports.js:897 | **everyone** (broken gate) | lender_admin, platform_admin | intended fix (Step 4c) |
+
+If the grep at execution time finds a site not in this table (added by an earlier phase), audit it the same way and add it to the report.
 
 ### Step 6 — Database migration script
 
@@ -152,7 +202,7 @@ Notes: the collection-level `updateMany` bypasses the schema enum on purpose (th
 1. `cd server && pnpm test` → 133/133. (Tests referencing old roles were renamed in Step 3 — `prepaymentAPI.test.js`, `testLoanModel.js`.)
 2. Run the migration on the dev DB; verify `Remaining legacy-role users: 0`.
 3. **All existing sessions are invalidated by design**: outstanding JWTs carry old role strings, so every check fails until re-login. Log in fresh as (at minimum) a `platform_admin` and a `lender_admin` seed user and click through dashboard, loans, users, reports.
-4. Manual matrix spot-checks: `lender_officer` can `PUT /api/loans/:id/repayment` (own lender's loan) → 200; `employer_hr` on the same call → 403; `lender_admin` hits `GET /api/reports/loans` and gets their portfolio (previously wrong/empty data via the ghost-role branch); `GET /api/reports/companies` as `borrower` → 403 (previously passed the broken gate).
+4. Manual matrix spot-checks: `lender_officer` can `PUT /api/loans/:id/repayment` (own lender's loan) → 200; `employer_hr` on the same call → 403; `lender_admin` hits `GET /api/reports/loans` and gets their portfolio (previously wrong/empty data via the ghost-role branch); `GET /api/reports/companies` as `borrower` → 403 (previously passed the broken gate); `lender_officer` can `GET /api/reports/overview` → 200 (reorder consequence, intended); `lender_officer` `POST /api/users` with `role: "lender_admin"` → 403 (Step 5a no-escalation rule).
 5. Update `CLAUDE.md`: Section 5 (roles table now reflects reality — remove the "until the role-rename phase executes" paragraph), Section 6 (ghost roles resolved). Changelog entry (include the production-DB migration deploy step). Commit; merge green.
 
 ## Acceptance criteria
@@ -162,6 +212,8 @@ Notes: the collection-level `updateMany` bypasses the schema enum on purpose (th
 3. Migration script is idempotent (second run reports 0 modifications) and `--down` restores the old names.
 4. Manual matrix checks in Step 8.4 behave exactly as listed.
 5. `git diff` shows no client styling/markup changes beyond role strings and their labels.
+6. **Step 5b audit table is complete in the session report**: every `authorizeMinRole()` call site enumerated with old/new effective access, and the only deltas anywhere are `lender_officer` gaining access (deliberate reorder) and the reports.js:897 ghost-gate fix. Any other access change at any site is a regression that must be fixed before this phase is marked complete — not noted and moved past.
+7. The Step 5a no-escalation rule holds: no role can create a user with a role level above its own (spot-checked per Step 8.4).
 
 ## Session sizing
 
@@ -173,5 +225,5 @@ Code: revert the merge commit. Data: `node utils/migrations/renameRoles.js --dow
 
 ## Flagged concerns
 
-- **Hierarchy quirk (pre-existing, preserved):** `lender_officer` (level 1) sits *below* `employer_hr` (2) and `employer_admin` (3), so `authorizeMinRole('employer_hr')`-gated report/dashboard routes exclude lender officers. That mirrors current behavior for `lender_user`, so it is preserved — but it looks wrong for a loan officer and should be revisited when Phase 04 rebuilds scoping. Decision needed from William then.
+- ~~Hierarchy quirk~~ **Resolved 2026-07-04** (see `docs/DECISIONS.md`, "Role hierarchy correction"): lender roles now sit strictly above employer roles. The reorder's access consequences are contained by Steps 5a/5b.
 - Old JWTs dying at deploy is treated as acceptable (users just re-log-in). If that's not acceptable for a live client, the deploy needs a maintenance window.

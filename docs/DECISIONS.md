@@ -47,6 +47,29 @@ Non-negotiable, treated as the first phase of execution regardless of other prio
 ## Generalizability principle
 Applies to every decision and every future plan document: the platform must remain usable by future lender clients without restructuring. Manifi's specific needs are configuration, not architecture. Any proposed fix or feature that only makes sense for Manifi specifically should be flagged as such rather than built into core logic.
 
+## Manifi product terms (confirmed via Clement, locked 2026-07-04)
+Flat rate, 25%, fixed **30-day** term per loan. Interest = principal × 0.25 per loan, exactly. This is real product data for Phase 05, entered as product configuration once the engine supports it.
+
+**Term-unit modeling requirement:** the schema currently stores `term` in whole months and approximates day-based schedules as `term × 30 days`. A calendar month is not a fixed 30 days, so mapping this product to `term: 1 month` would cause due-date and interest-accrual drift depending on which month a loan lands in. Phase 05 must model term with an **explicit unit** (days/weeks/months) rather than assuming months for every product, so Manifi's actual 30-day product is represented exactly and future clients with different term units are not forced into the same approximation.
+
+## Schedule anchor date & early-settlement bookkeeping (confirmed, locked 2026-07-04)
+Both Phase 05 proposals confirmed as planned — no changes:
+- Repayment schedules are anchored to the **disbursement date**; existing loans are not retroactively re-anchored.
+- Early settlement uses a new `waived` installment status; the settlement amount is recorded once, on `earlySettlement.settlementAmount`, replacing the current paid-with-amount-0 hack.
+
+## Role hierarchy correction (locked 2026-07-04)
+The original hierarchy placing `lender_officer` below employer-side roles was an oversight. Lender roles sit **strictly above** employer roles — a lender-side loan officer handling real money movement never ranks below employer HR. Corrected numbering:
+
+| Level | Role |
+|---|---|
+| 5 | `platform_admin` |
+| 4 | `lender_admin` |
+| 3 | `lender_officer` |
+| 2 | `employer_admin` |
+| 1 | `employer_hr` |
+| 0 | `borrower` |
+
+**Regression-check requirement:** `authorizeMinRole()` compares by this number, and the audit already found one bug caused by numeric drift (the `client_admin` ghost role resolving to level 0 and passing everyone). The renumbering must not silently change effective access anywhere except where the lender/employer reorder is the deliberate intent. Phase 03's acceptance criteria require enumerating every `authorizeMinRole()` call site and confirming its effective access list unchanged before/after — any unintended access change at any other site is a regression to be fixed before the phase completes, not noted and moved past.
+
 ## Explicitly deferred (not decided yet, not blocking current planning)
-- Exact schedule-anchor-date fix (disbursement vs. application date) — resolve using lending-industry best practice during the loan engine rebuild phase, flag the resolution for confirmation before that phase executes
-- Early-settlement bookkeeping fix (currently marks remaining installments paid with amount 0, corrupting summary math) — same treatment as above
+- *(none currently — the previously deferred schedule-anchor and early-settlement questions were resolved above)*

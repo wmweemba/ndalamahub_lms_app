@@ -216,4 +216,4 @@ Revert the merge commit — no data migrations. Because behavior tightens in two
 ## Flagged concerns
 
 - `canReadProduct` returning `null` for employer-side forces routes to make the async lender check explicitly — deliberate, so nobody silently treats employer-side as denied/allowed. If the execution agent finds this awkward in practice, flag it; don't redesign silently.
-- The `authorizeMinRole` hierarchy quirk flagged in Phase 03 (lender_officer below employer_hr) becomes more visible once reports are correctly scoped — decision still owed by William on whether lender officers should see reports.
+- ~~The `authorizeMinRole` hierarchy quirk~~ **Resolved 2026-07-04**: the hierarchy was corrected in Phase 03 (lender roles strictly above employer roles — see `docs/DECISIONS.md`), so lender officers legitimately pass employer-gated report/dashboard routes and this layer's `loanScopeFilter` gives them lender-side scoping. No open decision remains here.

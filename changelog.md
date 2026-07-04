@@ -1,8 +1,17 @@
 # 2026-07-04 (Phase 01 execution, Addendum A)
 - Applied `docs/01-security-critical-fixes.md` Addendum A to `Loan.calculateEarlySettlementAmount()` (`server/models/Loan.js`): future-scheduled interest for settlement savings now sums every unpaid installment (not just installments still due in the future), fixing the case where `savingsVsSchedule` went negative and was silently clamped to 0 on loans settled mid-schedule
 - Test suite: 132/133 → **133/133**. Exactly the targeted test (`Prepayment API Endpoints › calculates interest savings correctly`) flipped red→green; no other test changed, matching the addendum's predicted blast radius
-- Manual verifications (Step 8): still not performed. Attempted to run the server against the demo Atlas database (now cleared for this by William) but `MONGODB_URI`'s hostname (`ndalamahub-lms-app.c3jl7cs.mongodb.net`) does not resolve — confirmed via direct queries against both the local resolver and `8.8.8.8`, both returning `NXDOMAIN`, ruling out a local network/sandbox restriction. This looks like a stale/incorrect connection string or a deleted/renamed Atlas cluster, not a "no test data" issue — flagged for William to check the actual current Atlas connection string.
-- Still unmerged — see flags in the Phase 01 execution report
+- Manual verifications (Step 8): the Atlas cluster (previously unreachable due to auto-pause) was resumed by William and confirmed reachable (SRV records verified). Ran the server against the demo database and performed all 7 Step 8 checks using existing seeded accounts (`manager`/FirstBank `lender_admin`, `james_admin`/QuickCash `lender_admin`, `david_admin`/TechCorp `corporate_admin`, `john_employee`/TechCorp `corporate_user`) and existing demo loans — **all 7 passed**:
+  1. `POST /api/auth/register` → 404 (route gone)
+  2. `POST /api/users` as `lender_admin` with `role: super_user` → 403
+  3. `GET /api/users/:id` on a same-company user as `corporate_admin` → 200; as `corporate_user` → 403
+  4. `PUT /api/loans/:id/repayment` (valid, as the loan's lender admin) → 200, installment updated
+  5. Same with a future `paymentDate` → 400 with the exact message, no side effect
+  6. Same from a different lender company's admin (`james_admin`/QuickCash on a FirstBank loan) → 403, no side effect
+  7. `POST /api/loans/:id/prepayment` (`reduce_term`) on an active loan → 200; verified directly in the DB that the recalculated `repaymentSchedule` has no `NaN`/`null` interest or principal values
+  - Check 4 recorded a real partial payment (reference `phase01test_repayment001`, ZMW 400 on installment 2 of loan `LN20260002`) and check 7 recorded a real prepayment (notes `phase01test verification prepayment`, ZMW 2000) on demo loans — left in place per instruction rather than reversed, since undoing a prepayment's schedule recalculation cleanly is nontrivial and risks corrupting the demo data further. No test users were created (checks 1–2 were blocked before any DB write; verified user count unchanged at 11).
+  - Noted but out of scope: the prepayment response's settlement-preview summary (`beforeInterest`/`afterInterest`) showed an implausible ~21 million interest figure — a distinct bug from a different area of `calculateEarlySettlementAmount`/accrued-interest math, unrelated to Addendum A's fix and outside Phase 01's scope. Flagged for Phase 05.
+- Suite re-confirmed 133/133 after Step 8. Merged to `main`.
 
 # 2026-07-04 (Phase 01 execution)
 - Executed `docs/01-security-critical-fixes.md` on branch `phase/01-security-critical-fixes` (unmerged — see flag below)

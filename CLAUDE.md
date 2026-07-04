@@ -2,7 +2,7 @@
 
 **This is a living document.** It is the single file that explains the whole application — architecture, decisions, current state, and rules of engagement. Update it whenever a meaningful state change happens (a phase from `docs/` is completed, an architecture decision changes, auth is migrated, UI_SPEC lands, etc.). Do not let it drift out of sync with reality — a stale CLAUDE.md is worse than no CLAUDE.md, because it will be trusted.
 
-**Last updated:** 2026-07-04 — feature branch merged into `main`; phase plans generated in `docs/`; Phase 01 (security-critical fixes) fully executed, including Addendum A, on `phase/01-security-critical-fixes` — suite is 133/133, but the branch is **not yet merged** pending Step 8 manual verification, which is blocked by a `MONGODB_URI` DNS resolution failure (see Section 6).
+**Last updated:** 2026-07-04 — feature branch merged into `main`; phase plans generated in `docs/`; Phase 01 (security-critical fixes), including Addendum A, fully executed and merged into `main` — suite is 133/133, all Step 8 manual verifications passed against the demo Atlas database. Phase 01 is closed.
 
 ---
 
@@ -86,9 +86,9 @@ These are non-negotiable, phase-1 fixes — not up for reprioritization against 
 - No `helmet`, `express-rate-limit`, or `express-mongo-sanitize`
 - 14 high-severity vulnerable server dependencies, 26 on the client
 
-Full detail, evidence, and file/line references are in `docs/AUDIT_REPORT.md` — don't duplicate that detail here, just be aware it exists and gates everything else. Phase 01 changes are on `phase/01-security-critical-fixes`, unmerged as of this writing — see the Phase 01 flag above before treating these as live on `main`.
+Full detail, evidence, and file/line references are in `docs/AUDIT_REPORT.md` — don't duplicate that detail here, just be aware it exists and gates everything else. Phase 01 (all four items above plus the settlement-savings fix) is merged into `main`; suite is 133/133 and all 7 Step 8 manual checks passed against the demo Atlas database.
 
-**Phase 01 Step 8 blocker:** `server/.env`'s `MONGODB_URI` hostname (`ndalamahub-lms-app.c3jl7cs.mongodb.net`) does not resolve (`NXDOMAIN` against both the local resolver and `8.8.8.8` directly) — the server cannot be started against it to run the demo-DB manual verification checks. This needs a corrected connection string (or an un-paused/un-deleted cluster) before Step 8 can be completed.
+**Noted but out of scope (Phase 05):** the prepayment endpoint's settlement-preview summary (`beforeInterest`/`afterInterest`) produced an implausible ~21 million interest figure during Step 8 verification — a distinct bug in the accrued-interest/settlement math, separate from the Addendum A fix, not investigated or fixed here.
 
 ---
 

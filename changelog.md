@@ -1,3 +1,12 @@
+# 2026-07-04
+- Merged `feature/phase-0-loan-engine` into `main` (fast-forward, no conflicts); all work now proceeds against `main`
+- Added pre-go-live audit (`docs/AUDIT_REPORT.md`), locked decisions log (`docs/DECISIONS.md`), and phased execution plans `docs/01`–`docs/10` (indexed in `docs/README.md`); archived stale roadmap/planning docs to `docs/archive/`; moved LOAN_ENGINE_DOCUMENTATION, FRONTEND_TEST_PLAN, and ZAMBIAN_PAYMENT_COMMUNICATION_GUIDE into `docs/` as live docs with obsolescence banners
+- Recorded three newly resolved decisions in `docs/DECISIONS.md` and amended the affected plans:
+  - Manifi product terms confirmed via Clement (flat rate, 25%, fixed 30-day term) + explicit term-unit modeling (days/weeks/months) — Phase 05 updated
+  - Disbursement-anchored schedules and `waived`-status early settlement confirmed as planned — Phase 05 assumptions cleared
+  - Role hierarchy corrected (lender roles strictly above employer roles: platform_admin 5, lender_admin 4, lender_officer 3, employer_admin 2, employer_hr 1, borrower 0) with a mandatory `authorizeMinRole` effective-access regression audit — Phases 03/04 updated
+- No application code changed; verified test baseline on `main`: 133 server tests, 111 pass / 22 fail (all failures from the known `canAcceptPrepayment` regression, fixed in Phase 01)
+
 # 2026-02-15
 - Added full backend support for loan grace period and moratorium logic (principal-only and full moratorium)
 - Repayment schedule now includes isGrace, isMoratorium, and graceType fields

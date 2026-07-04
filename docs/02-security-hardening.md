@@ -24,7 +24,7 @@ Finish the security-baseline list from `docs/DECISIONS.md`: remove the hardcoded
 
 1a. `server/utils/auth.js`: in `generateToken` (line 8), `generateRefreshToken` (line 17), and `verifyToken` (line 25), replace `process.env.JWT_SECRET || 'your-secret-key'` with `process.env.JWT_SECRET`.
 
-1b. `server/routes/auth.js:244` (refresh route): replace `process.env.JWT_SECRET || 'your-secret-key'` with `process.env.JWT_SECRET`.
+1b. `server/routes/auth.js:97` (refresh route): replace `process.env.JWT_SECRET || 'your-secret-key'` with `process.env.JWT_SECRET`. *(Line refs in this doc for `routes/auth.js` were re-verified 2026-07-04 after Phase 01 removed the register route; these four fallback sites — `utils/auth.js:8/17/25` + this one — are the only `'your-secret-key'` occurrences in the codebase, confirmed by grep. `middleware/auth.js` already uses the bare env var.)*
 
 1c. `server/server.js`: immediately after `require('dotenv').config();` (line 5), add:
 
@@ -43,7 +43,7 @@ Note for tests: the Jest suite uses `mongodb-memory-server` and does not boot `s
 
 ### Step 2 — Unify token payload shapes (fixes refresh)
 
-Problem: login signs `{id, username, role, company}` inline (`auth.js:193–208`); `generateToken`/`generateRefreshToken` sign `{userId}` only. All middleware/route code reads `req.user.id/.role/.company`, so refresh-issued access tokens are unusable.
+Problem: login signs `{id, username, role, company}` inline (`auth.js:46–61`); `generateToken`/`generateRefreshToken` sign `{userId}` only. All middleware/route code reads `req.user.id/.role/.company`, so refresh-issued access tokens are unusable.
 
 2a. `server/utils/auth.js`: change the two generators to accept a user document and sign the canonical payload:
 
@@ -73,7 +73,7 @@ const generateRefreshToken = (user) => {
 
 (The `company._id` guard matters: the refresh route loads the user with `.populate('company')`.)
 
-2b. `server/routes/auth.js` login route: delete the inline `tokenPayload` construction and `jwt.sign`/`jwt.verify` block (lines 192–212), replacing with:
+2b. `server/routes/auth.js` login route: delete the inline `tokenPayload` construction and `jwt.sign`/`jwt.verify` block (lines 45–65 — from the `// Create payload object first for verification` comment through the `console.log('Verified token payload:', decoded)` line; this also removes two token-payload debug logs), replacing with:
 
 ```js
         const token = generateToken(user);
@@ -81,7 +81,7 @@ const generateRefreshToken = (user) => {
 
 Keep the response body shape (`{ token, user: {...} }`) exactly as is. Remove the now-unused `const jwt = require('jsonwebtoken')` import **only if** grep shows no other use in the file (the refresh route still uses `jwt.verify` — so keep it).
 
-2c. Refresh route (`auth.js:232–286`): change `User.findById(decoded.userId)` (line 254) to `User.findById(decoded.id)`, and the two generator calls (lines 266–267) from `generateToken(user._id)` to `generateToken(user)` / `generateRefreshToken(user)`.
+2c. Refresh route (`auth.js:85–139`): change `User.findById(decoded.userId)` (line 107) to `User.findById(decoded.id)`, and the two generator calls (lines 119–120) from `generateToken(user._id)` to `generateToken(user)` / `generateRefreshToken(user)`.
 
 2d. Login currently returns **no refresh token**. Add one so the client can actually use `/refresh`: in the login response, add `refreshToken: generateRefreshToken(user)` alongside `token`. Check `client/src` for where login response is consumed (grep `ndalamahub-token`) — store the refresh token only if the client already has a refresh call path; if the client never calls `/api/auth/refresh`, just add the field server-side (additive, harmless) and note it.
 
@@ -89,7 +89,7 @@ Keep the response body shape (`{ token, user: {...} }`) exactly as is. Remove th
 
 ### Step 3 — Login rate limiting
 
-3a. Wire the existing helper (per `docs/DECISIONS.md`, "wire up the existing but unused rate limiter"): in `server/routes/auth.js`, `loginRateLimiter` is created at line 20 but never called. At the very top of the login handler's `try`, add:
+3a. Wire the existing helper (per `docs/DECISIONS.md`, "wire up the existing but unused rate limiter"): in `server/routes/auth.js`, `loginRateLimiter` is created at line 17 but never called. At the very top of the login handler's `try`, add:
 
 ```js
         const rateKey = `${req.ip}:${(username || '').toLowerCase()}`;
@@ -132,12 +132,12 @@ In `server/server.js`:
 ### Step 6 — Strip token/PII console.logs and gate error messages
 
 6a. Delete these logging statements (verified locations; re-locate by content if lines shifted):
-- `server/routes/auth.js`: "Found user:" (line ~180), and the `/me` debug block (lines ~424–432 `console.log('=== /auth/me endpoint called ===')` etc.). Keep `console.error` in catch blocks.
+- `server/routes/auth.js`: "Found user:" (line ~33), and the `/me` debug block (lines ~277–285, `console.log('=== /auth/me endpoint called ===')` through the second `Found user:` log after the query). Keep `console.error` in catch blocks. (The two token-payload debug logs in the login handler are already removed by Step 2b.)
 - `server/routes/loans.js`: `console.log('Applied filter:', filter)` (~179); the `/summary` request-dump block (~226–228); approve-route company logs (~603–604); disburse-route access logs (~766–777); the pre-save-related logs elsewhere in the file — sweep the file: every `console.log` that prints `req.user`, tokens, filters, or documents goes; plain progress strings may stay or go at your discretion, prefer go.
 - `server/routes/users.js`: create-route dump (lines ~163–165, 182–191).
 - `server/routes/reports.js`: the entire debug block in `/overview` that loads every loan (`const allLoans = await Loan.find(...)` + sample logging, lines ~48–120 per audit; delete the **query** as well as the logs — it exists only to feed the logs and is a cross-tenant PII log leak + perf bomb). All other emoji-prefixed `console.log`s in the file go too.
 - `server/routes/dashboard.js`, `server/routes/companies.js`, `server/routes/system.js`: sweep remaining `console.log`s of user/filter/document data.
-- `server/models/Loan.js`: the pre-save hook log (`console.log('Loan pre-save hook triggered...')`, line 521). Leave the `NODE_ENV === 'test'` debug blocks — they're Phase 05 cleanup alongside `debugSchedule`.
+- `server/models/Loan.js`: the pre-save hook log (`console.log('Loan pre-save hook triggered...')`, line 520). Leave the `NODE_ENV === 'test'` debug blocks — they're Phase 05 cleanup alongside `debugSchedule`.
 
 Rule of thumb: `console.error(...)` in catch blocks stays; `console.log` of request/user/token/document data is deleted, not commented out.
 

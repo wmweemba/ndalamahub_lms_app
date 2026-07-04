@@ -194,6 +194,8 @@ loanSchema.methods.getSummary = function() {
 
 Check callers of `getSummary()` (`loans.js` summary route, `updatePaymentTracking`) still behave; `updatePaymentTracking` reads `summary.totalPaid` — fine.
 
+5c-bis. **Settlement quote math review** (carried over from Phase 01 Addendum A): `calculateEarlySettlementAmount`'s `accruedInterest` (via `calculateAccruedInterest`) includes interest from already-**paid** installments, which inflates `totalPayoff` — a borrower settling early is quoted interest they have already paid. While reworking settlement bookkeeping here, restrict the accrued-interest component of the quote to interest accrued on *unpaid* obligations as of the settlement date, and add a test asserting `totalPayoff` for a half-paid loan excludes already-paid interest. (The savings formula itself was fixed in Phase 01 Addendum A — don't regress it; its test will catch you if you do.)
+
 5d. Anywhere else that filters `status === 'paid'` to compute balances — `calculateRemainingBalance` (`Loan.js:1137`) and `calculateAccruedInterest` (~1164) — leave as-is: waived installments carry no principal credit, and `calculateRemainingBalance` on a settled loan is short-circuited by settlement checks in the routes. Verify `canAcceptPrepayment` already blocks settled loans (it does, via `earlySettlement?.settled`).
 
 ### Step 6 — Model cleanups

@@ -18,7 +18,7 @@ Give the platform real outbound email. Today no email library is installed; pass
 - `server/package.json` — add `resend`
 - `server/.env.example` — `RESEND_API_KEY`, `FROM_EMAIL`, `FROM_NAME`, `APP_URL`
 
-**Out of scope:** SMS/WhatsApp (future; Zambian-market comms live in the archived guide and need a product decision), user-configurable notification preferences, HTML template design beyond a clean shared layout, in-app notification center.
+**Out of scope:** SMS/WhatsApp (future; see `docs/ZAMBIAN_PAYMENT_COMMUNICATION_GUIDE.md` — needs a product decision), user-configurable notification preferences, HTML template design beyond a clean shared layout, in-app notification center.
 
 ## Step-by-step instructions
 

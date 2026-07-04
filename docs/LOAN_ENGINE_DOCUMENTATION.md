@@ -1,3 +1,5 @@
+> **Status: live doc, scheduled for obsolescence.** Describes the loan engine *as originally built* — including behavior that is broken until Phase 01 executes (prepayment/settlement) and semantics that change in Phase 05 (annualized flat rate → configurable rate basis, application-date → disbursement-date schedule anchor, early-settlement bookkeeping). **Archive to `docs/archive/` (or rewrite) when Phase 05 completes.** Where this doc and the code disagree post-Phase-05, the code and `docs/05-loan-engine-rebuild.md` win.
+
 ### Grace Period & Moratorium Support (2026-02-15)
 - Repayment schedule generation supports:
   - Principal-only grace period (interest-only installments)

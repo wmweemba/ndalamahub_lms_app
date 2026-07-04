@@ -1,6 +1,8 @@
 # NdalamaHub LMS - Frontend Testing Plan
 ## Complete User Journey & Feature Validation
 
+> **Status: live doc, scheduled for obsolescence.** This is the only client-side test coverage (no automated frontend tests exist). Role names and gated flows in it go stale when Phase 03 (role rename) executes; broader UI flows change again when `docs/UI_SPEC.md` lands. **Update or archive to `docs/archive/` after Phase 03**, and replace outright once a UI_SPEC-driven test plan exists.
+
 **Date**: February 11, 2026  
 **Phase 0 Progress**: Week 4 Complete (33.3%)  
 **Features to Test**: Multi-tenant setup, 4 loan types, product catalog, prepayments, reports  

@@ -1,6 +1,8 @@
 # Communication & Payment Alternatives Analysis
 ## WhatsApp, Email OTP, and RevenueCat for Zambian Market
 
+> **Status: live reference, scheduled for obsolescence.** Kept as input for the SMS/WhatsApp channel decision flagged in `docs/09-email-notifications.md`. **Archive to `docs/archive/` once Phase 09 completes and the additional comms channels are either decided and documented or explicitly rejected.**
+
 **Created:** February 9, 2026  
 **Context:** Zambian-based startup, bootstrapped approach  
 

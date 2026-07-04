@@ -21,6 +21,14 @@ Phases must be executed in order. Each phase leaves the app in a working, testab
 | 09 | `09-email-notifications.md` | Email integration (Resend): password reset, loan lifecycle + repayment reminder emails. | 2 |
 | 10 | `10-subscription-gating.md` | Lender-tenant subscription/trial gating middleware. | 2 |
 
+## Live legacy docs (archive when their phase makes them obsolete)
+
+Three pre-existing docs were kept **live** in `docs/` (not archived) because they still describe current reality or feed a pending decision. Each carries a status banner; the executing agent should archive it to `docs/archive/` as part of the phase that obsoletes it:
+
+- `LOAN_ENGINE_DOCUMENTATION.md` — archive/rewrite at the end of **Phase 05**
+- `FRONTEND_TEST_PLAN.md` — update or archive at the end of **Phase 03** (replace once UI_SPEC exists)
+- `ZAMBIAN_PAYMENT_COMMUNICATION_GUIDE.md` — archive at the end of **Phase 09**
+
 ## Standing rules for the execution agent
 
 - Follow the phase document **exactly**. If it is ambiguous, incomplete, or looks wrong once you're in the code, **stop and flag it** — do not improvise.

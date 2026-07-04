@@ -2,12 +2,13 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const Company = require('../models/Company');
-const { 
-  authenticateToken, 
+const {
+  authenticateToken,
   authorize,
   authorizeRole,  // Add this
-  authorizeMinRole, 
-  authorizeCompany 
+  authorizeMinRole,
+  authorizeCompany,
+  hasMinRole
 } = require('../middleware/auth');
 const { 
   validatePassword, 
@@ -113,7 +114,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
     // Check if user is accessing their own profile or has admin rights
     if (req.user.id.toString() !== id && 
-        !req.user.hasPermission('corporate_admin')) {
+        !hasMinRole(req.user.role, 'corporate_admin')) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -242,6 +243,26 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req
                         message: 'Corporate admin can only create corporate roles'
                     });
                 }
+            }
+        }
+
+        // Lender admins cannot mint platform-level accounts, and may only create
+        // users in their own company or their corporate client companies
+        if (req.user.role === 'lender_admin') {
+            if (role === 'super_user') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'You cannot create super user accounts'
+                });
+            }
+            const isOwnCompany = company === req.user.company.toString();
+            const isClientCompany = companyDoc.lenderCompany &&
+                companyDoc.lenderCompany.toString() === req.user.company.toString();
+            if (!isOwnCompany && !isClientCompany) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'You can only create users within your own company or your corporate clients'
+                });
             }
         }
 
@@ -377,7 +398,7 @@ router.put('/:id/password', authenticateToken, async (req, res) => {
 
     // Check if user is changing their own password or has admin rights
     if (req.user.id.toString() !== id && 
-        !req.user.hasPermission('corporate_admin')) {
+        !hasMinRole(req.user.role, 'corporate_admin')) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -467,7 +488,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     // Check if user is updating their own profile or has admin rights
     if (req.user.id.toString() !== id && 
-        !req.user.hasPermission('corporate_admin')) {
+        !hasMinRole(req.user.role, 'corporate_admin')) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -524,7 +545,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
 
     // Role update (admin only)
-    if (role && req.user.hasPermission('corporate_admin')) {
+    if (role && hasMinRole(req.user.role, 'corporate_admin')) {
       user.role = role;
     }
 
@@ -539,7 +560,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
 
     // Active status update (admin only)
-    if (isActive !== undefined && req.user.hasPermission('corporate_admin')) {
+    if (isActive !== undefined && hasMinRole(req.user.role, 'corporate_admin')) {
       user.isActive = isActive;
     }
 

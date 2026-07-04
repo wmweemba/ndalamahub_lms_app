@@ -13,7 +13,7 @@ Close the single catastrophic security hole (anyone on the internet can create a
 Files touched (exhaustive — touch nothing else in this phase):
 
 - `server/routes/auth.js` — remove public registration route
-- `server/routes/users.js` — replace 4 `req.user.hasPermission(...)` calls; add lender-side role-assignment guard in POST `/`
+- `server/routes/users.js` — replace 5 `req.user.hasPermission(...)` calls; add lender-side role-assignment guard in POST `/`
 - `server/routes/loans.js` — fix repayment route (scope bug + tenancy check)
 - `server/models/Loan.js` — restore `canAcceptPrepayment()` return; fix `calculatePeriodInterest` call signatures in the three schedule recalculators
 - `server/middleware/auth.js` — add one exported helper (`hasMinRole`)
@@ -91,7 +91,7 @@ const hasMinRole = (role, minRole) => {
 
 Add `hasMinRole` to the `module.exports` object. (Note `?? Infinity` for an unknown `minRole`: an unrecognized required role must fail closed, never pass. Phase 03 will dedupe the two hierarchy copies during the rename — do not refactor `authorizeMinRole` now.)
 
-3b. File: `server/routes/users.js`. Import it — the file's existing import from `../middleware/auth` gains `hasMinRole`. Then replace all four call sites:
+3b. File: `server/routes/users.js`. Import it — the file's existing import from `../middleware/auth` gains `hasMinRole`. Then replace all five call sites:
 
 - Line 116 (`GET /:id`): `!req.user.hasPermission('corporate_admin')` → `!hasMinRole(req.user.role, 'corporate_admin')`
 - Line 380 (`PUT /:id/password`): same replacement
@@ -272,6 +272,46 @@ Fits one focused ~1.5–2 h session. If it must be split, the safe stopping poin
 ## Rollback
 
 All changes are ordinary code commits on `phase/01-security-critical-fixes`; revert with `git revert <merge-commit>` on `main` if needed. No schema/data migrations in this phase. Note: rolling back re-opens the public-registration hole — if a rollback is ever needed in a deployed environment, take the deployment offline first.
+
+## Addendum A — settlement savings formula (added 2026-07-04 after first execution pass)
+
+The first execution pass reached 132/133: the audit's claim that all 22 baseline failures traced to `canAcceptPrepayment()` was one short. The 22nd failure (`Prepayment API Endpoints › calculates interest savings correctly`) is a distinct, pre-existing bug in `Loan.calculateEarlySettlementAmount()` (`server/models/Loan.js:1193`), root-caused by the planning agent as follows.
+
+**Defect.** The savings computation (lines ~1214–1222):
+
+```js
+  let futureInterest = 0;
+  this.repaymentSchedule.forEach(installment => {
+    if (installment.status === 'pending' && installment.dueDate > settlementDate) {
+      futureInterest += installment.interest;
+    }
+  });
+
+  const savingsVsSchedule = futureInterest - accruedInterest - earlySettlementFee;
+```
+
+`futureInterest` counts only pending installments due **after** the settlement date, but `accruedInterest` (line 1195) includes interest on pending installments already **past due**. On any loan settled mid-schedule, the subtraction goes negative and the `Math.max(0, ...)` clamp at line ~1229 silently reports savings of 0. Economically, the savings of settling = interest owed under the remaining schedule (**all** unpaid installments, past-due and future) minus what settlement actually costs in interest and fees.
+
+**Fix.** Replace the block above with:
+
+```js
+  // Interest the borrower would pay by continuing the schedule: every
+  // installment not yet paid, regardless of whether its due date has passed
+  let remainingScheduledInterest = 0;
+  this.repaymentSchedule.forEach(installment => {
+    if (installment.status !== 'paid') {
+      remainingScheduledInterest += installment.interest;
+    }
+  });
+
+  const savingsVsSchedule = remainingScheduledInterest - accruedInterest - earlySettlementFee;
+```
+
+Change nothing else in the method — `totalPayoff`, the fee logic, and the returned field names all stay. (A deeper quote-math review — e.g. `accruedInterest` also counting already-paid installments' interest inside `totalPayoff` — is deliberately deferred to Phase 05's settlement work; do not fix it here.)
+
+**Blast radius check (verified during planning):** the only strict assertion on `futureInterestSaved` in the suite is the failing test; other references assert property existence or pass the value through. Expect exactly one test to flip red→green and none to flip green→red.
+
+**Acceptance:** `cd server && pnpm test` → **133/133**. This addendum supersedes the 132/133 outcome of the first pass; the phase's original acceptance criterion 1 stands as written.
 
 ## Flagged concerns / assumptions
 

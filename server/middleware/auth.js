@@ -105,10 +105,25 @@ const authorizeCompany = () => {
     };
 };
 
+// Check whether a role meets a minimum role level (JWT-payload-safe
+// replacement for the Mongoose User.hasPermission method)
+const hasMinRole = (role, minRole) => {
+    const roleHierarchy = {
+        'super_user': 5,
+        'lender_admin': 4,
+        'corporate_admin': 3,
+        'corporate_hr': 2,
+        'lender_user': 1,
+        'corporate_user': 0
+    };
+    return (roleHierarchy[role] ?? -1) >= (roleHierarchy[minRole] ?? Infinity);
+};
+
 module.exports = {
     authenticateToken,
     authorize,
     authorizeRole,
     authorizeMinRole,
-    authorizeCompany
+    authorizeCompany,
+    hasMinRole
 };

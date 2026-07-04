@@ -4,13 +4,10 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Company = require('../models/Company');
 const { authenticateToken, authorize } = require('../middleware/auth');
-const { 
-  generateToken, 
-  generateRefreshToken, 
-  validatePassword, 
-  validateEmail, 
-  validatePhoneNumber, 
-  formatPhoneNumber,
+const {
+  generateToken,
+  generateRefreshToken,
+  validatePassword,
   generatePasswordResetToken,
   hashPasswordResetToken,
   createRateLimiter
@@ -18,150 +15,6 @@ const {
 
 // Rate limiter for login attempts
 const loginRateLimiter = createRateLimiter(5, 15 * 60 * 1000); // 5 attempts per 15 minutes
-
-// @route   POST /api/auth/register
-// @desc    Register a new user
-// @access  Public (with role restrictions)
-router.post('/register', async (req, res) => {
-  try {
-    const {
-      firstName,
-      lastName,
-      username,
-      email,
-      phone,
-      password,
-      role,
-      companyId,
-      department,
-      employeeId
-    } = req.body;
-
-    // Validate required fields
-    if (!firstName || !lastName || !username || !email || !phone || !password || !role || !companyId) {
-      return res.status(400).json({
-        success: false,
-        message: 'All required fields must be provided'
-      });
-    }
-
-    // Validate email format
-    if (!validateEmail(email)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide a valid email address'
-      });
-    }
-
-    // Validate phone number
-    if (!validatePhoneNumber(phone)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide a valid phone number'
-      });
-    }
-
-    // Validate password strength
-    const passwordValidation = validatePassword(password);
-    if (!passwordValidation.isValid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password does not meet requirements',
-        errors: passwordValidation.errors
-      });
-    }
-
-    // Check if company exists
-    const company = await Company.findById(companyId);
-    if (!company) {
-      return res.status(400).json({
-        success: false,
-        message: 'Company not found'
-      });
-    }
-
-    // Check if username already exists
-    const existingUsername = await User.findOne({ username: username.toLowerCase() });
-    if (existingUsername) {
-      return res.status(400).json({
-        success: false,
-        message: 'Username already exists'
-      });
-    }
-
-    // Check if email already exists
-    const existingEmail = await User.findOne({ email: email.toLowerCase() });
-    if (existingEmail) {
-      return res.status(400).json({
-        success: false,
-        message: 'User with this email already exists'
-      });
-    }
-
-    // Create user object
-    const userData = {
-      firstName,
-      lastName,
-      username: username.toLowerCase(),
-      email: email.toLowerCase(),
-      phone: formatPhoneNumber(phone),
-      password,
-      role,
-      company: companyId
-    };
-
-    // Add department and employeeId for staff and HR roles
-    if (role === 'staff' || role === 'corporate_hr') {
-      if (!department) {
-        return res.status(400).json({
-          success: false,
-          message: 'Department is required for staff and HR roles'
-        });
-      }
-      userData.department = department;
-    }
-
-    if (role === 'staff') {
-      if (!employeeId) {
-        return res.status(400).json({
-          success: false,
-          message: 'Employee ID is required for staff role'
-        });
-      }
-      userData.employeeId = employeeId;
-    }
-
-    // Create new user
-    const user = new User(userData);
-    await user.save();
-
-    // Generate tokens
-    const token = generateToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
-
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save();
-
-    res.status(201).json({
-      success: true,
-      message: 'User registered successfully',
-      data: {
-        user: user.toJSON(),
-        token,
-        refreshToken
-      }
-    });
-
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Registration failed',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
-});
 
 // @route   POST /api/auth/login
 // @desc    Login user

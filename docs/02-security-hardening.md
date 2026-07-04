@@ -141,6 +141,8 @@ In `server/server.js`:
 
 Rule of thumb: `console.error(...)` in catch blocks stays; `console.log` of request/user/token/document data is deleted, not commented out.
 
+While in `server/routes/auth.js`, also delete the now-unused `Company` model import (dead since Phase 01 removed the register route — flagged by the Phase 01 execution report).
+
 6b. Error-message gating: in `server/routes/dashboard.js` (4 handlers, e.g. lines 64, 231, 397, 502) and `server/routes/products.js` (all handlers), responses currently include `error: error.message` unconditionally. Change each to the pattern used elsewhere:
 
 ```js

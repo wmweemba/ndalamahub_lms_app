@@ -1,3 +1,28 @@
+# 2026-07-04 (Phase 01 execution, Addendum A)
+- Applied `docs/01-security-critical-fixes.md` Addendum A to `Loan.calculateEarlySettlementAmount()` (`server/models/Loan.js`): future-scheduled interest for settlement savings now sums every unpaid installment (not just installments still due in the future), fixing the case where `savingsVsSchedule` went negative and was silently clamped to 0 on loans settled mid-schedule
+- Test suite: 132/133 → **133/133**. Exactly the targeted test (`Prepayment API Endpoints › calculates interest savings correctly`) flipped red→green; no other test changed, matching the addendum's predicted blast radius
+- Manual verifications (Step 8): the Atlas cluster (previously unreachable due to auto-pause) was resumed by William and confirmed reachable (SRV records verified). Ran the server against the demo database and performed all 7 Step 8 checks using existing seeded accounts (`manager`/FirstBank `lender_admin`, `james_admin`/QuickCash `lender_admin`, `david_admin`/TechCorp `corporate_admin`, `john_employee`/TechCorp `corporate_user`) and existing demo loans — **all 7 passed**:
+  1. `POST /api/auth/register` → 404 (route gone)
+  2. `POST /api/users` as `lender_admin` with `role: super_user` → 403
+  3. `GET /api/users/:id` on a same-company user as `corporate_admin` → 200; as `corporate_user` → 403
+  4. `PUT /api/loans/:id/repayment` (valid, as the loan's lender admin) → 200, installment updated
+  5. Same with a future `paymentDate` → 400 with the exact message, no side effect
+  6. Same from a different lender company's admin (`james_admin`/QuickCash on a FirstBank loan) → 403, no side effect
+  7. `POST /api/loans/:id/prepayment` (`reduce_term`) on an active loan → 200; verified directly in the DB that the recalculated `repaymentSchedule` has no `NaN`/`null` interest or principal values
+  - Check 4 recorded a real partial payment (reference `phase01test_repayment001`, ZMW 400 on installment 2 of loan `LN20260002`) and check 7 recorded a real prepayment (notes `phase01test verification prepayment`, ZMW 2000) on demo loans — left in place per instruction rather than reversed, since undoing a prepayment's schedule recalculation cleanly is nontrivial and risks corrupting the demo data further. No test users were created (checks 1–2 were blocked before any DB write; verified user count unchanged at 11).
+  - Noted but out of scope: the prepayment response's settlement-preview summary (`beforeInterest`/`afterInterest`) showed an implausible ~21 million interest figure — a distinct bug from a different area of `calculateEarlySettlementAmount`/accrued-interest math, unrelated to Addendum A's fix and outside Phase 01's scope. Flagged for Phase 05.
+- Suite re-confirmed 133/133 after Step 8. Merged to `main`.
+
+# 2026-07-04 (Phase 01 execution)
+- Executed `docs/01-security-critical-fixes.md` on branch `phase/01-security-critical-fixes` (unmerged — see flag below)
+- Removed public `POST /api/auth/register` endpoint (`server/routes/auth.js`); the authenticated `POST /api/users` path is the only user-creation route now
+- Closed the lender-admin privilege-escalation gap in `POST /api/users` (`server/routes/users.js`) — lender admins can no longer mint `super_user` accounts and are now scoped to their own company or their corporate client companies via `Company.lenderCompany`
+- Fixed 5 crashing `req.user.hasPermission(...)` call sites in `server/routes/users.js` by adding a JWT-payload-safe `hasMinRole` helper to `server/middleware/auth.js`
+- Fixed the dead `PUT /api/loans/:id/repayment` route (`server/routes/loans.js`): moved payment-date validation inside the `try` block, and closed a cross-tenant write hole by checking `loan.lenderCompany` instead of dead role logic
+- Restored `Loan.canAcceptPrepayment()`'s return statement and fixed argument-order bugs in the three schedule recalculators (`_recalculateReducingBalanceSchedule`, `_recalculateSimpleInterestSchedule`, `_recalculateInterestOnlySchedule`) in `server/models/Loan.js` — regression from commit `531d954`
+- Test suite: 111/133 → 132/133. The one remaining failure (`Prepayment API Endpoints › calculates interest savings correctly`) traces to `Loan.calculateEarlySettlementAmount()`, a method outside this phase's scope (Phase 05 territory) — flagged, not fixed, per the phase doc's Step 7 instruction
+- Manual verifications (Step 8) not performed: the local `.env` points `MONGODB_URI` at a live production Atlas cluster, and no isolated seeded test environment was available — running functional checks (creating users, recording repayments) against it was judged unsafe
+
 # 2026-07-04
 - Merged `feature/phase-0-loan-engine` into `main` (fast-forward, no conflicts); all work now proceeds against `main`
 - Added pre-go-live audit (`docs/AUDIT_REPORT.md`), locked decisions log (`docs/DECISIONS.md`), and phased execution plans `docs/01`–`docs/10` (indexed in `docs/README.md`); archived stale roadmap/planning docs to `docs/archive/`; moved LOAN_ENGINE_DOCUMENTATION, FRONTEND_TEST_PLAN, and ZAMBIAN_PAYMENT_COMMUNICATION_GUIDE into `docs/` as live docs with obsolescence banners

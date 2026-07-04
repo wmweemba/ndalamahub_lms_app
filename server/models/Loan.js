@@ -4,7 +4,6 @@ const mongoose = require('mongoose');
 const {
   calculatePeriodInterest,
   getNextPaymentDate,
-  getDaysInPeriod,
   addMonths,
   calculateFlatRatePayment,
   calculateSimpleInterest,
@@ -1126,7 +1125,7 @@ loanSchema.methods.canAcceptPrepayment = function() {
   
   // Can accept prepayments if loan is active or disbursed
   const acceptableStatuses = ['active', 'disbursed', 'in_arrears'];
-  const paymentAmount = this.monthlyPayment || 0;
+  return acceptableStatuses.includes(this.status);
 };
 
 /**
@@ -1437,19 +1436,14 @@ loanSchema.methods._recalculateReducingBalanceSchedule = function(
     currentDate = getNextPaymentDate(currentDate, frequency);
     
     // Calculate interest for this period
-    const daysInPeriod = getDaysInPeriod(
-      i === 1 ? startDate : new Date(schedule[i-2].dueDate),
-      currentDate,
-      accrualBasis
-    );
-    
     const interest = calculatePeriodInterest(
       balance,
       annualRate,
-      daysInPeriod,
+      i === 1 ? startDate : new Date(schedule[i - 2].dueDate),
+      currentDate,
       accrualBasis
     );
-    
+
     // For last installment, use exact remaining balance
     let principal, installmentAmount;
     if (i === newTerm || balance <= paymentAmount) {
@@ -1558,19 +1552,14 @@ loanSchema.methods._recalculateSimpleInterestSchedule = function(
   for (let i = 1; i <= newTerm; i++) {
     currentDate = getNextPaymentDate(currentDate, frequency);
     
-    const daysInPeriod = getDaysInPeriod(
-      i === 1 ? startDate : new Date(schedule[i-2].dueDate),
-      currentDate,
-      accrualBasis
-    );
-    
     const interest = calculateSimpleInterest(
       remainingBalance,
       annualRate,
-      daysInPeriod,
+      i === 1 ? startDate : new Date(schedule[i - 2].dueDate),
+      currentDate,
       accrualBasis
     );
-    
+
     const principal = paymentAmount - interest;
     
     schedule.push({
@@ -1605,19 +1594,14 @@ loanSchema.methods._recalculateInterestOnlySchedule = function(
   for (let i = 1; i <= remainingTerm; i++) {
     currentDate = getNextPaymentDate(currentDate, frequency);
     
-    const daysInPeriod = getDaysInPeriod(
-      i === 1 ? startDate : new Date(schedule[i-2].dueDate),
-      currentDate,
-      accrualBasis
-    );
-    
     const interest = calculatePeriodInterest(
       remainingBalance,
       annualRate,
-      daysInPeriod,
+      i === 1 ? startDate : new Date(schedule[i - 2].dueDate),
+      currentDate,
       accrualBasis
     );
-    
+
     const isFinalPayment = (i === remainingTerm);
     const principal = isFinalPayment ? remainingBalance : 0;
     const amount = principal + interest;

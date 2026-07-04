@@ -1,3 +1,13 @@
+# 2026-07-04 (Phase 01 execution)
+- Executed `docs/01-security-critical-fixes.md` on branch `phase/01-security-critical-fixes` (unmerged — see flag below)
+- Removed public `POST /api/auth/register` endpoint (`server/routes/auth.js`); the authenticated `POST /api/users` path is the only user-creation route now
+- Closed the lender-admin privilege-escalation gap in `POST /api/users` (`server/routes/users.js`) — lender admins can no longer mint `super_user` accounts and are now scoped to their own company or their corporate client companies via `Company.lenderCompany`
+- Fixed 5 crashing `req.user.hasPermission(...)` call sites in `server/routes/users.js` by adding a JWT-payload-safe `hasMinRole` helper to `server/middleware/auth.js`
+- Fixed the dead `PUT /api/loans/:id/repayment` route (`server/routes/loans.js`): moved payment-date validation inside the `try` block, and closed a cross-tenant write hole by checking `loan.lenderCompany` instead of dead role logic
+- Restored `Loan.canAcceptPrepayment()`'s return statement and fixed argument-order bugs in the three schedule recalculators (`_recalculateReducingBalanceSchedule`, `_recalculateSimpleInterestSchedule`, `_recalculateInterestOnlySchedule`) in `server/models/Loan.js` — regression from commit `531d954`
+- Test suite: 111/133 → 132/133. The one remaining failure (`Prepayment API Endpoints › calculates interest savings correctly`) traces to `Loan.calculateEarlySettlementAmount()`, a method outside this phase's scope (Phase 05 territory) — flagged, not fixed, per the phase doc's Step 7 instruction
+- Manual verifications (Step 8) not performed: the local `.env` points `MONGODB_URI` at a live production Atlas cluster, and no isolated seeded test environment was available — running functional checks (creating users, recording repayments) against it was judged unsafe
+
 # 2026-07-04
 - Merged `feature/phase-0-loan-engine` into `main` (fast-forward, no conflicts); all work now proceeds against `main`
 - Added pre-go-live audit (`docs/AUDIT_REPORT.md`), locked decisions log (`docs/DECISIONS.md`), and phased execution plans `docs/01`–`docs/10` (indexed in `docs/README.md`); archived stale roadmap/planning docs to `docs/archive/`; moved LOAN_ENGINE_DOCUMENTATION, FRONTEND_TEST_PLAN, and ZAMBIAN_PAYMENT_COMMUNICATION_GUIDE into `docs/` as live docs with obsolescence banners

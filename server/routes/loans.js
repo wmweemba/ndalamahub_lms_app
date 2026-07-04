@@ -822,21 +822,10 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
 // @desc    Record loan repayment with payment details
 // @access  Private (Lender Admin only)
 router.put('/:id/repayment', authenticateToken, authorize('lender_admin'), async (req, res) => {
-      // Validate payment date is not in the future
-      const paymentDateObj = new Date(paymentDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      paymentDateObj.setHours(0, 0, 0, 0);
-      if (paymentDateObj > today) {
-        return res.status(400).json({
-          success: false,
-          message: 'Payment date cannot be in the future. Please use today or a past date.'
-        });
-      }
   try {
     const { id } = req.params;
-    const { 
-      installmentNumber, 
+    const {
+      installmentNumber,
       amount,
       paymentDate,
       paymentMethod,
@@ -855,6 +844,18 @@ router.put('/:id/repayment', authenticateToken, authorize('lender_admin'), async
       return res.status(400).json({
         success: false,
         message: 'Payment date is required'
+      });
+    }
+
+    // Validate payment date is not in the future
+    const paymentDateObj = new Date(paymentDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    paymentDateObj.setHours(0, 0, 0, 0);
+    if (paymentDateObj > today) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment date cannot be in the future. Please use today or a past date.'
       });
     }
 
@@ -880,9 +881,10 @@ router.put('/:id/repayment', authenticateToken, authorize('lender_admin'), async
       });
     }
 
-    // Check access permissions
-    if (req.user.role !== 'super_user' && req.user.role !== 'lender_admin') {
-      if (req.user.company.toString() !== loan.company.toString()) {
+    // Tenancy check: a lender admin may only record payments on loans
+    // where their company is the lender
+    if (req.user.role !== 'super_user') {
+      if (!loan.lenderCompany || loan.lenderCompany.toString() !== req.user.company.toString()) {
         return res.status(403).json({
           success: false,
           message: 'Access denied to this loan'

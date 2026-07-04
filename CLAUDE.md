@@ -2,7 +2,7 @@
 
 **This is a living document.** It is the single file that explains the whole application — architecture, decisions, current state, and rules of engagement. Update it whenever a meaningful state change happens (a phase from `docs/` is completed, an architecture decision changes, auth is migrated, UI_SPEC lands, etc.). Do not let it drift out of sync with reality — a stale CLAUDE.md is worse than no CLAUDE.md, because it will be trusted.
 
-**Last updated:** 2026-07-04 — feature branch merged into `main`; phase plans generated in `docs/`; pre-audit-fixes.
+**Last updated:** 2026-07-04 — feature branch merged into `main`; phase plans generated in `docs/`; Phase 01 (security-critical fixes) executed on `phase/01-security-critical-fixes`, not yet merged (one pre-existing, out-of-scope test failure blocks the 133/133 gate — see Section 6).
 
 ---
 
@@ -77,16 +77,16 @@ The placeholder-test-script concern was based on a stale pre-merge snapshot. Pos
 
 These are non-negotiable, phase-1 fixes — not up for reprioritization against feature work:
 
-- Public registration accepts an attacker-chosen role, including the top-level admin role (total RBAC bypass)
-- Repayment recording endpoint is dead (throws on every call)
-- Prepayment/early-settlement engine is dead (regression from commit `531d954`)
-- Several admin user-management endpoints 500 due to a non-existent method being called on the JWT payload
+- ~~Public registration accepts an attacker-chosen role, including the top-level admin role (total RBAC bypass)~~ — **Fixed in Phase 01** (`server/routes/auth.js`: `/register` route removed; `server/routes/users.js`: lender-admin role-assignment guard added)
+- ~~Repayment recording endpoint is dead (throws on every call)~~ — **Fixed in Phase 01** (`server/routes/loans.js`: validation block moved inside `try`, cross-tenant write hole closed via `loan.lenderCompany` check)
+- Prepayment/early-settlement engine is dead (regression from commit `531d954`) — **Partially fixed in Phase 01**: `Loan.canAcceptPrepayment()` and the three schedule-recalculation argument bugs are fixed. A separate, pre-existing bug remains in `calculateEarlySettlementAmount()`'s savings calculation (test `Prepayment API Endpoints › calculates interest savings correctly` still fails) — out of Phase 01's scope, deferred to Phase 05.
+- ~~Several admin user-management endpoints 500 due to a non-existent method being called on the JWT payload~~ — **Fixed in Phase 01** (`server/middleware/auth.js`: added `hasMinRole` helper; `server/routes/users.js`: replaced 5 `req.user.hasPermission()` call sites)
 - No cron/scheduler exists — arrears/overdue status never triggers, ever
 - Hardcoded JWT fallback secret, unused rate limiter, inconsistent token payload shapes breaking refresh
 - No `helmet`, `express-rate-limit`, or `express-mongo-sanitize`
 - 14 high-severity vulnerable server dependencies, 26 on the client
 
-Full detail, evidence, and file/line references are in `docs/AUDIT_REPORT.md` — don't duplicate that detail here, just be aware it exists and gates everything else.
+Full detail, evidence, and file/line references are in `docs/AUDIT_REPORT.md` — don't duplicate that detail here, just be aware it exists and gates everything else. Phase 01 changes are on `phase/01-security-critical-fixes`, unmerged as of this writing — see the Phase 01 flag above before treating these as live on `main`.
 
 ---
 

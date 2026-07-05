@@ -161,10 +161,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // @access  Private (Admin and HR roles)
 router.post('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
     try {
-        console.log('=== Create User Request ===');
-        console.log('Request body:', req.body);
-        console.log('Request user:', req.user);
-        
         const {
             firstName,
             lastName,
@@ -180,16 +176,6 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req
 
         // Validate required fields
         if (!firstName || !lastName || !username || !email || !phone || !password || !role || !company) {
-            console.log('Missing required fields:', {
-                firstName: !!firstName,
-                lastName: !!lastName,
-                username: !!username,
-                email: !!email,
-                phone: !!phone,
-                password: !!password,
-                role: !!role,
-                company: !!company
-            });
             return res.status(400).json({
                 success: false,
                 message: 'All required fields must be provided'

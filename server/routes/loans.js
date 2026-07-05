@@ -103,7 +103,11 @@ router.get('/:id/repayment-schedule/export/excel', authenticateToken, async (req
     res.end();
   } catch (error) {
     console.error('Excel repayment schedule export error:', error);
-    res.status(500).json({ success: false, message: 'Failed to export repayment schedule', error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to export repayment schedule',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
 });
 
@@ -112,11 +116,6 @@ router.get('/:id/repayment-schedule/export/excel', authenticateToken, async (req
 // @access  Private
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    console.log('=== Loans fetch request ===');
-    console.log('User:', req.user);
-    console.log('User role:', req.user.role);
-    console.log('User company:', req.user.company);
-    
     const {
       page = 1,
       limit = 10,
@@ -176,8 +175,6 @@ router.get('/', authenticateToken, async (req, res) => {
       filter.applicant = req.user.id;
     }
 
-    console.log('Applied filter:', filter);
-
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const total = await Loan.countDocuments(filter);
@@ -223,10 +220,6 @@ router.get('/', authenticateToken, async (req, res) => {
 // @access  Private
 router.get('/:id/summary', authenticateToken, async (req, res) => {
   try {
-    console.log('=== Get loan summary request ===');
-    console.log('Loan ID:', req.params.id);
-    console.log('User:', req.user);
-
     const { id } = req.params;
 
     const loan = await Loan.findById(id);
@@ -287,12 +280,6 @@ router.get('/:id/summary', authenticateToken, async (req, res) => {
 // @access  Private
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    console.log('=== Get loan details request ===');
-    console.log('Loan ID:', req.params.id);
-    console.log('User:', req.user);
-    console.log('User role:', req.user.role);
-    console.log('User company:', req.user.company);
-
     const { id } = req.params;
 
     const loan = await Loan.findById(id)
@@ -308,10 +295,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
         message: 'Loan not found'
       });
     }
-
-    console.log('Found loan:', loan._id);
-    console.log('Loan applicant:', loan.applicant._id);
-    console.log('Loan company:', loan.company._id);
 
     // Check access permissions based on role
     let hasAccess = false;
@@ -331,8 +314,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
       // Default: users can only see their own loans
       hasAccess = loan.applicant._id.toString() === req.user.id.toString();
     }
-
-    console.log('Access check result:', hasAccess);
 
     if (!hasAccess) {
       return res.status(403).json({
@@ -376,7 +357,6 @@ router.post('/', authenticateToken, authorize('corporate_user'), async (req, res
 
     // Get user's company and lender company
     const user = await User.findById(req.user.id).populate('company');
-    console.log('Fetched user:', user);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -600,9 +580,6 @@ router.put('/:id/approve', authenticateToken, authorize('corporate_hr', 'corpora
       });
     }
 
-    console.log('req.user.company:', req.user.company && req.user.company.toString());
-    console.log('loan.company:', loan.company && loan.company.toString());
-
     // Check access permissions
     if (
       req.user.role !== 'super_user' &&
@@ -750,9 +727,6 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
     }
 
     // Check if loan can be disbursed
-    console.log('Loan status:', loan.status);
-    console.log('Can be disbursed:', loan.canBeDisbursed());
-    
     if (!loan.canBeDisbursed()) {
       return res.status(400).json({
         success: false,
@@ -763,18 +737,12 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
     // Check access permissions based on role
     let hasAccess = false;
 
-    console.log('User role:', req.user.role);
-    console.log('User company:', req.user.company);
-    console.log('Loan lender company:', loan.lenderCompany?._id);
-
     if (req.user.role === 'super_user') {
       hasAccess = true;
     } else if (req.user.role === 'lender_admin') {
       // Lender admins can disburse loans where they are the lender company
       hasAccess = loan.lenderCompany && loan.lenderCompany._id.toString() === req.user.company.toString();
     }
-
-    console.log('Has access:', hasAccess);
 
     if (!hasAccess) {
       return res.status(403).json({

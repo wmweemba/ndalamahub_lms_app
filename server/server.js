@@ -4,6 +4,13 @@ const bodyParser = require('body-parser');
 const connectDB = require('./config/db');
 require('dotenv').config();
 
+const requiredEnv = ['MONGODB_URI', 'JWT_SECRET'];
+const missingEnv = requiredEnv.filter((name) => !process.env[name]);
+if (missingEnv.length > 0) {
+  console.error(`Missing required environment variables: ${missingEnv.join(', ')}`);
+  process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -11,12 +18,17 @@ const PORT = process.env.PORT || 5000;
 connectDB();
 
 // Middleware
+app.use(require('helmet')());
 app.use(cors({
     origin: process.env.CORS_ORIGIN || '*',
     credentials: true
 }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(require('express-mongo-sanitize')());
+
+const rateLimit = require('express-rate-limit');
+app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 50, standardHeaders: true, legacyHeaders: false }));
 
 // Import routes
 const authRoutes = require('./routes/auth');

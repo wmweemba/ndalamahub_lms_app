@@ -1,28 +1,32 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
-// Generate JWT token
-const generateToken = (userId) => {
+// Canonical access-token payload — all route code reads id/username/role/company
+const generateToken = (user) => {
   return jwt.sign(
-    { userId },
-    process.env.JWT_SECRET || 'your-secret-key',
-    { expiresIn: '7d' } // Token expires in 7 days
+    {
+      id: user._id,
+      username: user.username,
+      role: user.role,
+      company: user.company && user.company._id ? user.company._id : user.company
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
   );
 };
 
-// Generate refresh token
-const generateRefreshToken = (userId) => {
+const generateRefreshToken = (user) => {
   return jwt.sign(
-    { userId, type: 'refresh' },
-    process.env.JWT_SECRET || 'your-secret-key',
-    { expiresIn: '30d' } // Refresh token expires in 30 days
+    { id: user._id, type: 'refresh' },
+    process.env.JWT_SECRET,
+    { expiresIn: '30d' }
   );
 };
 
 // Verify JWT token
 const verifyToken = (token) => {
   try {
-    return jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    return jwt.verify(token, process.env.JWT_SECRET);
   } catch (error) {
     throw error;
   }

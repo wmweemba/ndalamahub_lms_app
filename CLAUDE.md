@@ -2,7 +2,7 @@
 
 **This is a living document.** It is the single file that explains the whole application — architecture, decisions, current state, and rules of engagement. Update it whenever a meaningful state change happens (a phase from `docs/` is completed, an architecture decision changes, auth is migrated, UI_SPEC lands, etc.). Do not let it drift out of sync with reality — a stale CLAUDE.md is worse than no CLAUDE.md, because it will be trusted.
 
-**Last updated:** 2026-07-04 — feature branch merged into `main`; phase plans generated in `docs/`; Phase 01 (security-critical fixes), including Addendum A, fully executed and merged into `main` — suite is 133/133, all Step 8 manual verifications passed against the demo Atlas database. Phase 01 is closed.
+**Last updated:** 2026-07-05 — Phase 02 (auth & platform hardening) fully executed and merged into `main` — suite is 133/133, all eight Step 8 verifications passed against the demo Atlas database, `pnpm audit --prod` on the server shows 0 vulnerabilities. Phase 02 is closed.
 
 ---
 
@@ -52,7 +52,7 @@ The placeholder-test-script concern was based on a stale pre-merge snapshot. Pos
 - **Current**: local development, with hosting believed to be split across Render/Railway (backend) and Vercel (frontend) — verify exact current setup before assuming, since William isn't fully certain of the current split.
 - **Target**: migrating to a Coolify-managed Hetzner VPS, using a MongoDB service already running on Coolify. This migration is expected once the audit-fix phases are complete — not before.
 - No secrets, connection strings, or credentials belong in this file, in commit messages, or in any doc committed to the repo. Reference environment variable **names** only (e.g. `MONGODB_URI`, `JWT_SECRET`). See `docs/AUDIT_REPORT.md` Section 9 for the current inventory of env vars actually used vs. documented.
-- There is currently no `.env.example` in the repo — creating one is a reasonable, low-risk cleanup task.
+- `server/.env.example` and `client/.env.example` exist (added in Phase 02) — names and placeholder comments only, no real values. Server required vars: `MONGODB_URI`, `JWT_SECRET` (server exits at boot if either is missing); optional: `PORT`, `NODE_ENV`, `CORS_ORIGIN`. Client: `VITE_API_URL`. Note: `JWT_EXPIRE` still exists in the local `server/.env` but is unused dead config — safe to delete whenever convenient.
 
 ---
 
@@ -81,12 +81,14 @@ These are non-negotiable, phase-1 fixes — not up for reprioritization against 
 - ~~Repayment recording endpoint is dead (throws on every call)~~ — **Fixed in Phase 01** (`server/routes/loans.js`: validation block moved inside `try`, cross-tenant write hole closed via `loan.lenderCompany` check)
 - ~~Prepayment/early-settlement engine is dead (regression from commit `531d954`)~~ — **Fixed in Phase 01**: `Loan.canAcceptPrepayment()` return statement restored, the three schedule-recalculator argument-order bugs fixed, and (via Addendum A) `calculateEarlySettlementAmount()`'s savings formula corrected to count all unpaid installments' interest, not just future-dated ones. Suite is 133/133.
 - ~~Several admin user-management endpoints 500 due to a non-existent method being called on the JWT payload~~ — **Fixed in Phase 01** (`server/middleware/auth.js`: added `hasMinRole` helper; `server/routes/users.js`: replaced 5 `req.user.hasPermission()` call sites)
-- No cron/scheduler exists — arrears/overdue status never triggers, ever
-- Hardcoded JWT fallback secret, unused rate limiter, inconsistent token payload shapes breaking refresh
-- No `helmet`, `express-rate-limit`, or `express-mongo-sanitize`
-- 14 high-severity vulnerable server dependencies, 26 on the client
+- No cron/scheduler exists — arrears/overdue status never triggers, ever (still open; not part of Phase 01 or 02)
+- ~~Hardcoded JWT fallback secret, unused rate limiter, inconsistent token payload shapes breaking refresh~~ — **Fixed in Phase 02**: `server/utils/auth.js` and the `/refresh` route no longer fall back to `'your-secret-key'` (server now fails fast at boot if `JWT_SECRET`/`MONGODB_URI` are unset); access/refresh tokens now share a canonical `{id, username, role, company}` payload, fixing the previously-unusable refresh flow; the existing per-username login rate limiter is wired up (5/15min) alongside a broader `express-rate-limit` backstop on `/api/auth` (50/15min)
+- ~~No `helmet`, `express-rate-limit`, or `express-mongo-sanitize`~~ — **Fixed in Phase 02**: all three added to `server/server.js`; `express-mongo-sanitize` closes the `?status[$ne]=x`-style operator-injection class on list endpoints
+- ~~14 high-severity vulnerable server dependencies, 26 on the client~~ — **Server fixed in Phase 02**: `pnpm audit --prod` on the server now shows 0 vulnerabilities (via `pnpm update` + a `pnpm.overrides` pin on transitive `uuid`). Client: `axios`/`react-router-dom`/`vite` bumped within current majors, but several high/moderate findings remain — all transitive dev-build-tool dependencies (`rollup`, `picomatch`, `postcss`, `esbuild` via `@tailwindcss/vite`→`vite`, plus `form-data` via `axios`) not yet resolved; see `changelog.md` Phase 02 entry
 
-Full detail, evidence, and file/line references are in `docs/AUDIT_REPORT.md` — don't duplicate that detail here, just be aware it exists and gates everything else. Phase 01 (all four items above plus the settlement-savings fix) is merged into `main`; suite is 133/133 and all 7 Step 8 manual checks passed against the demo Atlas database.
+Full detail, evidence, and file/line references are in `docs/AUDIT_REPORT.md` — don't duplicate that detail here, just be aware it exists and gates everything else. Phase 01 (register/RBAC/repayment/prepayment fixes plus the settlement-savings fix) and Phase 02 (auth/platform hardening, all items above) are both merged into `main`; suite is 133/133. All security-baseline items from the audit are now resolved except the role rename (Phase 03) and the cron/scheduler gap (unscheduled).
+
+**Newly noted in Phase 02 (not fixed, flagged for a future phase):** the `express-mongo-sanitize` fix correctly strips injected Mongo operators (e.g. `$ne`) from query params, but on `GET /api/loans` this leaves `filter.status` as an empty object, which Mongoose then fails to cast, producing a 500 instead of a graceful filtered/empty result. The security property holds (no operator injection, not all loans returned) but the endpoint doesn't validate the shape of the `status` query param.
 
 **Noted but out of scope (Phase 05):** the prepayment endpoint's settlement-preview summary (`beforeInterest`/`afterInterest`) produced an implausible ~21 million interest figure during Step 8 verification — a distinct bug in the accrued-interest/settlement math, separate from the Addendum A fix, not investigated or fixed here.
 
@@ -104,7 +106,7 @@ Until this phase lands, don't add new ad hoc scoping checks that follow the old 
 
 ## 8. Auth
 
-**Current**: custom JWT implementation (`jsonwebtoken` + `bcryptjs`). Has known critical issues (Section 6) that must be fixed as part of the security baseline regardless of future plans.
+**Current**: custom JWT implementation (`jsonwebtoken` + `bcryptjs`). As of Phase 02, the known critical issues from the security baseline (Section 6) are fixed: no hardcoded fallback secret, fail-fast on missing `JWT_SECRET`/`MONGODB_URI`, unified `{id, username, role, company}` token payload shared by login and refresh (refresh flow now actually works), login rate limiting wired up, and `helmet`/`express-rate-limit`/`express-mongo-sanitize` in place. Login now also returns a `refreshToken` — additive, since the client doesn't yet call `/api/auth/refresh` (still using a single long-lived access token). Tokens remain in `localStorage` (XSS-exfiltratable) and access tokens remain 7-day-lived; both are deliberately unchanged pending the auth migration below.
 
 **Planned**: migration to a more robust, dedicated auth solution once the initial audit issues are resolved — this will support more auth methods and is expected to be cleaner than the current hand-rolled implementation. The specific library/approach hasn't been decided yet. **Do not invest in deep refactors of the current JWT internals beyond the security fixes already scoped in Section 6** — anything more elaborate will likely be thrown away in the migration. Fix what's broken/insecure now; don't build on top of it.
 

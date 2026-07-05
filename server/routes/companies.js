@@ -8,9 +8,6 @@ const { authenticateToken, authorizeRole, authorizeMinRole } = require('../middl
 // @access  Private (Admin roles only)
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        console.log('=== Companies request ===');
-        console.log('User:', req.user);
-        
         let companies;
         
         // Super user can see all companies
@@ -39,14 +36,12 @@ router.get('/', authenticateToken, async (req, res) => {
             companies = await Company.find({ 
                 _id: req.user.company 
             }).select('-settings');
-            console.log('Found companies for corporate user:', companies);
         }
         // Other roles should not access this endpoint
         else {
             return res.status(403).json({ message: 'Access denied: Insufficient permissions' });
         }
         
-        console.log('Returning companies:', companies);
         res.json(companies);
     } catch (error) {
         console.error('Companies fetch error:', error);
@@ -59,10 +54,6 @@ router.get('/', authenticateToken, async (req, res) => {
 // @access  Private (Super user and lender admin)
 router.post('/', authenticateToken, async (req, res) => {
     try {
-        // Add debug logging
-        console.log('User attempting company creation:', req.user);
-        console.log('Request body:', req.body);
-
         // Super user can create any type of company
         if (req.user.role === 'super_user') {
             const company = new Company(req.body);

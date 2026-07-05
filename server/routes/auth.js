@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const Company = require('../models/Company');
 const { authenticateToken, authorize } = require('../middleware/auth');
 const {
   generateToken,
@@ -23,18 +22,16 @@ router.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
 
+        const rateKey = `${req.ip}:${(username || '').toLowerCase()}`;
+        if (!loginRateLimiter(rateKey)) {
+            return res.status(429).json({ message: 'Too many login attempts. Please try again in 15 minutes.' });
+        }
+
         // Find user by username
         const user = await User.findOne({ username });
         if (!user) {
             return res.status(401).json({ message: 'Invalid username or password' });
         }
-
-        // Debug log to check user data
-        console.log('Found user:', {
-            id: user._id,
-            username: user.username,
-            role: user.role
-        });
 
         // Verify password
         const isValid = await user.comparePassword(password);
@@ -42,30 +39,12 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ message: 'Invalid username or password' });
         }
 
-        // Create payload object first for verification
-        const tokenPayload = {
-            id: user._id,
-            username: user.username,
-            role: user.role,
-            company: user.company
-        };
-
-        // Debug log the payload
-        console.log('Token payload before signing:', tokenPayload);
-
-        // Generate token
-        const token = jwt.sign(
-            tokenPayload,
-            process.env.JWT_SECRET,
-            { expiresIn: '7d' }
-        );
-
-        // Verify the token immediately after creation
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        console.log('Verified token payload:', decoded);
+        const token = generateToken(user);
+        const refreshToken = generateRefreshToken(user);
 
         res.json({
             token,
+            refreshToken,
             user: {
                 id: user._id,
                 username: user.username,
@@ -94,8 +73,8 @@ router.post('/refresh', async (req, res) => {
     }
 
     // Verify refresh token
-    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET || 'your-secret-key');
-    
+    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+
     if (decoded.type !== 'refresh') {
       return res.status(401).json({
         success: false,
@@ -104,7 +83,7 @@ router.post('/refresh', async (req, res) => {
     }
 
     // Check if user exists and is active
-    const user = await User.findById(decoded.userId)
+    const user = await User.findById(decoded.id)
       .populate('company')
       .select('-password');
 
@@ -116,8 +95,8 @@ router.post('/refresh', async (req, res) => {
     }
 
     // Generate new tokens
-    const newToken = generateToken(user._id);
-    const newRefreshToken = generateRefreshToken(user._id);
+    const newToken = generateToken(user);
+    const newRefreshToken = generateRefreshToken(user);
 
     res.json({
       success: true,
@@ -176,6 +155,7 @@ router.post('/forgot-password', async (req, res) => {
       success: true,
       message: 'Password reset link sent to your email',
       data: {
+        // TODO(phase-09): remove once reset emails send
         resetToken: process.env.NODE_ENV === 'development' ? resetToken : undefined
       }
     });
@@ -274,15 +254,9 @@ router.post('/logout', authenticateToken, async (req, res) => {
 // @access  Private
 router.get('/me', authenticateToken, async (req, res) => {
   try {
-    console.log('=== /auth/me endpoint called ===');
-    console.log('req.user:', req.user);
-    console.log('req.user.id:', req.user?.id);
-    
     const user = await User.findById(req.user.id)
       .populate('company')
       .select('-password');
-      
-    console.log('Found user:', user ? `${user.username} (${user.role})` : 'null');
 
     res.json({
       success: true,

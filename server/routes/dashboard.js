@@ -61,7 +61,7 @@ router.get('/stats', authenticateToken, authorizeMinRole('corporate_admin'), asy
         res.status(500).json({
             success: false,
             message: 'Error fetching dashboard statistics',
-            error: error.message
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
         });
     }
 });
@@ -71,10 +71,6 @@ router.get('/stats', authenticateToken, authorizeMinRole('corporate_admin'), asy
 // @access  Private (Lender Admin and above)
 router.get('/lender-stats', authenticateToken, authorizeMinRole('lender_admin'), async (req, res) => {
     try {
-        console.log('=== Lender dashboard stats request ===');
-        console.log('User:', req.user);
-        console.log('User company (lender):', req.user.company);
-
         // Get lender company information
         const lenderCompany = await Company.findById(req.user.company);
         if (!lenderCompany) {
@@ -228,7 +224,7 @@ router.get('/lender-stats', authenticateToken, authorizeMinRole('lender_admin'),
         res.status(500).json({
             success: false,
             message: 'Error fetching lender dashboard statistics',
-            error: error.message
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
         });
     }
 });
@@ -238,10 +234,6 @@ router.get('/lender-stats', authenticateToken, authorizeMinRole('lender_admin'),
 // @access  Private (Corporate HR and above)
 router.get('/hr-stats', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
     try {
-        console.log('=== HR dashboard stats request ===');
-        console.log('User:', req.user);
-        console.log('User company:', req.user.company);
-
         // Get company information
         const company = await Company.findById(req.user.company);
         if (!company) {
@@ -394,7 +386,7 @@ router.get('/hr-stats', authenticateToken, authorizeMinRole('corporate_hr'), asy
         res.status(500).json({
             success: false,
             message: 'Error fetching HR dashboard statistics',
-            error: error.message
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
         });
     }
 });
@@ -404,15 +396,10 @@ router.get('/hr-stats', authenticateToken, authorizeMinRole('corporate_hr'), asy
 // @access  Private (All authenticated users)
 router.get('/user-stats', authenticateToken, async (req, res) => {
     try {
-        console.log('=== User dashboard stats request ===');
-        console.log('User:', req.user);
-
         // Get user's loans
-        const userLoans = await Loan.find({ 
-            applicant: req.user.id 
+        const userLoans = await Loan.find({
+            applicant: req.user.id
         }).populate('company', 'name');
-
-        console.log('Found user loans:', userLoans.length);
 
         // Calculate loan statistics
         const totalLoans = userLoans.length;
@@ -499,7 +486,7 @@ router.get('/user-stats', authenticateToken, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error fetching user dashboard statistics',
-            error: error.message
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
         });
     }
 });

@@ -517,7 +517,6 @@ const loanSchema = new mongoose.Schema({
 
 // Generate loan number before saving
 loanSchema.pre('save', async function(next) {
-  console.log('Loan pre-save hook triggered for:', this._id, this.amount, this.term);
   if (this.isNew && !this.loanNumber) {
     const year = new Date().getFullYear();
     const count = await this.constructor.countDocuments({ 

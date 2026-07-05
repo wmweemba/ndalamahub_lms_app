@@ -79,7 +79,7 @@ router.get('/available', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching available products',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -129,7 +129,7 @@ router.get('/', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching products',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -166,7 +166,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching product',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -186,7 +186,7 @@ router.get('/category/:category', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching products',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -229,7 +229,7 @@ router.post('/', authenticateToken, authorize(['super_user', 'lender_admin']), a
     res.status(500).json({
       success: false,
       message: 'Error creating product',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -286,7 +286,7 @@ router.put('/:id', authenticateToken, authorize(['super_user', 'lender_admin']),
     res.status(500).json({
       success: false,
       message: 'Error updating product',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -325,7 +325,7 @@ router.delete('/:id', authenticateToken, authorize(['super_user', 'lender_admin'
     res.status(500).json({
       success: false,
       message: 'Error deleting product',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -369,7 +369,7 @@ router.post('/:id/check-eligibility', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error checking eligibility',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -424,7 +424,7 @@ router.post('/:id/calculate-fees', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error calculating fees',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -468,7 +468,7 @@ router.get('/stats/overview', authenticateToken, authorize(['super_user', 'lende
     res.status(500).json({
       success: false,
       message: 'Error fetching statistics',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -676,7 +676,7 @@ router.post('/:id/calculate-schedule', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error calculating repayment schedule',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });

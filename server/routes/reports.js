@@ -45,28 +45,6 @@ const getDateRange = (period) => {
 // @access  Private (HR and Admin roles)
 router.get('/overview', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
   try {
-    console.log('=== Reports overview request ===');
-    console.log('User:', req.user);
-    console.log('User role:', req.user.role);
-    console.log('User company:', req.user.company);
-
-    // First, let's get all loans to see what's in the database
-    const allLoans = await Loan.find({}).populate('company', 'name').populate('applicant', 'firstName lastName');
-    console.log('📊 Total loans in database:', allLoans.length);
-    
-    if (allLoans.length > 0) {
-      console.log('Sample loan companies:');
-      allLoans.slice(0, 3).forEach((loan, index) => {
-        console.log(`Loan ${index + 1}:`, {
-          id: loan._id,
-          status: loan.status,
-          companyId: loan.company?._id,
-          companyName: loan.company?.name,
-          applicant: loan.applicant ? `${loan.applicant.firstName} ${loan.applicant.lastName}` : 'No applicant'
-        });
-      });
-    }
-
     // Build company filter based on user role
     let companyFilter = {};
     if (req.user.role !== 'super_user') {
@@ -79,14 +57,12 @@ router.get('/overview', authenticateToken, authorizeMinRole('corporate_hr'), asy
       } else if (req.user.role === 'corporate_admin' || req.user.role === 'corporate_hr') {
         // Get user's company details to determine if it's a lender or corporate company
         const userCompany = await Company.findById(req.user.company);
-        console.log('🏢 User company details:', userCompany);
-        
+
         if (userCompany.type === 'lender') {
           // If user belongs to a lender company, show loans where lenderCompany matches
           // Also include loans from corporate companies that this lender serves
           const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
-          console.log('🏢 Corporate companies served by this lender:', corporateCompanies.length);
-          
+
           companyFilter.$or = [
             { lenderCompany: req.user.company },
             { company: { $in: corporateCompanies.map(c => c._id) } }
@@ -95,44 +71,19 @@ router.get('/overview', authenticateToken, authorizeMinRole('corporate_hr'), asy
           // If user belongs to a corporate company, show loans where company matches
           companyFilter.company = req.user.company;
         }
-        
-        console.log('🔍 HR/Admin company filter - looking for loans with filter:', companyFilter);
-        
-        // Let's also check what loans match this filter
-        const matchingLoans = await Loan.find(companyFilter).populate('company', 'name').populate('lenderCompany', 'name');
-        console.log('📈 Loans matching company filter:', matchingLoans.length);
-        if (matchingLoans.length > 0) {
-          console.log('Matching loan details:');
-          matchingLoans.forEach((loan, index) => {
-            console.log(`Match ${index + 1}:`, {
-              id: loan._id,
-              status: loan.status,
-              companyId: loan.company?._id,
-              companyName: loan.company?.name,
-              lenderCompanyId: loan.lenderCompany?._id,
-              lenderCompanyName: loan.lenderCompany?.name
-            });
-          });
-        }
       }
     }
-
-    console.log('Applied company filter:', companyFilter);
 
     // Get loans by status
     const loansByStatus = await Loan.aggregate([
       { $match: companyFilter },
       { $group: { _id: '$status', count: { $sum: 1 } } }
     ]);
-    
-    console.log('📊 Loans by status aggregation result:', loansByStatus);
 
     const loansByStatusObj = {};
     loansByStatus.forEach(item => {
       loansByStatusObj[item._id] = item.count;
     });
-    
-    console.log('📈 Processed loans by status object:', loansByStatusObj);
 
     // Get companies by type
     let companiesFilter = {};
@@ -167,15 +118,11 @@ router.get('/overview', authenticateToken, authorizeMinRole('corporate_hr'), asy
       { $match: { isActive: true, ...companiesFilter } },
       { $group: { _id: '$type', count: { $sum: 1 } } }
     ]);
-    
-    console.log('🏢 Companies by type aggregation result:', companiesByType);
 
     const companiesByTypeObj = {};
     companiesByType.forEach(item => {
       companiesByTypeObj[item._id] = item.count;
     });
-    
-    console.log('🏢 Processed companies by type object:', companiesByTypeObj);
 
     // Get monthly loan trends (last 6 months)
     const sixMonthsAgo = new Date();
@@ -228,8 +175,6 @@ router.get('/overview', authenticateToken, authorizeMinRole('corporate_hr'), asy
       monthlyLoanTrends: monthlyTrends,
       paymentStatus: paymentStatusObj
     };
-    
-    console.log('📋 Final response data:', responseData);
 
     res.json({
       success: true,
@@ -440,8 +385,6 @@ router.get('/upcoming-payments', authenticateToken, authorizeMinRole('corporate_
 router.get('/:type/export/:format', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
   try {
     const { type, format } = req.params;
-    
-    console.log(`Export request: type=${type}, format=${format}`);
     
     // Build company filter based on user role
     let companyFilter = {};

@@ -1,3 +1,10 @@
+# 2026-07-09 (CLAUDE.md documentation correction)
+- Fixed a stale-documentation inconsistency: CLAUDE.md Sections 2 and 11 still cited the original pre-Phase-01 audit baseline ("133 server tests, 111 pass / 22 fail") as if it were the current test count, contradicting Section 6 of the same file which already correctly states the suite is 133/133 following the Phase 01 fix
+- Verified directly before editing: `pnpm test` on `main` (`204b176`) → 133/133; checked out the Phase 01 merge commit (`0ef9b50`) in a throwaway worktree and confirmed the suite was already 133/133 there too, i.e. before Phase 02 touched anything. Also confirmed none of Phase 02's route-file changes are exercised by the suite at all — every test file under `server/utils/__tests__/` imports models/utilities directly, not routes, and the one file importing `supertest` never calls `request(app)`
+- Updated CLAUDE.md Section 2 (line 28) and Section 11 (line 147) to describe the 111/133 figure as the historical pre-Phase-01 baseline and state the suite is currently 133/133; bumped the "Last updated" line accordingly
+- `docs/AUDIT_REPORT.md` deliberately left untouched — it's a historical record of the pre-Phase-01 audit and is meant to keep the original 111/133 figure
+- Documentation-only change; no code modified
+
 # 2026-07-05 (Phase 02 execution)
 - Executed `docs/02-security-hardening.md` on branch `phase/02-security-hardening`
 - Killed the hardcoded JWT fallback secret (`'your-secret-key'`) in `server/utils/auth.js` (3 sites) and `server/routes/auth.js` refresh route; server now fails fast at boot (`server/server.js`) if `MONGODB_URI` or `JWT_SECRET` is unset. Removed the equivalent Mongo-URI fallback in `server/config/db.js`

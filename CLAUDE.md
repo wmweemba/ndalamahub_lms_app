@@ -2,7 +2,7 @@
 
 **This is a living document.** It is the single file that explains the whole application — architecture, decisions, current state, and rules of engagement. Update it whenever a meaningful state change happens (a phase from `docs/` is completed, an architecture decision changes, auth is migrated, UI_SPEC lands, etc.). Do not let it drift out of sync with reality — a stale CLAUDE.md is worse than no CLAUDE.md, because it will be trusted.
 
-**Last updated:** 2026-07-05 — Phase 02 (auth & platform hardening) fully executed and merged into `main` — suite is 133/133, all eight Step 8 verifications passed against the demo Atlas database, `pnpm audit --prod` on the server shows 0 vulnerabilities. Phase 02 is closed.
+**Last updated:** 2026-07-09 — corrected stale 111/133 baseline references in Sections 2 and 11 post Phase 01/02 merge; suite has been 133/133 since the Phase 01 merge (`0ef9b50`), confirmed still 133/133 as of this update. No code changed.
 
 ---
 
@@ -25,7 +25,7 @@ Nexus (platform owner)
 ## 2. Current state (as of this writing)
 
 - `feature/phase-0-loan-engine` was **merged into `main`** on 2026-07-04 (clean fast-forward, `main` @ `8ad1f57`). All work now happens against `main`.
-- A full pre-go-live audit has been completed and lives at `docs/AUDIT_REPORT.md`. It found several critical issues (see Section 6) that must be fixed before any client-facing use. **Do not treat the app as production-ready until those are resolved.** Verified baseline: 133 server tests, 111 pass / 22 fail (all failures from the `canAcceptPrepayment` regression).
+- A full pre-go-live audit has been completed and lives at `docs/AUDIT_REPORT.md`. It found several critical issues (see Section 6) that must be fixed before any client-facing use. **Do not treat the app as production-ready until those are resolved.** The audit's original baseline (133 server tests, 111 pass / 22 fail, all failures from the `canAcceptPrepayment` regression) is historical — that regression was fixed in Phase 01, and the suite has been 133/133 since the Phase 01 merge (`0ef9b50`). Phase 02 is also merged; suite remains 133/133. See `docs/AUDIT_REPORT.md` for the original pre-fix figures.
 - Locked decisions from the planning session live at `docs/DECISIONS.md`. Treat that file as authoritative — this CLAUDE.md summarizes it, but `DECISIONS.md` is the source of truth if they ever disagree (and if they do, that's a bug in this file — fix it).
 - Phased execution plans **have been generated**: `docs/01-security-critical-fixes.md` through `docs/10-subscription-gating.md`, indexed in `docs/README.md`. None have been executed yet. Claude Code executing a phase must follow that phase's document exactly — see Section 11 (Working Rules) before touching code.
 - Pre-existing roadmap/planning documents (PRODUCTION_ROADMAP, WEEK_* summaries, etc.) were archived to `docs/archive/` and must not be used as planning input.
@@ -144,7 +144,7 @@ If you are Claude Code operating in this repo and there is no specific phase doc
 
 Every phase document is expected to be sized to fit a single ~1.5–2 hour focused session, with explicit stopping/resume points if it can't be. Don't try to compress multiple phases into one sitting even if it seems achievable — the phase boundaries exist on purpose.
 
-The test suite (`docs/AUDIT_REPORT.md` Section 10 notes 133 server tests, 111 passing pre-fix) is the standing regression check. Treat "suite is green" as a gate before considering any phase complete, once the test-command issue in Section 3 is resolved.
+The test suite (133 server tests; `docs/AUDIT_REPORT.md` Section 10 records the original pre-fix baseline of 111 passing, since fixed in Phase 01 — suite is currently 133/133) is the standing regression check. Treat "suite is green" as a gate before considering any phase complete, once the test-command issue in Section 3 is resolved.
 
 ---
 

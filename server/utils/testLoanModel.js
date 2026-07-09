@@ -16,7 +16,7 @@ async function testLoanCalculations() {
     
     // Find a test company and user
     const company = await Company.findOne({ type: 'lender' });
-    const user = await User.findOne({ role: 'super_user' });
+    const user = await User.findOne({ role: 'platform_admin' });
     
     if (!company || !user) {
       console.log('❌ Need company and user for testing');

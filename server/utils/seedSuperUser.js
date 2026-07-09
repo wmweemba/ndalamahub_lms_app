@@ -56,7 +56,7 @@ const seedDatabase = async () => {
             lastName: 'Administrator',
             email: 'admin@ndalamahub.com',
             phone: '260955000000',
-            role: 'super_user',
+            role: 'platform_admin',
             company: company._id,
             status: 'active',
             department: 'Administration',

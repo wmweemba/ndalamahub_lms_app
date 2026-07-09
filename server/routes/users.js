@@ -20,7 +20,7 @@ const {
 // @route   GET /api/users
 // @desc    Get all users (with filters)
 // @access  Private (Admin and HR roles)
-router.get('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
+router.get('/', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     const {
       page = 1,
@@ -36,7 +36,7 @@ router.get('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req,
     let filter = {};
 
     // Company filter based on user role
-    if (req.user.role !== 'super_user') {
+    if (req.user.role !== 'platform_admin') {
       if (req.user.role === 'lender_admin') {
         // Lender admins can see users from their company and corporate clients
         const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
@@ -114,7 +114,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
     // Check if user is accessing their own profile or has admin rights
     if (req.user.id.toString() !== id && 
-        !hasMinRole(req.user.role, 'corporate_admin')) {
+        !hasMinRole(req.user.role, 'employer_admin')) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -133,7 +133,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     }
 
     // Check company access for non-super users
-    if (req.user.role !== 'super_user' && 
+    if (req.user.role !== 'platform_admin' && 
         req.user.company.toString() !== user.company._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -159,7 +159,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // @route   POST /api/users
 // @desc    Create new user
 // @access  Private (Admin and HR roles)
-router.post('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
+router.post('/', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
     try {
         const {
             firstName,
@@ -192,7 +192,7 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req
         }
 
         // Company access validation - corporate users can only create users in their own company
-        if (req.user.role === 'corporate_admin' || req.user.role === 'corporate_hr') {
+        if (req.user.role === 'employer_admin' || req.user.role === 'employer_hr') {
             if (company !== req.user.company.toString()) {
                 return res.status(403).json({
                     success: false,
@@ -200,8 +200,8 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req
                 });
             }
             
-            // Corporate users cannot create lender roles
-            const lenderRoles = ['super_user', 'lender_admin', 'lender_user'];
+            // Employer-side users cannot create lender roles
+            const lenderRoles = ['platform_admin', 'lender_admin', 'lender_officer'];
             if (lenderRoles.includes(role)) {
                 return res.status(403).json({
                     success: false,
@@ -209,33 +209,33 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req
                 });
             }
             
-            // Corporate HR can only create specific roles
-            if (req.user.role === 'corporate_hr') {
-                const allowedRoles = ['corporate_user', 'corporate_hr'];
+            // Employer HR can only create specific roles
+            if (req.user.role === 'employer_hr') {
+                const allowedRoles = ['borrower', 'employer_hr'];
                 if (!allowedRoles.includes(role)) {
                     return res.status(403).json({
                         success: false,
-                        message: 'Corporate HR can only create corporate_user and corporate_hr roles'
+                        message: 'Employer HR can only create borrower and employer_hr roles'
                     });
                 }
             }
-            
-            // Corporate admin can create corporate roles but not lender roles
-            if (req.user.role === 'corporate_admin') {
-                const allowedRoles = ['corporate_user', 'corporate_hr', 'corporate_admin'];
+
+            // Employer admin can create employer-side roles but not lender roles
+            if (req.user.role === 'employer_admin') {
+                const allowedRoles = ['borrower', 'employer_hr', 'employer_admin'];
                 if (!allowedRoles.includes(role)) {
                     return res.status(403).json({
                         success: false,
-                        message: 'Corporate admin can only create corporate roles'
+                        message: 'Employer admin can only create employer-side roles'
                     });
                 }
             }
         }
 
-        // Lender admins cannot mint platform-level accounts, and may only create
+        // Lender admins/officers cannot mint platform-level accounts, and may only create
         // users in their own company or their corporate client companies
-        if (req.user.role === 'lender_admin') {
-            if (role === 'super_user') {
+        if (req.user.role === 'lender_admin' || req.user.role === 'lender_officer') {
+            if (role === 'platform_admin') {
                 return res.status(403).json({
                     success: false,
                     message: 'You cannot create super user accounts'
@@ -250,6 +250,14 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req
                     message: 'You can only create users within your own company or your corporate clients'
                 });
             }
+        }
+
+        // No caller may create a user with a role above their own level
+        if (!hasMinRole(req.user.role, role)) {
+            return res.status(403).json({
+                success: false,
+                message: 'You cannot create users with a role senior to your own'
+            });
         }
 
         // Check if username already exists
@@ -292,7 +300,7 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req
         };
 
         // Auto-generate employeeId for corporate users if not provided
-        if ((role === 'corporate_user' || role === 'corporate_hr') && !employeeId) {
+        if ((role === 'borrower' || role === 'employer_hr') && !employeeId) {
             // Generate a simple employee ID based on company and current timestamp
             const companyDoc = await Company.findById(company);
             const companyPrefix = companyDoc?.name?.substring(0, 3).toUpperCase() || 'EMP';
@@ -325,7 +333,7 @@ router.post('/', authenticateToken, authorizeMinRole('corporate_hr'), async (req
 // @route   PATCH /api/users/:id/status
 // @desc    Toggle user active status
 // @access  Private (Admin and HR roles)
-router.patch('/:id/status', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
+router.patch('/:id/status', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     const { id } = req.params;
     const { isActive } = req.body;
@@ -347,7 +355,7 @@ router.patch('/:id/status', authenticateToken, authorizeMinRole('corporate_hr'),
     }
 
     // Check company access for non-super users
-    if (req.user.role !== 'super_user' && 
+    if (req.user.role !== 'platform_admin' && 
         req.user.company.toString() !== user.company.toString()) {
       return res.status(403).json({
         success: false,
@@ -384,7 +392,7 @@ router.put('/:id/password', authenticateToken, async (req, res) => {
 
     // Check if user is changing their own password or has admin rights
     if (req.user.id.toString() !== id && 
-        !hasMinRole(req.user.role, 'corporate_admin')) {
+        !hasMinRole(req.user.role, 'employer_admin')) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -400,7 +408,7 @@ router.put('/:id/password', authenticateToken, async (req, res) => {
     }
 
     // Check company access for non-super users
-    if (req.user.role !== 'super_user' && 
+    if (req.user.role !== 'platform_admin' && 
         req.user.company.toString() !== user.company.toString()) {
       return res.status(403).json({
         success: false,
@@ -474,7 +482,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     // Check if user is updating their own profile or has admin rights
     if (req.user.id.toString() !== id && 
-        !hasMinRole(req.user.role, 'corporate_admin')) {
+        !hasMinRole(req.user.role, 'employer_admin')) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -490,7 +498,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
 
     // Check company access for non-super users
-    if (req.user.role !== 'super_user' && 
+    if (req.user.role !== 'platform_admin' && 
         req.user.company.toString() !== user.company.toString()) {
       return res.status(403).json({
         success: false,
@@ -531,22 +539,22 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
 
     // Role update (admin only)
-    if (role && hasMinRole(req.user.role, 'corporate_admin')) {
+    if (role && hasMinRole(req.user.role, 'employer_admin')) {
       user.role = role;
     }
 
     // Department update
-    if (department !== undefined && (user.role === 'corporate_user' || user.role === 'corporate_hr')) {
+    if (department !== undefined && (user.role === 'borrower' || user.role === 'employer_hr')) {
       user.department = department;
     }
 
-    // Employee ID update (corporate_user only)
-    if (employeeId !== undefined && user.role === 'corporate_user') {
+    // Employee ID update (borrower only)
+    if (employeeId !== undefined && user.role === 'borrower') {
       user.employeeId = employeeId;
     }
 
     // Active status update (admin only)
-    if (isActive !== undefined && hasMinRole(req.user.role, 'corporate_admin')) {
+    if (isActive !== undefined && hasMinRole(req.user.role, 'employer_admin')) {
       user.isActive = isActive;
     }
 
@@ -573,7 +581,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 // @route   PATCH /api/users/:id/reset-password
 // @desc    Reset user password (Admin only)
 // @access  Private (Admin roles only)
-router.patch('/:id/reset-password', authenticateToken, authorize(['super_user', 'lender_admin', 'corporate_admin']), async (req, res) => {
+router.patch('/:id/reset-password', authenticateToken, authorize(['platform_admin', 'lender_admin', 'employer_admin']), async (req, res) => {
   try {
     const { id } = req.params;
     const { newPassword } = req.body;
@@ -603,7 +611,7 @@ router.patch('/:id/reset-password', authenticateToken, authorize(['super_user', 
     }
 
     // Check company access for non-super users
-    if (req.user.role !== 'super_user') {
+    if (req.user.role !== 'platform_admin') {
       if (req.user.role === 'lender_admin') {
         // Lender admins can reset passwords for their company and corporate clients
         const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
@@ -644,7 +652,7 @@ router.patch('/:id/reset-password', authenticateToken, authorize(['super_user', 
 // @route   DELETE /api/users/:id
 // @desc    Delete user
 // @access  Private (Admin and HR roles)
-router.delete('/:id', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
+router.delete('/:id', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -665,7 +673,7 @@ router.delete('/:id', authenticateToken, authorizeMinRole('corporate_hr'), async
     }
 
     // Check company access for non-super users
-    if (req.user.role !== 'super_user' && 
+    if (req.user.role !== 'platform_admin' && 
         req.user.company.toString() !== user.company.toString()) {
       return res.status(403).json({
         success: false,

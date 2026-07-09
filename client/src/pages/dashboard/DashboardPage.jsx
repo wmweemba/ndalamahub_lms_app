@@ -89,15 +89,15 @@ export default function DashboardPage() {
   const [error, setError] = useState(null);
 
   // Check user role
-  const isAdmin = currentUser && currentUser.role === ROLES.SUPER_USER;
+  const isAdmin = currentUser && currentUser.role === ROLES.PLATFORM_ADMIN;
   const isLenderAdmin = currentUser && currentUser.role === ROLES.LENDER_ADMIN;
 
   const isHROrCorporateAdmin = currentUser && [
-    ROLES.CORPORATE_HR,
-    ROLES.CORPORATE_ADMIN
+    ROLES.EMPLOYER_HR,
+    ROLES.EMPLOYER_ADMIN
   ].includes(currentUser.role);
   
-  const isCorporateUser = currentUser && currentUser.role === ROLES.CORPORATE_USER;
+  const isCorporateUser = currentUser && currentUser.role === ROLES.BORROWER;
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -119,7 +119,7 @@ export default function DashboardPage() {
             setError('Invalid response format from server');
           }
         } else if (isHROrCorporateAdmin) {
-          // Fetch HR dashboard stats for both corporate_hr and corporate_admin
+          // Fetch HR dashboard stats for both employer_hr and employer_admin
           const response = await api.get('/dashboard/hr-stats');
           if (response.data.success && response.data.data) {
             setHrStats(response.data.data);
@@ -548,13 +548,13 @@ export default function DashboardPage() {
     );
   }
 
-  // Render HR/Corporate Admin dashboard
+  // Render HR/Employer Admin dashboard
   if (isHROrCorporateAdmin) {
     return (
       <div className="p-8">
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
-            {currentUser.role === ROLES.CORPORATE_ADMIN ? 'Corporate Admin Dashboard' : 'HR Dashboard'}
+            {currentUser.role === ROLES.EMPLOYER_ADMIN ? 'Employer Admin Dashboard' : 'HR Dashboard'}
           </h1>
           <p className="text-gray-500 mt-2">
             Welcome, {currentUser?.firstName}! Manage {hrStats.company.name} employees and loan applications.

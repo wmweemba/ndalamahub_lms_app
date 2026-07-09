@@ -28,7 +28,7 @@ export default function ReportsPage() {
       console.log('🔍 Fetching reports data...');
       
       // Use the same endpoint as the dashboard for HR users
-      const endpoint = currentUser?.role === 'corporate_hr' ? '/dashboard/hr-stats' : '/reports/overview';
+      const endpoint = currentUser?.role === 'employer_hr' ? '/dashboard/hr-stats' : '/reports/overview';
       console.log('📊 Using endpoint:', endpoint);
       
       const response = await api.get(endpoint);
@@ -37,7 +37,7 @@ export default function ReportsPage() {
       if (response.data.success) {
         console.log('✅ Reports data received:', response.data.data);
         
-        if (currentUser?.role === 'corporate_hr') {
+        if (currentUser?.role === 'employer_hr') {
           // Transform HR dashboard data to reports format
           const hrData = response.data.data;
           

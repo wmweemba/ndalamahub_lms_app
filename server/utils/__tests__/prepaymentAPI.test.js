@@ -38,7 +38,7 @@ describe('Prepayment API Endpoints', () => {
     
     corporateUser = {
       id: new mongoose.Types.ObjectId(),
-      role: 'corporate_user',
+      role: 'borrower',
       company: corporateCompany._id
     };
   });

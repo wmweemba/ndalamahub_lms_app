@@ -55,7 +55,7 @@ export function Navbar() {
                         </NavLink>
 
                         {/* Products - Only show to lender users */}
-                        {(currentUser.role === 'super_user' || currentUser.role === 'lender_admin' || currentUser.role === 'lender_user') && (
+                        {(currentUser.role === 'platform_admin' || currentUser.role === 'lender_admin' || currentUser.role === 'lender_officer') && (
                             <NavLink to="/products" active={isActive('/products')}>
                                 <ProductsIcon />
                                 <span>Products</span>
@@ -159,7 +159,7 @@ export function Navbar() {
                         </MobileNavLink>
 
                         {/* Products - Only show to lender users */}
-                        {(currentUser.role === 'super_user' || currentUser.role === 'lender_admin' || currentUser.role === 'lender_user') && (
+                        {(currentUser.role === 'platform_admin' || currentUser.role === 'lender_admin' || currentUser.role === 'lender_officer') && (
                             <MobileNavLink 
                                 to="/products" 
                                 active={isActive('/products')} 

@@ -124,7 +124,7 @@ const sampleData = {
       email: 'admin@ndalamahub.com',
       phone: '+260955123456',
       password: 'Admin@2025',
-      role: 'super_user',
+      role: 'platform_admin',
       department: 'System',
       position: 'System Administrator',
       isActive: true
@@ -149,7 +149,7 @@ const sampleData = {
       email: 'alice@firstbank.zm',
       phone: '+260955555111',
       password: 'Officer@2025',
-      role: 'lender_user',
+      role: 'lender_officer',
       department: 'Loans',
       position: 'Loan Officer',
       isActive: true
@@ -175,7 +175,7 @@ const sampleData = {
       email: 'hr@techcorpzambia.com',
       phone: '+260955789012',
       password: 'HR@2025',
-      role: 'corporate_hr',
+      role: 'employer_hr',
       department: 'Human Resources',
       position: 'HR Manager',
       employeeId: 'TC-HR-001',
@@ -189,7 +189,7 @@ const sampleData = {
       email: 'david@techcorpzambia.com',
       phone: '+260955987654',
       password: 'Corporate@2025',
-      role: 'corporate_admin',
+      role: 'employer_admin',
       department: 'Management',
       position: 'Operations Manager',
       employeeId: 'TC-MGT-001',
@@ -203,7 +203,7 @@ const sampleData = {
       email: 'john@techcorpzambia.com',
       phone: '+260955345678',
       password: 'Employee@2025',
-      role: 'corporate_user',
+      role: 'borrower',
       department: 'IT',
       position: 'Software Developer',
       employeeId: 'TC-IT-101',
@@ -218,7 +218,7 @@ const sampleData = {
       email: 'grace.mwansa@miningcorp.zm',
       phone: '+260966444222',
       password: 'Mining@2025',
-      role: 'corporate_admin',
+      role: 'employer_admin',
       department: 'Human Resources',
       position: 'HR Manager',
       employeeId: 'MCZ-HR-001',
@@ -232,7 +232,7 @@ const sampleData = {
       email: 'patrick.phiri@miningcorp.zm',
       phone: '+260955333444',
       password: 'Employee@2025',
-      role: 'corporate_user',
+      role: 'borrower',
       department: 'Operations',
       position: 'Machine Operator',
       employeeId: 'MCZ-OPS-123',
@@ -247,7 +247,7 @@ const sampleData = {
       email: 'mary@retailmart.zm',
       phone: '+260977888999',
       password: 'Retail@2025',
-      role: 'corporate_hr',
+      role: 'employer_hr',
       department: 'Human Resources',
       position: 'HR Officer',
       employeeId: 'RM-HR-001',
@@ -261,7 +261,7 @@ const sampleData = {
       email: 'peter@retailmart.zm',
       phone: '+260966222333',
       password: 'Employee@2025',
-      role: 'corporate_user',
+      role: 'borrower',
       department: 'Sales',
       position: 'Sales Associate',
       employeeId: 'RM-SLS-045',
@@ -533,7 +533,7 @@ const seedUsers = async (companies) => {
       // Assign company based on user email domain
       let companyId;
       
-      if (userData.role === 'super_user') {
+      if (userData.role === 'platform_admin') {
         companyId = firstBank._id; // Super user belongs to first lender
       } else if (userData.email.includes('firstbank.zm')) {
         companyId = firstBank._id;
@@ -589,12 +589,12 @@ const generateLoginInfo = (users) => {
   
   // Group users by company for better readability
   const usersByRole = {
-    'super_user': [],
+    'platform_admin': [],
     'lender_admin': [],
-    'lender_user': [],
-    'corporate_admin': [],
-    'corporate_hr': [],
-    'corporate_user': []
+    'lender_officer': [],
+    'employer_admin': [],
+    'employer_hr': [],
+    'borrower': []
   };
   
   users.forEach(user => {

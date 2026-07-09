@@ -84,38 +84,38 @@ export default function UserManagement() {
 
   const getRoleDisplayName = (role) => {
     const roleNames = {
-      'super_user': 'Super User',
+      'platform_admin': 'Platform Admin',
       'lender_admin': 'Lender Admin',
-      'corporate_admin': 'Corporate Admin',
-      'corporate_hr': 'Corporate HR',
-      'lender_user': 'Lender User',
-      'corporate_user': 'Corporate User'
+      'lender_officer': 'Lender Officer',
+      'employer_admin': 'Employer Admin',
+      'employer_hr': 'Employer HR',
+      'borrower': 'Borrower'
     };
     return roleNames[role] || role;
   };
 
   const getRoleColor = (role) => {
     const colors = {
-      'super_user': 'bg-purple-100 text-purple-800',
+      'platform_admin': 'bg-purple-100 text-purple-800',
       'lender_admin': 'bg-blue-100 text-blue-800',
-      'corporate_admin': 'bg-green-100 text-green-800',
-      'corporate_hr': 'bg-yellow-100 text-yellow-800',
-      'lender_user': 'bg-gray-100 text-gray-800',
-      'corporate_user': 'bg-orange-100 text-orange-800'
+      'lender_officer': 'bg-gray-100 text-gray-800',
+      'employer_admin': 'bg-green-100 text-green-800',
+      'employer_hr': 'bg-yellow-100 text-yellow-800',
+      'borrower': 'bg-orange-100 text-orange-800'
     };
     return colors[role] || 'bg-gray-100 text-gray-800';
   };
 
   const canEditUser = (user) => {
     if (!currentUser) return false;
-    
+
     const roleHierarchy = {
-      'super_user': 6,
+      'platform_admin': 6,
       'lender_admin': 5,
-      'corporate_admin': 4,
-      'corporate_hr': 3,
-      'lender_user': 2,
-      'corporate_user': 1
+      'lender_officer': 4,
+      'employer_admin': 3,
+      'employer_hr': 2,
+      'borrower': 1
     };
     
     // Can't edit yourself
@@ -194,12 +194,12 @@ export default function UserManagement() {
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Roles</option>
-              <option value="super_user">Super User</option>
+              <option value="platform_admin">Platform Admin</option>
               <option value="lender_admin">Lender Admin</option>
-              <option value="corporate_admin">Corporate Admin</option>
-              <option value="corporate_hr">Corporate HR</option>
-              <option value="lender_user">Lender User</option>
-              <option value="corporate_user">Corporate User</option>
+              <option value="lender_officer">Lender Officer</option>
+              <option value="employer_admin">Employer Admin</option>
+              <option value="employer_hr">Employer HR</option>
+              <option value="borrower">Borrower</option>
             </select>
           </div>
           

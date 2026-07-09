@@ -14,7 +14,7 @@ router.get('/available', authenticateToken, async (req, res) => {
     // Determine which company's products to show
     let productCompanyId;
     
-    if (req.user.role === 'super_user') {
+    if (req.user.role === 'platform_admin') {
       // Super user can see all products, or filter by company
       if (req.query.company) {
         productCompanyId = req.query.company;
@@ -92,10 +92,10 @@ router.get('/', authenticateToken, async (req, res) => {
     const filter = {};
     
     // Company-based filtering (multi-tenant isolation)
-    if (req.user.role !== 'super_user') {
+    if (req.user.role !== 'platform_admin') {
       filter.company = req.user.company;
     } else if (req.query.company) {
-      // Allow super_user to filter by specific company
+      // Allow platform_admin to filter by specific company
       filter.company = req.query.company;
     }
     
@@ -149,8 +149,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
       });
     }
     
-    // Verify company access (unless super_user)
-    if (req.user.role !== 'super_user' && product.company._id.toString() !== req.user.company.toString()) {
+    // Verify company access (unless platform_admin)
+    if (req.user.role !== 'platform_admin' && product.company._id.toString() !== req.user.company.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Access denied to this product'
@@ -174,7 +174,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Get products by category
 router.get('/category/:category', authenticateToken, async (req, res) => {
   try {
-    const companyId = req.user.role === 'super_user' ? null : req.user.company;
+    const companyId = req.user.role === 'platform_admin' ? null : req.user.company;
     const products = await LoanProduct.findByCategory(req.params.category, companyId);
     
     res.json({
@@ -192,12 +192,12 @@ router.get('/category/:category', authenticateToken, async (req, res) => {
 });
 
 // Create new product (admin only)
-router.post('/', authenticateToken, authorize(['super_user', 'lender_admin']), async (req, res) => {
+router.post('/', authenticateToken, authorize(['platform_admin', 'lender_admin']), async (req, res) => {
   try {
-    // Set company from authenticated user (unless super_user specifies one)
+    // Set company from authenticated user (unless platform_admin specifies one)
     const productData = {
       ...req.body,
-      company: req.user.role === 'super_user' && req.body.company ? req.body.company : req.user.company,
+      company: req.user.role === 'platform_admin' && req.body.company ? req.body.company : req.user.company,
       createdBy: req.user.id
     };
     
@@ -235,7 +235,7 @@ router.post('/', authenticateToken, authorize(['super_user', 'lender_admin']), a
 });
 
 // Update product (admin only)
-router.put('/:id', authenticateToken, authorize(['super_user', 'lender_admin']), async (req, res) => {
+router.put('/:id', authenticateToken, authorize(['platform_admin', 'lender_admin']), async (req, res) => {
   try {
     const product = await LoanProduct.findById(req.params.id);
     
@@ -246,8 +246,8 @@ router.put('/:id', authenticateToken, authorize(['super_user', 'lender_admin']),
       });
     }
     
-    // Verify company access (unless super_user)
-    if (req.user.role !== 'super_user' && product.company.toString() !== req.user.company.toString()) {
+    // Verify company access (unless platform_admin)
+    if (req.user.role !== 'platform_admin' && product.company.toString() !== req.user.company.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Access denied to update this product'
@@ -292,7 +292,7 @@ router.put('/:id', authenticateToken, authorize(['super_user', 'lender_admin']),
 });
 
 // Delete product (admin only)
-router.delete('/:id', authenticateToken, authorize(['super_user', 'lender_admin']), async (req, res) => {
+router.delete('/:id', authenticateToken, authorize(['platform_admin', 'lender_admin']), async (req, res) => {
   try {
     const product = await LoanProduct.findById(req.params.id);
     
@@ -303,8 +303,8 @@ router.delete('/:id', authenticateToken, authorize(['super_user', 'lender_admin'
       });
     }
     
-    // Verify company access (unless super_user)
-    if (req.user.role !== 'super_user' && product.company.toString() !== req.user.company.toString()) {
+    // Verify company access (unless platform_admin)
+    if (req.user.role !== 'platform_admin' && product.company.toString() !== req.user.company.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Access denied to delete this product'
@@ -430,9 +430,9 @@ router.post('/:id/calculate-fees', authenticateToken, async (req, res) => {
 });
 
 // Get product statistics (admin only)
-router.get('/stats/overview', authenticateToken, authorize(['super_user', 'lender_admin']), async (req, res) => {
+router.get('/stats/overview', authenticateToken, authorize(['platform_admin', 'lender_admin']), async (req, res) => {
   try {
-    const companyFilter = req.user.role === 'super_user' ? {} : { company: req.user.company };
+    const companyFilter = req.user.role === 'platform_admin' ? {} : { company: req.user.company };
     
     const [
       totalProducts,

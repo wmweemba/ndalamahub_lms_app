@@ -43,18 +43,18 @@ const getDateRange = (period) => {
 // @route   GET /api/reports/overview
 // @desc    Get overview statistics for reports dashboard
 // @access  Private (HR and Admin roles)
-router.get('/overview', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
+router.get('/overview', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     // Build company filter based on user role
     let companyFilter = {};
-    if (req.user.role !== 'super_user') {
+    if (req.user.role !== 'platform_admin') {
       if (req.user.role === 'lender_admin') {
         const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
         companyFilter.$or = [
           { company: req.user.company },
           { company: { $in: corporateCompanies.map(c => c._id) } }
         ];
-      } else if (req.user.role === 'corporate_admin' || req.user.role === 'corporate_hr') {
+      } else if (req.user.role === 'employer_admin' || req.user.role === 'employer_hr') {
         // Get user's company details to determine if it's a lender or corporate company
         const userCompany = await Company.findById(req.user.company);
 
@@ -87,7 +87,7 @@ router.get('/overview', authenticateToken, authorizeMinRole('corporate_hr'), asy
 
     // Get companies by type
     let companiesFilter = {};
-    if (req.user.role !== 'super_user') {
+    if (req.user.role !== 'platform_admin') {
       if (req.user.role === 'lender_admin') {
         companiesFilter = {
           $or: [
@@ -95,7 +95,7 @@ router.get('/overview', authenticateToken, authorizeMinRole('corporate_hr'), asy
             { lenderCompany: req.user.company }
           ]
         };
-      } else if (req.user.role === 'corporate_admin' || req.user.role === 'corporate_hr') {
+      } else if (req.user.role === 'employer_admin' || req.user.role === 'employer_hr') {
         // Get user's company details to determine filtering approach
         const userCompany = await Company.findById(req.user.company);
         
@@ -194,10 +194,10 @@ router.get('/overview', authenticateToken, authorizeMinRole('corporate_hr'), asy
 // @route   GET /api/reports/active-loans
 // @desc    Get active loans report
 // @access  Private (Admin roles)
-router.get('/active-loans', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
+router.get('/active-loans', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     let companyFilter = {};
-    if (req.user.role !== 'super_user') {
+    if (req.user.role !== 'platform_admin') {
       if (req.user.role === 'lender_admin') {
         const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
         companyFilter.$or = [
@@ -245,10 +245,10 @@ router.get('/active-loans', authenticateToken, authorizeMinRole('corporate_hr'),
 // @route   GET /api/reports/overdue-loans
 // @desc    Get overdue loans report
 // @access  Private (Admin roles)
-router.get('/overdue-loans', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
+router.get('/overdue-loans', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     let companyFilter = {};
-    if (req.user.role !== 'super_user') {
+    if (req.user.role !== 'platform_admin') {
       if (req.user.role === 'lender_admin') {
         const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
         companyFilter.$or = [
@@ -308,10 +308,10 @@ router.get('/overdue-loans', authenticateToken, authorizeMinRole('corporate_hr')
 // @route   GET /api/reports/upcoming-payments
 // @desc    Get upcoming payments report
 // @access  Private (Admin roles)
-router.get('/upcoming-payments', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
+router.get('/upcoming-payments', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     let companyFilter = {};
-    if (req.user.role !== 'super_user') {
+    if (req.user.role !== 'platform_admin') {
       if (req.user.role === 'lender_admin') {
         const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
         companyFilter.$or = [
@@ -382,13 +382,13 @@ router.get('/upcoming-payments', authenticateToken, authorizeMinRole('corporate_
 // @route   GET /api/reports/:type/export/:format
 // @desc    Export reports in PDF or Excel format
 // @access  Private (Admin roles)
-router.get('/:type/export/:format', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
+router.get('/:type/export/:format', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     const { type, format } = req.params;
     
     // Build company filter based on user role
     let companyFilter = {};
-    if (req.user.role !== 'super_user') {
+    if (req.user.role !== 'platform_admin') {
       if (req.user.role === 'lender_admin') {
         const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
         companyFilter.$or = [
@@ -749,7 +749,7 @@ router.get('/:type/export/:format', authenticateToken, authorizeMinRole('corpora
 // @route   GET /api/reports/loans
 // @desc    Get detailed loan report
 // @access  Private (Admin roles)
-router.get('/loans', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
+router.get('/loans', authenticateToken, authorizeMinRole('employer_admin'), async (req, res) => {
   try {
     const { 
       period, 
@@ -772,8 +772,8 @@ router.get('/loans', authenticateToken, authorizeMinRole('corporate_admin'), asy
 
     // Build company filter
     let companyFilter = {};
-    if (req.user.role !== 'super_user') {
-      if (req.user.role === 'client_admin') {
+    if (req.user.role !== 'platform_admin') {
+      if (req.user.role === 'lender_admin') {
         const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
         companyFilter.$or = [
           { lenderCompany: req.user.company },
@@ -837,7 +837,7 @@ router.get('/loans', authenticateToken, authorizeMinRole('corporate_admin'), asy
 // @route   GET /api/reports/companies
 // @desc    Get company-wise loan statistics
 // @access  Private (Admin roles)
-router.get('/companies', authenticateToken, authorizeMinRole('client_admin'), async (req, res) => {
+router.get('/companies', authenticateToken, authorizeMinRole('lender_admin'), async (req, res) => {
   try {
     const { period, startDate, endDate } = req.query;
 
@@ -852,8 +852,8 @@ router.get('/companies', authenticateToken, authorizeMinRole('client_admin'), as
 
     // Build company filter
     let companyFilter = {};
-    if (req.user.role !== 'super_user') {
-      if (req.user.role === 'client_admin') {
+    if (req.user.role !== 'platform_admin') {
+      if (req.user.role === 'lender_admin') {
         const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
         companyFilter.$or = [
           { lenderCompany: req.user.company },
@@ -950,7 +950,7 @@ router.get('/companies', authenticateToken, authorizeMinRole('client_admin'), as
 // @route   GET /api/reports/users
 // @desc    Get user-wise loan statistics
 // @access  Private (Admin roles)
-router.get('/users', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
+router.get('/users', authenticateToken, authorizeMinRole('employer_admin'), async (req, res) => {
   try {
     const { period, startDate, endDate, companyId } = req.query;
 
@@ -965,8 +965,8 @@ router.get('/users', authenticateToken, authorizeMinRole('corporate_admin'), asy
 
     // Build company filter
     let companyFilter = {};
-    if (req.user.role !== 'super_user') {
-      if (req.user.role === 'client_admin') {
+    if (req.user.role !== 'platform_admin') {
+      if (req.user.role === 'lender_admin') {
         const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
         companyFilter.$or = [
           { lenderCompany: req.user.company },
@@ -1068,7 +1068,7 @@ router.get('/users', authenticateToken, authorizeMinRole('corporate_admin'), asy
 // @route   GET /api/reports/export
 // @desc    Export loan data to CSV/Excel
 // @access  Private (Admin roles)
-router.get('/export', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
+router.get('/export', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     const { 
       period, 
@@ -1090,8 +1090,8 @@ router.get('/export', authenticateToken, authorizeMinRole('corporate_hr'), async
 
     // Build company filter
     let companyFilter = {};
-    if (req.user.role !== 'super_user') {
-      if (req.user.role === 'client_admin') {
+    if (req.user.role !== 'platform_admin') {
+      if (req.user.role === 'lender_admin') {
         const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
         companyFilter.$or = [
           { lenderCompany: req.user.company },

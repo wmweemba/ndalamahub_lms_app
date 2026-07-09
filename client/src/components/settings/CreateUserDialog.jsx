@@ -23,7 +23,7 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
     phone: '',
     password: '',
     confirmPassword: '',
-    role: 'corporate_user',
+    role: 'borrower',
     company: '',
     department: '',
     employeeId: ''
@@ -55,8 +55,8 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
       console.log('Fetched companies:', response.data);
       setCompanies(response.data || []);
       
-      // Pre-select current user's company for corporate roles after companies are fetched
-      if (user && (user.role === 'corporate_hr' || user.role === 'corporate_admin')) {
+      // Pre-select current user's company for employer roles after companies are fetched
+      if (user && (user.role === 'employer_hr' || user.role === 'employer_admin')) {
         // The user object from /auth/me has a populated company object
         const companyId = user.company?._id || user.company || '';
         console.log('User from /auth/me:', user);
@@ -126,27 +126,27 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
   };
 
   const roleOptions = [
-    { value: 'corporate_user', label: 'Corporate User', description: 'Basic employee access' },
-    { value: 'corporate_hr', label: 'Corporate HR', description: 'HR management access' },
-    { value: 'corporate_admin', label: 'Corporate Admin', description: 'Company administration' },
-    { value: 'lender_user', label: 'Lender User', description: 'Lender employee access' },
+    { value: 'borrower', label: 'Borrower', description: 'Basic employee access' },
+    { value: 'employer_hr', label: 'Employer HR', description: 'HR management access' },
+    { value: 'employer_admin', label: 'Employer Admin', description: 'Company administration' },
+    { value: 'lender_officer', label: 'Lender Officer', description: 'Lender employee access' },
     { value: 'lender_admin', label: 'Lender Admin', description: 'Lender administration' },
-    { value: 'super_user', label: 'Super User', description: 'System administration' }
+    { value: 'platform_admin', label: 'Platform Admin', description: 'System administration' }
   ];
 
   // Filter role options based on current user's role
   const getAvailableRoles = () => {
     if (!currentUser) return roleOptions;
-    
-    if (currentUser.role === 'corporate_hr') {
-      // Corporate HR can only create corporate_user and corporate_hr roles
-      return roleOptions.filter(role => ['corporate_user', 'corporate_hr'].includes(role.value));
-    } else if (currentUser.role === 'corporate_admin') {
-      // Corporate admin can create corporate roles but not lender roles
-      return roleOptions.filter(role => ['corporate_user', 'corporate_hr', 'corporate_admin'].includes(role.value));
+
+    if (currentUser.role === 'employer_hr') {
+      // Employer HR can only create borrower and employer_hr roles
+      return roleOptions.filter(role => ['borrower', 'employer_hr'].includes(role.value));
+    } else if (currentUser.role === 'employer_admin') {
+      // Employer admin can create employer-side roles but not lender roles
+      return roleOptions.filter(role => ['borrower', 'employer_hr', 'employer_admin'].includes(role.value));
     }
-    
-    // Other roles get all options (lender_admin, super_user)
+
+    // Other roles get all options (lender_admin, platform_admin)
     return roleOptions;
   };
 
@@ -325,9 +325,9 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
                   {roleOptions.find(option => option.value === formData.role)?.description}
-                  {currentUser && (currentUser.role === 'corporate_hr' || currentUser.role === 'corporate_admin') && (
+                  {currentUser && (currentUser.role === 'employer_hr' || currentUser.role === 'employer_admin') && (
                     <span className="block mt-1 text-xs text-blue-600">
-                      You can only create {currentUser.role === 'corporate_hr' ? 'corporate user and HR' : 'corporate'} roles.
+                      You can only create {currentUser.role === 'employer_hr' ? 'borrower and HR' : 'employer-side'} roles.
                     </span>
                   )}
                 </p>
@@ -343,7 +343,7 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
                   value={formData.company}
                   onChange={handleChange}
                   required
-                  disabled={currentUser && (currentUser.role === 'corporate_hr' || currentUser.role === 'corporate_admin')}
+                  disabled={currentUser && (currentUser.role === 'employer_hr' || currentUser.role === 'employer_admin')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
                 >
                   <option value="">Select Company</option>
@@ -352,8 +352,8 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
                   ) : (
                     companies
                       .filter(company => {
-                        // For corporate users, only show their own company
-                        if (currentUser && (currentUser.role === 'corporate_hr' || currentUser.role === 'corporate_admin')) {
+                        // For employer-side users, only show their own company
+                        if (currentUser && (currentUser.role === 'employer_hr' || currentUser.role === 'employer_admin')) {
                           const userCompanyId = currentUser.company?._id || currentUser.company;
                           return company._id === userCompanyId;
                         }
@@ -367,7 +367,7 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
                       ))
                   )}
                 </select>
-                {currentUser && (currentUser.role === 'corporate_hr' || currentUser.role === 'corporate_admin') && (
+                {currentUser && (currentUser.role === 'employer_hr' || currentUser.role === 'employer_admin') && (
                   <p className="text-xs text-gray-500 mt-1">
                     You can only create users within your own company.
                   </p>

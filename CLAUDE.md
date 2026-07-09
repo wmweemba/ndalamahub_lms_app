@@ -2,7 +2,7 @@
 
 **This is a living document.** It is the single file that explains the whole application — architecture, decisions, current state, and rules of engagement. Update it whenever a meaningful state change happens (a phase from `docs/` is completed, an architecture decision changes, auth is migrated, UI_SPEC lands, etc.). Do not let it drift out of sync with reality — a stale CLAUDE.md is worse than no CLAUDE.md, because it will be trusted.
 
-**Last updated:** 2026-07-09 — corrected stale 111/133 baseline references in Sections 2 and 11 post Phase 01/02 merge; suite has been 133/133 since the Phase 01 merge (`0ef9b50`), confirmed still 133/133 as of this update. No code changed.
+**Last updated:** 2026-07-09 — Phase 03 (role rename) executed end-to-end: roles renamed and reordered across server, client, and the database; ghost `client_admin` role resolved; repayment authority extended to `lender_officer`. Section 5's target-state role table is now current reality. Suite remains 133/133.
 
 ---
 
@@ -25,9 +25,9 @@ Nexus (platform owner)
 ## 2. Current state (as of this writing)
 
 - `feature/phase-0-loan-engine` was **merged into `main`** on 2026-07-04 (clean fast-forward, `main` @ `8ad1f57`). All work now happens against `main`.
-- A full pre-go-live audit has been completed and lives at `docs/AUDIT_REPORT.md`. It found several critical issues (see Section 6) that must be fixed before any client-facing use. **Do not treat the app as production-ready until those are resolved.** The audit's original baseline (133 server tests, 111 pass / 22 fail, all failures from the `canAcceptPrepayment` regression) is historical — that regression was fixed in Phase 01, and the suite has been 133/133 since the Phase 01 merge (`0ef9b50`). Phase 02 is also merged; suite remains 133/133. See `docs/AUDIT_REPORT.md` for the original pre-fix figures.
+- A full pre-go-live audit has been completed and lives at `docs/AUDIT_REPORT.md`. It found several critical issues (see Section 6) that must be fixed before any client-facing use. **Do not treat the app as production-ready until those are resolved.** The audit's original baseline (133 server tests, 111 pass / 22 fail, all failures from the `canAcceptPrepayment` regression) is historical — that regression was fixed in Phase 01, and the suite has been 133/133 since the Phase 01 merge (`0ef9b50`). Phases 02 and 03 are also complete; suite remains 133/133. See `docs/AUDIT_REPORT.md` for the original pre-fix figures.
 - Locked decisions from the planning session live at `docs/DECISIONS.md`. Treat that file as authoritative — this CLAUDE.md summarizes it, but `DECISIONS.md` is the source of truth if they ever disagree (and if they do, that's a bug in this file — fix it).
-- Phased execution plans **have been generated**: `docs/01-security-critical-fixes.md` through `docs/10-subscription-gating.md`, indexed in `docs/README.md`. None have been executed yet. Claude Code executing a phase must follow that phase's document exactly — see Section 11 (Working Rules) before touching code.
+- Phased execution plans **have been generated**: `docs/01-security-critical-fixes.md` through `docs/10-subscription-gating.md`, indexed in `docs/README.md`. Phases 01–03 are executed; 04–10 have not been. Claude Code executing a phase must follow that phase's document exactly — see Section 11 (Working Rules) before touching code.
 - Pre-existing roadmap/planning documents (PRODUCTION_ROADMAP, WEEK_* summaries, etc.) were archived to `docs/archive/` and must not be used as planning input.
 
 ---
@@ -56,20 +56,22 @@ The placeholder-test-script concern was based on a stale pre-merge snapshot. Pos
 
 ---
 
-## 5. Roles (target state — post role-rename phase)
+## 5. Roles
+
+Roles were renamed and reordered in Phase 03 (2026-07-09) — this table is current reality across schema, middleware, routes, client, and the database (migrated via `server/utils/migrations/renameRoles.js`).
 
 | Role | Level | Scope |
 |---|---|---|
-| `platform_admin` | Platform | Nexus-level. Manages all lender tenants and platform-wide settings. |
-| `lender_admin` | Lender tenant | Manages one lender's operation: products, staff, employer clients, disbursement. |
-| `lender_officer` | Lender tenant | Loan officer. Processes applications, records repayments, manages assigned portfolios. |
-| `employer_admin` | Employer client | Runs an employer account — manages that employer's users and settings. |
-| `employer_hr` | Employer client | Reviews/approves employee loan applications. Read-only on repayment data. |
-| `borrower` | Individual | Employee applying for and repaying loans. |
+| `platform_admin` | Platform (5) | Nexus-level. Manages all lender tenants and platform-wide settings. |
+| `lender_admin` | Lender tenant (4) | Manages one lender's operation: products, staff, employer clients, disbursement. |
+| `lender_officer` | Lender tenant (3) | Loan officer. Processes applications, records repayments, manages assigned portfolios. |
+| `employer_admin` | Employer client (2) | Runs an employer account — manages that employer's users and settings. |
+| `employer_hr` | Employer client (1) | Reviews/approves employee loan applications. Read-only on repayment data. |
+| `borrower` | Individual (0) | Employee applying for and repaying loans. |
 
-**Until the role-rename phase executes**, the actual codebase still uses the old names (`super_user`, `corporate_admin`, `corporate_hr`, `corporate_user`, `lender_user`), plus two ghost roles found in the audit (`client_admin`, `staff`) that don't exist in the schema but are referenced in dead code paths. Do not introduce new code using the old names or the ghost roles — use the target names going forward even before the formal migration, unless you're specifically working inside the migration phase itself.
+The hierarchy is a deliberate reorder from the original planning-era numbering — lender roles sit strictly above employer roles (locked decision, `docs/DECISIONS.md`, "Role hierarchy correction"). The old names (`super_user`, `corporate_admin`, `corporate_hr`, `corporate_user`, `lender_user`) and the two ghost roles (`client_admin`, `staff`) no longer exist anywhere in code or data — do not reintroduce them.
 
-**Repayment recording authority**: `lender_admin` and `lender_officer` only. Employer-side roles are read-only on repayment/schedule data — this must be enforced server-side, not just hidden in the UI.
+**Repayment recording authority**: `lender_admin` and `lender_officer` only. Employer-side roles are read-only on repayment/schedule data — this is enforced server-side (route guards + tenancy checks in `server/routes/loans.js`), not just hidden in the UI.
 
 ---
 
@@ -81,7 +83,8 @@ These are non-negotiable, phase-1 fixes — not up for reprioritization against 
 - ~~Repayment recording endpoint is dead (throws on every call)~~ — **Fixed in Phase 01** (`server/routes/loans.js`: validation block moved inside `try`, cross-tenant write hole closed via `loan.lenderCompany` check)
 - ~~Prepayment/early-settlement engine is dead (regression from commit `531d954`)~~ — **Fixed in Phase 01**: `Loan.canAcceptPrepayment()` return statement restored, the three schedule-recalculator argument-order bugs fixed, and (via Addendum A) `calculateEarlySettlementAmount()`'s savings formula corrected to count all unpaid installments' interest, not just future-dated ones. Suite is 133/133.
 - ~~Several admin user-management endpoints 500 due to a non-existent method being called on the JWT payload~~ — **Fixed in Phase 01** (`server/middleware/auth.js`: added `hasMinRole` helper; `server/routes/users.js`: replaced 5 `req.user.hasPermission()` call sites)
-- No cron/scheduler exists — arrears/overdue status never triggers, ever (still open; not part of Phase 01 or 02)
+- ~~Two ghost roles (`client_admin`, `staff`) referenced in dead code paths that don't exist in the schema~~ — **Fixed in Phase 03**: `client_admin` sites in `server/routes/loans.js` (approve/reject) and `server/routes/reports.js` (four lender-portfolio scoping branches plus the `GET /reports/companies` `authorizeMinRole` gate, which had resolved to level 0 — a broken open gate — and now requires `lender_admin`) replaced with the correct real role; `staff` was already removed with the register route in Phase 01
+- No cron/scheduler exists — arrears/overdue status never triggers, ever (still open; not part of Phase 01, 02, or 03)
 - ~~Hardcoded JWT fallback secret, unused rate limiter, inconsistent token payload shapes breaking refresh~~ — **Fixed in Phase 02**: `server/utils/auth.js` and the `/refresh` route no longer fall back to `'your-secret-key'` (server now fails fast at boot if `JWT_SECRET`/`MONGODB_URI` are unset); access/refresh tokens now share a canonical `{id, username, role, company}` payload, fixing the previously-unusable refresh flow; the existing per-username login rate limiter is wired up (5/15min) alongside a broader `express-rate-limit` backstop on `/api/auth` (50/15min)
 - ~~No `helmet`, `express-rate-limit`, or `express-mongo-sanitize`~~ — **Fixed in Phase 02**: all three added to `server/server.js`; `express-mongo-sanitize` closes the `?status[$ne]=x`-style operator-injection class on list endpoints
 - ~~14 high-severity vulnerable server dependencies, 26 on the client~~ — **Server fixed in Phase 02**: `pnpm audit --prod` on the server now shows 0 vulnerabilities (via `pnpm update` + a `pnpm.overrides` pin on transitive `uuid`). Client: `axios`/`react-router-dom`/`vite` bumped within current majors, but several high/moderate findings remain — all transitive dev-build-tool dependencies (`rollup`, `picomatch`, `postcss`, `esbuild` via `@tailwindcss/vite`→`vite`, plus `form-data` via `axios`) not yet resolved; see `changelog.md` Phase 02 entry

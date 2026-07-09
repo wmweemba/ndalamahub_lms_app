@@ -26,7 +26,7 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
     username: user.username || '',
     email: user.email || '',
     phone: user.phone || '',
-    role: user.role || 'corporate_user',
+    role: user.role || 'borrower',
     company: user.company?._id || user.company || '',
     department: user.department || '',
     employeeId: user.employeeId || '',
@@ -68,8 +68,8 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
       setLoading(true);
       setError(null);
 
-      // Validate that corporate users can only edit users within their company
-      if ((currentUser?.role === 'corporate_admin' || currentUser?.role === 'corporate_hr') && 
+      // Validate that employer-side users can only edit users within their company
+      if ((currentUser?.role === 'employer_admin' || currentUser?.role === 'employer_hr') &&
           user.company && (currentUser.company?._id || currentUser.company) !== user.company._id) {
         setError('You can only edit users within your company');
         return;
@@ -132,7 +132,7 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
     if (!currentUser) return false;
     
     // Only admins can reset passwords, and not their own
-    const isAdmin = ['super_user', 'lender_admin', 'corporate_admin'].includes(currentUser.role);
+    const isAdmin = ['platform_admin', 'lender_admin', 'employer_admin'].includes(currentUser.role);
     const isNotSelf = user._id !== (currentUser.id || currentUser._id);
     
     return isAdmin && isNotSelf;
@@ -140,33 +140,33 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
 
   const getAvailableRoles = () => {
     const allRoles = [
-      { value: 'super_user', label: 'Super User', description: 'System administration' },
+      { value: 'platform_admin', label: 'Platform Admin', description: 'System administration' },
       { value: 'lender_admin', label: 'Lender Admin', description: 'Lender administration' },
-      { value: 'corporate_admin', label: 'Corporate Admin', description: 'Company administration' },
-      { value: 'corporate_hr', label: 'Corporate HR', description: 'HR management access' },
-      { value: 'lender_user', label: 'Lender User', description: 'Lender employee access' },
-      { value: 'corporate_user', label: 'Corporate User', description: 'Basic employee access' }
+      { value: 'employer_admin', label: 'Employer Admin', description: 'Company administration' },
+      { value: 'employer_hr', label: 'Employer HR', description: 'HR management access' },
+      { value: 'lender_officer', label: 'Lender Officer', description: 'Lender employee access' },
+      { value: 'borrower', label: 'Borrower', description: 'Basic employee access' }
     ];
 
     // Return basic roles if currentUser is not loaded yet
     if (!currentUser) {
-      return [{ value: 'corporate_user', label: 'Corporate User', description: 'Basic employee access' }];
+      return [{ value: 'borrower', label: 'Borrower', description: 'Basic employee access' }];
     }
 
-    // Super user can assign any role
-    if (currentUser.role === 'super_user') {
+    // Platform admin can assign any role
+    if (currentUser.role === 'platform_admin') {
       return allRoles;
     }
 
-    // Lender admin can assign all roles except super_user
+    // Lender admin can assign all roles except platform_admin
     if (currentUser.role === 'lender_admin') {
-      return allRoles.filter(role => role.value !== 'super_user');
+      return allRoles.filter(role => role.value !== 'platform_admin');
     }
 
-    // Corporate admin and HR can only assign corporate roles
-    if (currentUser.role === 'corporate_admin' || currentUser.role === 'corporate_hr') {
-      return allRoles.filter(role => 
-        ['corporate_admin', 'corporate_hr', 'corporate_user'].includes(role.value)
+    // Employer admin and HR can only assign employer-side roles
+    if (currentUser.role === 'employer_admin' || currentUser.role === 'employer_hr') {
+      return allRoles.filter(role =>
+        ['employer_admin', 'employer_hr', 'borrower'].includes(role.value)
       );
     }
 
@@ -334,7 +334,7 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                   value={formData.company}
                   onChange={handleChange}
                   required
-                  disabled={currentUser?.role === 'corporate_admin' || currentUser?.role === 'corporate_hr'}
+                  disabled={currentUser?.role === 'employer_admin' || currentUser?.role === 'employer_hr'}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
                 >
                   <option value="">Select Company</option>
@@ -344,7 +344,7 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                     </option>
                   ))}
                 </select>
-                {(currentUser?.role === 'corporate_admin' || currentUser?.role === 'corporate_hr') && (
+                {(currentUser?.role === 'employer_admin' || currentUser?.role === 'employer_hr') && (
                   <p className="text-xs text-gray-500 mt-1">
                     You can only edit users within your company
                   </p>

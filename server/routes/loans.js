@@ -30,13 +30,13 @@ router.get('/:id/repayment-schedule/export/excel', authenticateToken, async (req
 
     // Access control (same as loan details)
     let hasAccess = false;
-    if (req.user.role === 'super_user') {
+    if (req.user.role === 'platform_admin') {
       hasAccess = true;
     } else if (req.user.role === 'lender_admin') {
       hasAccess = loan.lenderCompany && loan.lenderCompany._id.toString() === req.user.company.toString();
-    } else if (req.user.role === 'corporate_admin' || req.user.role === 'corporate_hr') {
+    } else if (req.user.role === 'employer_admin' || req.user.role === 'employer_hr') {
       hasAccess = loan.company && loan.company._id.toString() === req.user.company.toString();
-    } else if (req.user.role === 'corporate_user' || req.user.role === 'lender_user') {
+    } else if (req.user.role === 'borrower' || req.user.role === 'lender_officer') {
       hasAccess = loan.applicant && loan.applicant._id.toString() === req.user.id.toString();
     } else {
       hasAccess = loan.applicant && loan.applicant._id.toString() === req.user.id.toString();
@@ -151,7 +151,7 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 
     // Company access control
-    if (req.user.role === 'super_user') {
+    if (req.user.role === 'platform_admin') {
       // Super users can see all loans
       if (companyId) filter.company = companyId;
       if (lenderCompanyId) filter.lenderCompany = lenderCompanyId;
@@ -161,13 +161,13 @@ router.get('/', authenticateToken, async (req, res) => {
         { lenderCompany: req.user.company },
         { company: { $in: await Company.find({ lenderCompany: req.user.company }).select('_id') } }
       ];
-    } else if (req.user.role === 'corporate_admin') {
+    } else if (req.user.role === 'employer_admin') {
       // Corporate admins see loans from their company
       filter.company = req.user.company;
-    } else if (req.user.role === 'corporate_hr') {
+    } else if (req.user.role === 'employer_hr') {
       // HR can see loans from their company
       filter.company = req.user.company;
-    } else if (req.user.role === 'corporate_user' || req.user.role === 'lender_user') {
+    } else if (req.user.role === 'borrower' || req.user.role === 'lender_officer') {
       // Corporate users and lender users can only see their own loans
       filter.applicant = req.user.id;
     } else {
@@ -233,15 +233,15 @@ router.get('/:id/summary', authenticateToken, async (req, res) => {
     // Check access permissions based on role
     let hasAccess = false;
 
-    if (req.user.role === 'super_user') {
+    if (req.user.role === 'platform_admin') {
       hasAccess = true;
     } else if (req.user.role === 'lender_admin') {
       // Lender admins can see loans from their lender company and their corporate clients
       hasAccess = loan.lenderCompany.toString() === req.user.company.toString();
-    } else if (req.user.role === 'corporate_admin' || req.user.role === 'corporate_hr') {
+    } else if (req.user.role === 'employer_admin' || req.user.role === 'employer_hr') {
       // Corporate admins and HR can see loans from their company
       hasAccess = loan.company.toString() === req.user.company.toString();
-    } else if (req.user.role === 'corporate_user' || req.user.role === 'lender_user') {
+    } else if (req.user.role === 'borrower' || req.user.role === 'lender_officer') {
       // Corporate users and lender users can only see their own loans
       hasAccess = loan.applicant.toString() === req.user.id.toString();
     } else {
@@ -299,15 +299,15 @@ router.get('/:id', authenticateToken, async (req, res) => {
     // Check access permissions based on role
     let hasAccess = false;
 
-    if (req.user.role === 'super_user') {
+    if (req.user.role === 'platform_admin') {
       hasAccess = true;
     } else if (req.user.role === 'lender_admin') {
       // Lender admins can see loans from their lender company and their corporate clients
       hasAccess = loan.lenderCompany._id.toString() === req.user.company.toString();
-    } else if (req.user.role === 'corporate_admin' || req.user.role === 'corporate_hr') {
+    } else if (req.user.role === 'employer_admin' || req.user.role === 'employer_hr') {
       // Corporate admins and HR can see loans from their company
       hasAccess = loan.company._id.toString() === req.user.company.toString();
-    } else if (req.user.role === 'corporate_user' || req.user.role === 'lender_user') {
+    } else if (req.user.role === 'borrower' || req.user.role === 'lender_officer') {
       // Corporate users and lender users can only see their own loans
       hasAccess = loan.applicant._id.toString() === req.user.id.toString();
     } else {
@@ -340,7 +340,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // @route   POST /api/loans
 // @desc    Create new loan application
 // @access  Private (Staff only)
-router.post('/', authenticateToken, authorize('corporate_user'), async (req, res) => {
+router.post('/', authenticateToken, authorize('borrower'), async (req, res) => {
   try {
     const {
       productId,
@@ -556,7 +556,7 @@ router.post('/', authenticateToken, authorize('corporate_user'), async (req, res
 // @route   PUT /api/loans/:id/approve
 // @desc    Approve loan application
 // @access  Private (HR and Admin roles)
-router.put('/:id/approve', authenticateToken, authorize('corporate_hr', 'corporate_admin', 'client_admin'), async (req, res) => {
+router.put('/:id/approve', authenticateToken, authorize('employer_hr', 'employer_admin', 'lender_admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const { approvalNotes } = req.body;
@@ -582,7 +582,7 @@ router.put('/:id/approve', authenticateToken, authorize('corporate_hr', 'corpora
 
     // Check access permissions
     if (
-      req.user.role !== 'super_user' &&
+      req.user.role !== 'platform_admin' &&
       req.user.role !== 'lender_admin'
     ) {
       // Compare the _id of the populated company object
@@ -632,7 +632,7 @@ router.put('/:id/approve', authenticateToken, authorize('corporate_hr', 'corpora
 // @route   PUT /api/loans/:id/reject
 // @desc    Reject loan application
 // @access  Private (HR and Admin roles)
-router.put('/:id/reject', authenticateToken, authorize('corporate_hr', 'corporate_admin', 'client_admin'), async (req, res) => {
+router.put('/:id/reject', authenticateToken, authorize('employer_hr', 'employer_admin', 'lender_admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const { approvalNotes } = req.body;
@@ -664,7 +664,7 @@ router.put('/:id/reject', authenticateToken, authorize('corporate_hr', 'corporat
     }
 
     // Check access permissions
-    if (req.user.role !== 'super_user' && req.user.role !== 'lender_admin') {
+    if (req.user.role !== 'platform_admin' && req.user.role !== 'lender_admin') {
       if (req.user.company.toString() !== loan.company._id.toString()) {
         return res.status(403).json({
           success: false,
@@ -737,7 +737,7 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
     // Check access permissions based on role
     let hasAccess = false;
 
-    if (req.user.role === 'super_user') {
+    if (req.user.role === 'platform_admin') {
       hasAccess = true;
     } else if (req.user.role === 'lender_admin') {
       // Lender admins can disburse loans where they are the lender company
@@ -789,7 +789,7 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
 // @route   PUT /api/loans/:id/repayment
 // @desc    Record loan repayment with payment details
 // @access  Private (Lender Admin only)
-router.put('/:id/repayment', authenticateToken, authorize('lender_admin'), async (req, res) => {
+router.put('/:id/repayment', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -851,7 +851,7 @@ router.put('/:id/repayment', authenticateToken, authorize('lender_admin'), async
 
     // Tenancy check: a lender admin may only record payments on loans
     // where their company is the lender
-    if (req.user.role !== 'super_user') {
+    if (req.user.role !== 'platform_admin') {
       if (!loan.lenderCompany || loan.lenderCompany.toString() !== req.user.company.toString()) {
         return res.status(403).json({
           success: false,
@@ -930,7 +930,7 @@ router.put('/:id/repayment', authenticateToken, authorize('lender_admin'), async
 // @route   GET /api/loans/:id/settlement-quote
 // @desc    Get early settlement quote (read-only, no state change)
 // @access  Private - Lender admin only
-router.get('/:id/settlement-quote', authenticateToken, authorize('lender_admin'), async (req, res) => {
+router.get('/:id/settlement-quote', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const { id } = req.params;
     const { settlementDate } = req.query;
@@ -945,9 +945,9 @@ router.get('/:id/settlement-quote', authenticateToken, authorize('lender_admin')
     }
 
     // Check access permissions (multi-tenant)
-    if (req.user.role !== 'super_user') {
-      // Lender admin can only access loans from their corporate clients
-      if (req.user.role === 'lender_admin') {
+    if (req.user.role !== 'platform_admin') {
+      // Lender admin/officer can only access loans from their corporate clients
+      if (req.user.role === 'lender_admin' || req.user.role === 'lender_officer') {
         if (loan.lenderCompany.toString() !== req.user.company.toString()) {
           return res.status(403).json({
             success: false,
@@ -1003,7 +1003,7 @@ router.get('/:id/settlement-quote', authenticateToken, authorize('lender_admin')
 // @route   POST /api/loans/:id/prepayment
 // @desc    Record a prepayment (extra payment beyond schedule)
 // @access  Private - Lender admin only
-router.post('/:id/prepayment', authenticateToken, authorize('lender_admin'), async (req, res) => {
+router.post('/:id/prepayment', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const { id } = req.params;
     const { amount, allocationStrategy, notes } = req.body;
@@ -1035,8 +1035,8 @@ router.post('/:id/prepayment', authenticateToken, authorize('lender_admin'), asy
     }
 
     // Check access permissions (multi-tenant)
-    if (req.user.role !== 'super_user') {
-      if (req.user.role === 'lender_admin') {
+    if (req.user.role !== 'platform_admin') {
+      if (req.user.role === 'lender_admin' || req.user.role === 'lender_officer') {
         if (loan.lenderCompany.toString() !== req.user.company.toString()) {
           return res.status(403).json({
             success: false,
@@ -1046,7 +1046,7 @@ router.post('/:id/prepayment', authenticateToken, authorize('lender_admin'), asy
       } else {
         return res.status(403).json({
           success: false,
-          message: 'Only lender administrators can record prepayments'
+          message: 'Only lender staff can record prepayments'
         });
       }
     }
@@ -1128,7 +1128,7 @@ router.post('/:id/prepayment', authenticateToken, authorize('lender_admin'), asy
 // @route   POST /api/loans/:id/early-settlement
 // @desc    Settle loan completely (pay off entire remaining balance)
 // @access  Private - Lender admin only
-router.post('/:id/early-settlement', authenticateToken, authorize('lender_admin'), async (req, res) => {
+router.post('/:id/early-settlement', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const { id } = req.params;
     const { settlementDate, paymentReference } = req.body;
@@ -1145,8 +1145,8 @@ router.post('/:id/early-settlement', authenticateToken, authorize('lender_admin'
     }
 
     // Check access permissions (multi-tenant)
-    if (req.user.role !== 'super_user') {
-      if (req.user.role === 'lender_admin') {
+    if (req.user.role !== 'platform_admin') {
+      if (req.user.role === 'lender_admin' || req.user.role === 'lender_officer') {
         if (loan.lenderCompany.toString() !== req.user.company.toString()) {
           return res.status(403).json({
             success: false,
@@ -1156,7 +1156,7 @@ router.post('/:id/early-settlement', authenticateToken, authorize('lender_admin'
       } else {
         return res.status(403).json({
           success: false,
-          message: 'Only lender administrators can process early settlements'
+          message: 'Only lender staff can process early settlements'
         });
       }
     }
@@ -1264,7 +1264,7 @@ router.get('/:id/prepayment-history', authenticateToken, async (req, res) => {
     }
 
     // Check access permissions (multi-tenant)
-    if (req.user.role !== 'super_user') {
+    if (req.user.role !== 'platform_admin') {
       if (req.user.role === 'lender_admin') {
         if (loan.lenderCompany.toString() !== req.user.company.toString()) {
           return res.status(403).json({

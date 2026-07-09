@@ -12,12 +12,12 @@ export function UsersPage() {
 
   const roles = [
     { value: 'all', label: 'All Roles' },
-    { value: 'super_user', label: 'Super User' },
+    { value: 'platform_admin', label: 'Platform Admin' },
     { value: 'lender_admin', label: 'Lender Admin' },
-    { value: 'lender_user', label: 'Lender User' },
-    { value: 'corporate_admin', label: 'Corporate Admin' },
-    { value: 'corporate_hr', label: 'Corporate HR' },
-    { value: 'corporate_user', label: 'Corporate User' },
+    { value: 'lender_officer', label: 'Lender Officer' },
+    { value: 'employer_admin', label: 'Employer Admin' },
+    { value: 'employer_hr', label: 'Employer HR' },
+    { value: 'borrower', label: 'Borrower' },
   ];
 
   useEffect(() => {
@@ -41,12 +41,12 @@ export function UsersPage() {
 
   const getRoleBadgeColor = (role) => {
     const colors = {
-      'super_user': 'bg-purple-100 text-purple-800',
+      'platform_admin': 'bg-purple-100 text-purple-800',
       'lender_admin': 'bg-blue-100 text-blue-800',
-      'lender_user': 'bg-cyan-100 text-cyan-800',
-      'corporate_admin': 'bg-green-100 text-green-800',
-      'corporate_hr': 'bg-yellow-100 text-yellow-800',
-      'corporate_user': 'bg-gray-100 text-gray-800',
+      'lender_officer': 'bg-cyan-100 text-cyan-800',
+      'employer_admin': 'bg-green-100 text-green-800',
+      'employer_hr': 'bg-yellow-100 text-yellow-800',
+      'borrower': 'bg-gray-100 text-gray-800',
     };
     return colors[role] || 'bg-gray-100 text-gray-800';
   };

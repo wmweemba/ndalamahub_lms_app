@@ -1,12 +1,12 @@
 import { ROLES } from '@/utils/roleUtils';
 
 export function LoanApprovalActions({ loan, userRole }) {
-    // Add corporate_hr to approval checks
+    // Add employer_hr to approval checks
     const canApprove = [
-        ROLES.SUPER_USER,
+        ROLES.PLATFORM_ADMIN,
         ROLES.LENDER_ADMIN,
-        ROLES.CORPORATE_ADMIN,
-        ROLES.CORPORATE_HR
+        ROLES.EMPLOYER_ADMIN,
+        ROLES.EMPLOYER_HR
     ].includes(userRole);
 
     return (

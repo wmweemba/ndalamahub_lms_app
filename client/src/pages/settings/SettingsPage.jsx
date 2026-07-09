@@ -30,12 +30,12 @@ export default function SettingsPage() {
     if (!currentUser) return false;
     
     const roleHierarchy = {
-      'super_user': 6,
+      'platform_admin': 6,
       'lender_admin': 5,
-      'corporate_admin': 4,
-      'corporate_hr': 3,
-      'lender_user': 2,
-      'corporate_user': 1
+      'lender_officer': 4,
+      'employer_admin': 3,
+      'employer_hr': 2,
+      'borrower': 1
     };
     
     return roleHierarchy[currentUser.role] >= roleHierarchy[requiredRole];
@@ -80,14 +80,14 @@ export default function SettingsPage() {
       label: 'User Management',
       icon: Users,
       description: 'Manage users, roles, and permissions',
-      requiredRole: 'corporate_hr' // Changed from corporate_admin to corporate_hr
+      requiredRole: 'employer_hr' // Changed from employer_admin to employer_hr
     },
     {
       id: 'company',
       label: 'Company Settings',
       icon: Building2,
       description: 'Configure company preferences and loan settings',
-      requiredRole: 'corporate_admin'
+      requiredRole: 'employer_admin'
     },
     {
       id: 'system',
@@ -101,14 +101,14 @@ export default function SettingsPage() {
       label: 'Security',
       icon: Shield,
       description: 'Security settings and access controls',
-      requiredRole: 'corporate_admin'
+      requiredRole: 'employer_admin'
     },
     {
       id: 'notifications',
       label: 'Notifications',
       icon: Bell,
       description: 'Configure notification preferences',
-      requiredRole: 'corporate_user' // Changed to lower requirement
+      requiredRole: 'borrower' // Changed to lower requirement
     },
     {
       id: 'integrations',

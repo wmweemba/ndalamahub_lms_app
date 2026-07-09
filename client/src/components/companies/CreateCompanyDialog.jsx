@@ -38,7 +38,7 @@ export function CreateCompanyDialog({ open, onClose, onSuccess }) {
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
 
-    // Fetch lender companies when dialog opens (only for super_user and non-lender admins)
+    // Fetch lender companies when dialog opens (only for platform_admin and non-lender admins)
     useEffect(() => {
         if (open && !isLenderAdmin) {
             fetchLenderCompanies();
@@ -179,7 +179,7 @@ export function CreateCompanyDialog({ open, onClose, onSuccess }) {
                                         required
                                     />
                                 </div>
-                                {/* Company Type - Only show for super_user */}
+                                {/* Company Type - Only show for platform_admin */}
                                 {!isLenderAdmin && (
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">

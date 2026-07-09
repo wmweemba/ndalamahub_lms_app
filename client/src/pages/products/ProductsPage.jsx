@@ -31,7 +31,7 @@ export function ProductsPage() {
   ];
 
   useEffect(() => {
-    if (currentUser?.role === 'super_user') {
+    if (currentUser?.role === 'platform_admin') {
       fetchLenders();
     }
   }, []); // Run once on mount
@@ -162,8 +162,8 @@ export function ProductsPage() {
         </select>
       </div>
 
-      {/* Lender Filter (Super User Only) */}
-      {currentUser?.role === 'super_user' && (
+      {/* Lender Filter (Platform Admin Only) */}
+      {currentUser?.role === 'platform_admin' && (
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Filter by Lender

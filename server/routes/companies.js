@@ -11,7 +11,7 @@ router.get('/', authenticateToken, async (req, res) => {
         let companies;
         
         // Super user can see all companies
-        if (req.user.role === 'super_user') {
+        if (req.user.role === 'platform_admin') {
             companies = await Company.find().select('-settings');
         }
         // Lender admin can only see their own lender company and linked corporate clients
@@ -32,7 +32,7 @@ router.get('/', authenticateToken, async (req, res) => {
             }).select('-settings');
         }
         // Corporate admin can only see their own company
-        else if (req.user.role === 'corporate_admin' || req.user.role === 'corporate_hr') {
+        else if (req.user.role === 'employer_admin' || req.user.role === 'employer_hr') {
             companies = await Company.find({ 
                 _id: req.user.company 
             }).select('-settings');
@@ -55,7 +55,7 @@ router.get('/', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
     try {
         // Super user can create any type of company
-        if (req.user.role === 'super_user') {
+        if (req.user.role === 'platform_admin') {
             const company = new Company(req.body);
             const savedCompany = await company.save();
             res.status(201).json(savedCompany);
@@ -115,7 +115,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
         }
 
         // Super user can update any company
-        if (req.user.role === 'super_user') {
+        if (req.user.role === 'platform_admin') {
             const updatedCompany = await Company.findByIdAndUpdate(
                 companyId,
                 req.body,
@@ -156,7 +156,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
             res.json(updatedCompany);
         }
         // Corporate admin can only update their own company (basic info only)
-        else if (req.user.role === 'corporate_admin') {
+        else if (req.user.role === 'employer_admin') {
             if (company._id.toString() !== req.user.company.toString()) {
                 return res.status(403).json({ message: 'Access denied: Cannot update this company' });
             }
@@ -200,7 +200,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
         }
 
         // Super user can delete any company
-        if (req.user.role === 'super_user') {
+        if (req.user.role === 'platform_admin') {
             // If deleting a corporate company, remove it from lender's corporateClients
             if (company.type === 'corporate' && company.lenderCompany) {
                 await Company.findByIdAndUpdate(

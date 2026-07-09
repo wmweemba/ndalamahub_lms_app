@@ -1,10 +1,10 @@
 const ROLES = {
-    SUPER_USER: 'super_user',
+    PLATFORM_ADMIN: 'platform_admin',
     LENDER_ADMIN: 'lender_admin',
-    CORPORATE_ADMIN: 'corporate_admin',
-    CORPORATE_HR: 'corporate_hr',
-    LENDER_USER: 'lender_user',
-    CORPORATE_USER: 'corporate_user'
+    LENDER_OFFICER: 'lender_officer',
+    EMPLOYER_ADMIN: 'employer_admin',
+    EMPLOYER_HR: 'employer_hr',
+    BORROWER: 'borrower'
 };
 
 module.exports = ROLES;

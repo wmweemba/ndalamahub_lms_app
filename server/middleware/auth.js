@@ -1,5 +1,15 @@
 const jwt = require('jsonwebtoken');
 
+// Role hierarchy, single source of truth for authorizeMinRole and hasMinRole
+const ROLE_HIERARCHY = {
+    'platform_admin': 5,
+    'lender_admin': 4,
+    'lender_officer': 3,
+    'employer_admin': 2,
+    'employer_hr': 1,
+    'borrower': 0
+};
+
 // Authenticate JWT token
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -29,7 +39,7 @@ const authorize = (...roles) => {
         // Flatten roles array in case it's passed as authorize(['role1', 'role2'])
         const allowedRoles = roles.flat();
 
-        if (!allowedRoles.includes(req.user.role) && req.user.role !== 'super_user') {
+        if (!allowedRoles.includes(req.user.role) && req.user.role !== 'platform_admin') {
             return res.status(403).json({ 
                 message: 'Access denied. Insufficient permissions.' 
             });
@@ -47,7 +57,7 @@ const authorizeRole = (role) => {
         }
 
         // Check if user has required role
-        if (req.user.role !== role && req.user.role !== 'super_user') {
+        if (req.user.role !== role && req.user.role !== 'platform_admin') {
             return res.status(403).json({ 
                 message: 'Access denied. Insufficient permissions.',
                 requiredRole: role,
@@ -61,22 +71,13 @@ const authorizeRole = (role) => {
 
 // Authorize minimum role level
 const authorizeMinRole = (minRole) => {
-    const roleHierarchy = {
-        'super_user': 5,        // Increased to accommodate new role
-        'lender_admin': 4,      // Moved up
-        'corporate_admin': 3,   // Moved up
-        'corporate_hr': 2,      // Added new role
-        'lender_user': 1,
-        'corporate_user': 0
-    };
-
     return (req, res, next) => {
         if (!req.user) {
             return res.status(401).json({ message: 'User not authenticated' });
         }
 
-        const userRoleLevel = roleHierarchy[req.user.role] || -1;
-        const requiredRoleLevel = roleHierarchy[minRole] || 0;
+        const userRoleLevel = ROLE_HIERARCHY[req.user.role] || -1;
+        const requiredRoleLevel = ROLE_HIERARCHY[minRole] || 0;
 
         if (userRoleLevel < requiredRoleLevel) {
             return res.status(403).json({ 
@@ -108,15 +109,7 @@ const authorizeCompany = () => {
 // Check whether a role meets a minimum role level (JWT-payload-safe
 // replacement for the Mongoose User.hasPermission method)
 const hasMinRole = (role, minRole) => {
-    const roleHierarchy = {
-        'super_user': 5,
-        'lender_admin': 4,
-        'corporate_admin': 3,
-        'corporate_hr': 2,
-        'lender_user': 1,
-        'corporate_user': 0
-    };
-    return (roleHierarchy[role] ?? -1) >= (roleHierarchy[minRole] ?? Infinity);
+    return (ROLE_HIERARCHY[role] ?? -1) >= (ROLE_HIERARCHY[minRole] ?? Infinity);
 };
 
 module.exports = {

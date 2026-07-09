@@ -43,9 +43,9 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['super_user', 'lender_admin', 'corporate_admin', 'corporate_hr', 'lender_user', 'corporate_user'],
+    enum: ['platform_admin', 'lender_admin', 'lender_officer', 'employer_admin', 'employer_hr', 'borrower'],
     required: [true, 'Role is required'],
-    default: 'corporate_user'
+    default: 'borrower'
   },
   company: {
     type: mongoose.Schema.Types.ObjectId,
@@ -56,7 +56,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true,
     required: function() {
-      return this.role === 'corporate_user' || this.role === 'corporate_hr';
+      return this.role === 'borrower' || this.role === 'employer_hr';
     }
   },
   employeeId: {
@@ -103,12 +103,12 @@ userSchema.methods.getFullName = function() {
 // Check if user has permission
 userSchema.methods.hasPermission = function(requiredRole) {
   const roleHierarchy = {
-    'super_user': 5,
+    'platform_admin': 5,
     'lender_admin': 4,
-    'corporate_admin': 3,
-    'corporate_hr': 2,
-    'lender_user': 1,
-    'corporate_user': 0
+    'lender_officer': 3,
+    'employer_admin': 2,
+    'employer_hr': 1,
+    'borrower': 0
   };
   
   return roleHierarchy[this.role] >= roleHierarchy[requiredRole];

@@ -8,12 +8,12 @@ const { authenticateToken, authorizeMinRole } = require('../middleware/auth');
 // @route   GET /api/dashboard/stats
 // @desc    Get dashboard statistics
 // @access  Private (Corporate Admin and above)
-router.get('/stats', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
+router.get('/stats', authenticateToken, authorizeMinRole('employer_admin'), async (req, res) => {
     try {
         let filter = {};
         
-        // If not super_user, filter by company
-        if (req.user.role !== 'super_user') {
+        // If not platform_admin, filter by company
+        if (req.user.role !== 'platform_admin') {
             filter.company = req.user.company;
         }
 
@@ -232,7 +232,7 @@ router.get('/lender-stats', authenticateToken, authorizeMinRole('lender_admin'),
 // @route   GET /api/dashboard/hr-stats
 // @desc    Get HR-specific dashboard statistics
 // @access  Private (Corporate HR and above)
-router.get('/hr-stats', authenticateToken, authorizeMinRole('corporate_hr'), async (req, res) => {
+router.get('/hr-stats', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
     try {
         // Get company information
         const company = await Company.findById(req.user.company);

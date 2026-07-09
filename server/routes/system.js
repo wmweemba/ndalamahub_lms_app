@@ -100,7 +100,7 @@ router.get('/settings', authenticateToken, authorizeMinRole('lender_admin'), asy
 // @route   PUT /api/system/settings
 // @desc    Update system settings
 // @access  Private (Super User only)
-router.put('/settings', authenticateToken, authorizeMinRole('super_user'), async (req, res) => {
+router.put('/settings', authenticateToken, authorizeMinRole('platform_admin'), async (req, res) => {
   try {
     const { system, email, notifications, api } = req.body;
 
@@ -163,7 +163,7 @@ router.put('/settings', authenticateToken, authorizeMinRole('super_user'), async
 // @route   POST /api/system/backup
 // @desc    Trigger system backup
 // @access  Private (Super User only)
-router.post('/backup', authenticateToken, authorizeMinRole('super_user'), async (req, res) => {
+router.post('/backup', authenticateToken, authorizeMinRole('platform_admin'), async (req, res) => {
   try {
     // In a real application, this would trigger an actual backup process
     const backupId = `backup_${Date.now()}`;
@@ -191,7 +191,7 @@ router.post('/backup', authenticateToken, authorizeMinRole('super_user'), async 
 // @route   GET /api/system/health
 // @desc    Get system health status
 // @access  Private (Admin roles)
-router.get('/health', authenticateToken, authorizeMinRole('corporate_admin'), async (req, res) => {
+router.get('/health', authenticateToken, authorizeMinRole('employer_admin'), async (req, res) => {
   try {
     const health = {
       status: 'healthy',

@@ -338,6 +338,40 @@ function calculateInterestOnlyPayment(principal, annualRate, term, frequency = '
   };
 }
 
+/**
+ * Length of a term in days. Month terms are calendar-based, so they have no
+ * fixed day count — callers doing calendar scheduling must use addMonths;
+ * this helper is for rate math, where the 365/12 average is the convention.
+ * @param {Number} term - Term value
+ * @param {String} termUnit - 'days' | 'weeks' | 'months'
+ * @returns {Number} Term length in days
+ */
+function termToDays(term, termUnit = 'months') {
+  if (termUnit === 'days') return term;
+  if (termUnit === 'weeks') return term * 7;
+  return term * (365 / 12); // months (average, rate math only)
+}
+
+/**
+ * Normalize a configured rate to an effective annual rate.
+ * @param {Number} rate - Rate as entered (percent)
+ * @param {String} rateBasis - 'per_annum' | 'per_term' | 'per_period'
+ * @param {Number} term - Loan term value
+ * @param {String} termUnit - 'days' | 'weeks' | 'months'
+ * @param {String} frequency - Repayment frequency
+ * @returns {Number} Effective annual rate (percent)
+ */
+function annualizeRate(rate, rateBasis = 'per_annum', term = 12, termUnit = 'months', frequency = 'monthly') {
+  if (rateBasis === 'per_term') {
+    if (termUnit === 'months') return rate * (12 / term); // exact for month terms
+    return rate * (365 / termToDays(term, termUnit));
+  }
+  if (rateBasis === 'per_period') {
+    return rate * getPeriodsPerYear(frequency);
+  }
+  return rate; // per_annum
+}
+
 module.exports = {
   getDailyRate,
   getActualDays,
@@ -355,5 +389,7 @@ module.exports = {
   calculateFlatRatePayment,
   calculateSimpleInterest,
   calculateSimpleInterestPayment,
-  calculateInterestOnlyPayment
+  calculateInterestOnlyPayment,
+  termToDays,
+  annualizeRate
 };

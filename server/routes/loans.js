@@ -21,8 +21,6 @@ const {
   canWriteRepayment
 } = require('../utils/tenantScope');
 
-// ...existing code...
-
 const ExcelJS = require('exceljs');
 // @route   GET /api/loans/:id/repayment-schedule/export/excel
 // @desc    Export detailed repayment schedule for a loan as Excel
@@ -389,8 +387,10 @@ router.post('/', authenticateToken, authorize('borrower'), async (req, res) => {
         description: description || product.description,
         interestCalculation: {
           method: product.interestCalculation.method,
+          rateBasis: product.interestCalculation.rateBasis,
           accrualBasis: product.interestCalculation.dayCountConvention
         },
+        termUnit: product.term.unit,
         repaymentFrequency: product.repaymentFrequency[0] // Use first frequency as default
       };
       
@@ -597,7 +597,7 @@ router.put('/:id/reject', authenticateToken, authorize('employer_hr', 'employer_
     }
 
     // Check if loan can be rejected
-    if (loan.status !== 'pending' && loan.status !== 'pending_approval') {
+    if (loan.status !== 'pending_approval') {
       return res.status(400).json({
         success: false,
         message: 'Loan cannot be rejected in its current status'
@@ -689,8 +689,12 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
     loan.disbursedBy = req.user.id;
     loan.disbursedAt = new Date();
     loan.startDate = new Date();
-    loan.endDate = new Date(Date.now() + (loan.term * 30 * 24 * 60 * 60 * 1000)); // Approximate end date
     if (disbursementMethod) loan.disbursementMethod = disbursementMethod;
+
+    loan.calculateLoanDetails(); // regenerate schedule anchored to disbursedAt
+    loan.endDate = loan.repaymentSchedule.length > 0
+      ? loan.repaymentSchedule[loan.repaymentSchedule.length - 1].dueDate
+      : loan.endDate;
 
     await loan.save();
 
@@ -826,8 +830,8 @@ router.put('/:id/repayment', authenticateToken, authorize('lender_admin', 'lende
       installment.status = 'partial';
     }
 
-    // Check if all installments are paid
-    const allPaid = loan.repaymentSchedule.every(inst => inst.status === 'paid');
+    // Check if all installments are paid (or waived via early settlement)
+    const allPaid = loan.repaymentSchedule.every(inst => inst.status === 'paid' || inst.status === 'waived');
     if (allPaid) {
       loan.status = 'completed';
     } else {
@@ -1100,12 +1104,13 @@ router.post('/:id/early-settlement', authenticateToken, authorize('lender_admin'
     // Mark loan as completed
     loan.status = 'completed';
 
-    // Mark all remaining installments as cancelled/settled
+    // Mark all remaining installments as waived — the settlement amount is
+    // recorded once in loan.earlySettlement.settlementAmount, not per-installment
     loan.repaymentSchedule.forEach(installment => {
       if (installment.status === 'pending') {
-        installment.status = 'paid';
-        installment.paidAt = proposedDate;
-        installment.paidAmount = 0; // Settled via early settlement, not individual payment
+        installment.status = 'waived';
+        installment.paidAt = proposedDate; // waived-at timestamp
+        installment.paidAmount = 0;
       }
     });
 

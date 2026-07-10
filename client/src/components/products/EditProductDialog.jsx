@@ -16,10 +16,11 @@ export function EditProductDialog({ open, onOpenChange, onSuccess, product }) {
         description: product.description || '',
         category: product.category || 'personal',
         interestRate: product.interestRate || { min: 12, max: 24, default: 18 },
-        term: product.term || { min: 6, max: 36, default: 12 },
+        term: product.term || { min: 6, max: 36, default: 12, unit: 'months' },
         amount: product.amount || { min: 5000, max: 50000, currency: 'ZMW' },
         interestCalculation: product.interestCalculation || {
           method: 'reducing_balance',
+          rateBasis: 'per_annum',
           dayCountConvention: 'actual/365'
         },
         repaymentFrequency: product.repaymentFrequency || ['monthly'],
@@ -217,8 +218,10 @@ export function EditProductDialog({ open, onOpenChange, onSuccess, product }) {
 
             {/* Loan Term */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Loan Term (Months)</h3>
-              <div className="grid grid-cols-3 gap-4">
+              <h3 className="text-sm font-medium text-gray-900">
+                Loan Term ({formData.term.unit === 'days' ? 'Days' : formData.term.unit === 'weeks' ? 'Weeks' : 'Months'})
+              </h3>
+              <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Minimum</Label>
                   <Input
@@ -255,13 +258,28 @@ export function EditProductDialog({ open, onOpenChange, onSuccess, product }) {
                     required
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>Unit</Label>
+                  <select
+                    value={formData.term.unit || 'months'}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      term: { ...formData.term, unit: e.target.value }
+                    })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="days">Days</option>
+                    <option value="weeks">Weeks</option>
+                    <option value="months">Months</option>
+                  </select>
+                </div>
               </div>
             </div>
 
             {/* Calculation Method */}
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-gray-900">Interest Calculation</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Method</Label>
                   <select
@@ -276,6 +294,21 @@ export function EditProductDialog({ open, onOpenChange, onSuccess, product }) {
                     <option value="flat_rate">Flat Rate</option>
                     <option value="simple_interest">Simple Interest</option>
                     <option value="interest_only">Interest Only</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Rate Basis</Label>
+                  <select
+                    value={formData.interestCalculation.rateBasis || 'per_annum'}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      interestCalculation: { ...formData.interestCalculation, rateBasis: e.target.value }
+                    })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="per_annum">Per annum</option>
+                    <option value="per_term">Per term</option>
+                    <option value="per_period">Per period</option>
                   </select>
                 </div>
                 <div className="space-y-2">

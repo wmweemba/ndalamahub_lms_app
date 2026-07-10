@@ -37,23 +37,23 @@ const loanProductSchema = new mongoose.Schema({
       type: Number,
       required: [true, 'Minimum interest rate is required'],
       min: [0, 'Interest rate cannot be negative'],
-      max: [100, 'Interest rate cannot exceed 100%']
+      max: [1000, 'Interest rate cannot exceed 1000%']
     },
     max: {
       type: Number,
       required: [true, 'Maximum interest rate is required'],
       min: [0, 'Interest rate cannot be negative'],
-      max: [100, 'Interest rate cannot exceed 100%']
+      max: [1000, 'Interest rate cannot exceed 1000%']
     },
     default: {
       type: Number,
       required: [true, 'Default interest rate is required'],
       min: [0, 'Interest rate cannot be negative'],
-      max: [100, 'Interest rate cannot exceed 100%']
+      max: [1000, 'Interest rate cannot exceed 1000%']
     }
   },
-  
-  // Loan Term Configuration (in months)
+
+  // Loan Term Configuration (value interpreted in `unit` below; defaults to months)
   term: {
     min: {
       type: Number,
@@ -69,6 +69,17 @@ const loanProductSchema = new mongoose.Schema({
       type: Number,
       required: [true, 'Default term is required'],
       min: [1, 'Default term must be at least 1 month']
+    },
+    // NOTE: isTermValid compares raw numeric term values, so this invariant
+    // must hold: a loan's term is only valid against a product's min/max/default
+    // when both are expressed in the same unit as this field.
+    unit: {
+      type: String,
+      enum: {
+        values: ['days', 'weeks', 'months'],
+        message: '{VALUE} is not a valid term unit'
+      },
+      default: 'months'
     }
   },
   
@@ -101,6 +112,14 @@ const loanProductSchema = new mongoose.Schema({
         message: '{VALUE} is not a valid interest calculation method'
       },
       default: 'reducing_balance'
+    },
+    rateBasis: {
+      type: String,
+      enum: {
+        values: ['per_annum', 'per_term', 'per_period'],
+        message: '{VALUE} is not a valid rate basis'
+      },
+      default: 'per_annum'
     },
     dayCountConvention: {
       type: String,

@@ -13,7 +13,9 @@ const {
   addMonths,
   addDays,
   getPeriodsPerYear,
-  getNextPaymentDate
+  getNextPaymentDate,
+  termToDays,
+  annualizeRate
 } = require('../interestCalculator');
 
 describe('Interest Calculator', () => {
@@ -210,6 +212,54 @@ describe('Interest Calculator', () => {
       const next = getNextPaymentDate(start, 'quarterly');
       expect(next.getMonth()).toBe(3); // April
       expect(next.getDate()).toBe(15);
+    });
+  });
+
+  describe('termToDays', () => {
+    test('days unit returns the term unchanged', () => {
+      expect(termToDays(30, 'days')).toBe(30);
+    });
+
+    test('weeks unit multiplies by 7', () => {
+      expect(termToDays(4, 'weeks')).toBe(28);
+    });
+
+    test('months unit uses the 365/12 average (rate math only)', () => {
+      expect(termToDays(1, 'months')).toBeCloseTo(365 / 12, 8);
+    });
+
+    test('defaults to months when no unit specified', () => {
+      expect(termToDays(1)).toBeCloseTo(365 / 12, 8);
+    });
+  });
+
+  describe('annualizeRate', () => {
+    test('per_annum passes the rate through unchanged', () => {
+      expect(annualizeRate(24, 'per_annum', 12, 'months', 'monthly')).toBe(24);
+    });
+
+    test('defaults to per_annum passthrough when no basis specified', () => {
+      expect(annualizeRate(24)).toBe(24);
+    });
+
+    test('per_term, month terms: 25% over 1 month annualizes to 300%', () => {
+      expect(annualizeRate(25, 'per_term', 1, 'months', 'monthly')).toBeCloseTo(300, 8);
+    });
+
+    test('per_term, month terms: 20% over 6 months annualizes to 40%', () => {
+      expect(annualizeRate(20, 'per_term', 6, 'months', 'monthly')).toBeCloseTo(40, 8);
+    });
+
+    test('per_term, day terms: 25% over 30 days annualizes via 365/30', () => {
+      expect(annualizeRate(25, 'per_term', 30, 'days', 'monthly')).toBeCloseTo(25 * (365 / 30), 8);
+    });
+
+    test('per_period, monthly: 2% per period annualizes to 24%', () => {
+      expect(annualizeRate(2, 'per_period', 12, 'months', 'monthly')).toBeCloseTo(24, 8);
+    });
+
+    test('per_period, weekly: 1% per period annualizes to 52%', () => {
+      expect(annualizeRate(1, 'per_period', 52, 'weeks', 'weekly')).toBeCloseTo(52, 8);
     });
   });
 });

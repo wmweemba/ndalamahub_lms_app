@@ -390,6 +390,43 @@ describe('Prepayment API Endpoints', () => {
     });
   });
 
+  describe('Prepayment summary accrued-interest sanity (Phase 05 fix)', () => {
+    test('before/after interest for a seeded-scale loan stays within an order of magnitude of totalInterest', () => {
+      const loan = new Loan({
+        amount: 50000,
+        interestRate: 24,
+        term: 12,
+        status: 'active',
+        purpose: 'Test loan',
+        applicant: corporateUser.id,
+        company: corporateCompany._id,
+        lenderCompany: lenderCompany._id,
+        repaymentFrequency: 'monthly',
+        disbursedAt: new Date('2025-01-01'),
+        interestCalculation: {
+          method: 'reducing_balance',
+          accrualBasis: 'actual/365',
+          accrualFrequency: 'daily'
+        }
+      });
+
+      loan.calculateLoanDetails();
+
+      const beforeInterest = loan.calculateAccruedInterest();
+      loan.recordPrepayment(5000, 'reduce_term', new mongoose.Types.ObjectId());
+      loan.recalculateSchedule('reduce_term');
+      const afterInterest = loan.calculateAccruedInterest();
+
+      // Before the Phase 05 fix, calculateAccruedInterest summed interest
+      // from every paid installment ever recorded, which could blow up to
+      // implausible (multi-million) figures on a seeded-scale loan.
+      expect(beforeInterest).toBeLessThan(loan.totalInterest * 10);
+      expect(afterInterest).toBeLessThan(loan.totalInterest * 10);
+      expect(beforeInterest).toBeGreaterThanOrEqual(0);
+      expect(afterInterest).toBeGreaterThanOrEqual(0);
+    });
+  });
+
   describe('GET /api/loans/:id/prepayment-history', () => {
     test('returns all prepayments with summary', () => {
       const loan = new Loan({

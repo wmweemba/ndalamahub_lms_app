@@ -538,6 +538,66 @@ describe('Schedule Recalculation', () => {
       }
     });
   });
+
+  describe('Single-Installment Day-Term Loan (Phase 05 — Manifi shape)', () => {
+    const buildSingleInstallmentLoan = () => new Loan({
+      amount: 10000,
+      interestRate: 25,
+      term: 30,
+      termUnit: 'days',
+      status: 'active',
+      purpose: 'Test loan',
+      applicant: new mongoose.Types.ObjectId(),
+      company: new mongoose.Types.ObjectId(),
+      lenderCompany: new mongoose.Types.ObjectId(),
+      monthlyPayment: 12500,
+      repaymentFrequency: 'monthly',
+      interestCalculation: {
+        method: 'flat_rate',
+        rateBasis: 'per_term',
+        accrualBasis: 'actual/365',
+        accrualFrequency: 'daily'
+      },
+      disbursedAt: new Date('2026-01-01'),
+      repaymentSchedule: [
+        {
+          installmentNumber: 1,
+          dueDate: new Date('2026-01-31'),
+          amount: 12500,
+          principal: 10000,
+          interest: 2500,
+          status: 'pending',
+          paidAmount: 0
+        }
+      ]
+    });
+
+    test('reduce_term strategy does not divide by zero on a 1-remaining-installment loan', () => {
+      const loan = buildSingleInstallmentLoan();
+      loan.recordPrepayment(2000, 'reduce_term', new mongoose.Types.ObjectId());
+
+      const newSchedule = loan.recalculateSchedule('reduce_term');
+
+      expect(newSchedule).toHaveLength(1);
+      expect(Number.isFinite(newSchedule[0].amount)).toBe(true);
+      expect(Number.isFinite(newSchedule[0].principal)).toBe(true);
+      expect(Number.isFinite(newSchedule[0].interest)).toBe(true);
+      expect(newSchedule[0].amount).toBeGreaterThan(0);
+    });
+
+    test('reduce_payment strategy does not divide by zero on a 1-remaining-installment loan', () => {
+      const loan = buildSingleInstallmentLoan();
+      loan.recordPrepayment(2000, 'reduce_payment', new mongoose.Types.ObjectId());
+
+      const newSchedule = loan.recalculateSchedule('reduce_payment');
+
+      expect(newSchedule).toHaveLength(1);
+      expect(Number.isFinite(newSchedule[0].amount)).toBe(true);
+      expect(Number.isFinite(newSchedule[0].principal)).toBe(true);
+      expect(Number.isFinite(newSchedule[0].interest)).toBe(true);
+      expect(newSchedule[0].amount).toBeGreaterThan(0);
+    });
+  });
 });
 
 console.log('✅ Schedule recalculation test suite created with 15+ tests');

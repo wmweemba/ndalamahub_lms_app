@@ -5,7 +5,7 @@
 
 const mongoose = require('mongoose');
 const Loan = require('../../models/Loan');
-const { addDays } = require('../interestCalculator');
+const { addDays, addMonths } = require('../interestCalculator');
 
 // Note: These tests don't require database connection
 // They test the calculation logic directly
@@ -751,6 +751,39 @@ describe('Loan Calculation Integration Tests', () => {
       const last = loan.repaymentSchedule[loan.repaymentSchedule.length - 1];
       const expectedLastDueDate = addDays(disbursedAt, 84);
       expect(new Date(last.dueDate).toDateString()).toBe(expectedLastDueDate.toDateString());
+    });
+
+    test('disbursement anchor: schedule regenerates against disbursedAt, not applicationDate, and endDate matches the last installment', () => {
+      const applicationDate = new Date('2026-05-01');
+      const loan = new Loan({
+        applicant: testApplicantId,
+        company: testCompanyId,
+        amount: 10000,
+        interestRate: 24,
+        term: 6,
+        repaymentFrequency: 'monthly',
+        applicationDate,
+        interestCalculation: {
+          method: 'reducing_balance',
+          rateBasis: 'per_annum',
+          accrualBasis: 'actual/365',
+          accrualFrequency: 'daily'
+        }
+      });
+
+      // Disburse 14 days after application — mirrors what PUT /:id/disburse now does
+      const disbursedAt = addDays(applicationDate, 14);
+      loan.disbursedAt = disbursedAt;
+      loan.startDate = disbursedAt;
+      loan.calculateLoanDetails(); // regenerate schedule anchored to disbursedAt
+      loan.endDate = loan.repaymentSchedule.length > 0
+        ? loan.repaymentSchedule[loan.repaymentSchedule.length - 1].dueDate
+        : loan.endDate;
+
+      const expectedFirstDueDate = addMonths(disbursedAt, 1);
+      expect(new Date(loan.repaymentSchedule[0].dueDate).toDateString()).toBe(expectedFirstDueDate.toDateString());
+      expect(new Date(loan.endDate).toDateString())
+        .toBe(new Date(loan.repaymentSchedule[loan.repaymentSchedule.length - 1].dueDate).toDateString());
     });
   });
 });

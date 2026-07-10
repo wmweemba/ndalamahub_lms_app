@@ -195,7 +195,7 @@ describe('Accrued Interest Calculation', () => {
     expect(loan.calculateAccruedInterest()).toBe(0);
   });
   
-  test('calculateAccruedInterest sums paid installment interest', () => {
+  test('calculateAccruedInterest excludes already-paid installment interest (Phase 05 fix)', () => {
     const loan = new Loan({
       amount: 50000,
       interestRate: 24,
@@ -229,7 +229,9 @@ describe('Accrued Interest Calculation', () => {
       ]
     });
     
-    expect(loan.calculateAccruedInterest()).toBe(1000 + 926);
+    // Both installments are already paid — a borrower settling early should
+    // not be quoted interest they've already paid off.
+    expect(loan.calculateAccruedInterest()).toBe(0);
   });
   
   test('calculateAccruedInterest includes overdue interest', () => {
@@ -284,18 +286,60 @@ describe('Early Settlement Calculation', () => {
         }
       ]
     });
-    
+
     const settlement = loan.calculateEarlySettlementAmount();
-    
+
     expect(settlement).toHaveProperty('principalBalance');
     expect(settlement).toHaveProperty('interestBalance');
     expect(settlement).toHaveProperty('earlySettlementFee');
     expect(settlement).toHaveProperty('totalPayoff');
     expect(settlement).toHaveProperty('futureInterestSaved');
     expect(settlement).toHaveProperty('settlementDate');
-    
+
     expect(settlement.principalBalance).toBeCloseTo(50000 - 3707, 0);
-    expect(settlement.interestBalance).toBe(1000);
+    // The only installment is already paid — its interest must not be
+    // re-quoted as part of the settlement (Phase 05 accrued-interest fix).
+    expect(settlement.interestBalance).toBe(0);
+  });
+
+  test('calculateEarlySettlementAmount excludes already-paid interest on a half-paid loan', () => {
+    const loan = new Loan({
+      amount: 50000,
+      interestRate: 24,
+      term: 12,
+      status: 'active',
+      purpose: 'Test loan',
+      applicant: new mongoose.Types.ObjectId(),
+      company: new mongoose.Types.ObjectId(),
+      lenderCompany: new mongoose.Types.ObjectId(),
+      repaymentSchedule: [
+        {
+          installmentNumber: 1,
+          dueDate: new Date('2026-01-01'),
+          amount: 4707,
+          principal: 3707,
+          interest: 1000,
+          status: 'paid',
+          paidAmount: 4707,
+          paidAt: new Date('2026-01-01')
+        },
+        {
+          installmentNumber: 2,
+          dueDate: new Date('2026-02-01'),
+          amount: 4707,
+          principal: 3781,
+          interest: 926,
+          status: 'overdue',
+          paidAmount: 0
+        }
+      ]
+    });
+
+    const settlement = loan.calculateEarlySettlementAmount(new Date('2026-03-01'));
+
+    // Only the overdue (unpaid) installment's interest is quoted — the paid
+    // installment's interest must not be counted a second time.
+    expect(settlement.interestBalance).toBe(926);
   });
   
   test('calculateEarlySettlementAmount includes early settlement fee from product', () => {
@@ -505,6 +549,86 @@ describe('Integration Tests', () => {
     // Should account for both paid installment and prepayment
     const expectedRemaining = 50000 - 3707 - loan.prepayments[0].principalPortion;
     expect(settlement.principalBalance).toBeCloseTo(expectedRemaining, 0);
+  });
+});
+
+describe('Waived Installment Settlement Bookkeeping (Phase 05)', () => {
+  test('after settlement, remaining installments are waived and totalPaid counts the settlement amount exactly once', () => {
+    const loan = new Loan({
+      amount: 50000,
+      interestRate: 24,
+      term: 3,
+      status: 'active',
+      purpose: 'Test loan',
+      applicant: new mongoose.Types.ObjectId(),
+      company: new mongoose.Types.ObjectId(),
+      lenderCompany: new mongoose.Types.ObjectId(),
+      totalAmount: 56000,
+      repaymentSchedule: [
+        {
+          installmentNumber: 1,
+          dueDate: new Date('2026-01-01'),
+          amount: 18667,
+          principal: 16667,
+          interest: 2000,
+          status: 'paid',
+          paidAmount: 18667,
+          paidAt: new Date('2026-01-01')
+        },
+        {
+          installmentNumber: 2,
+          dueDate: new Date('2026-02-01'),
+          amount: 18667,
+          principal: 16667,
+          interest: 2000,
+          status: 'pending',
+          paidAmount: 0
+        },
+        {
+          installmentNumber: 3,
+          dueDate: new Date('2026-03-01'),
+          amount: 18667,
+          principal: 16667,
+          interest: 2000,
+          status: 'pending',
+          paidAmount: 0
+        }
+      ]
+    });
+
+    const settlementDate = new Date('2026-01-15');
+    const settlement = loan.calculateEarlySettlementAmount(settlementDate);
+
+    // Mirror what the early-settlement route does
+    loan.earlySettlement = {
+      settled: true,
+      settlementDate,
+      settlementAmount: settlement.totalPayoff,
+      earlySettlementFee: settlement.earlySettlementFee,
+      principalBalance: settlement.principalBalance,
+      interestBalance: settlement.interestBalance,
+      savingsRealized: settlement.futureInterestSaved,
+      settledBy: new mongoose.Types.ObjectId()
+    };
+    loan.status = 'completed';
+    loan.repaymentSchedule.forEach(installment => {
+      if (installment.status === 'pending') {
+        installment.status = 'waived';
+        installment.paidAt = settlementDate;
+        installment.paidAmount = 0;
+      }
+    });
+
+    // No installment claims 'paid' with a zero amount
+    const waived = loan.repaymentSchedule.filter(i => i.status === 'waived');
+    expect(waived).toHaveLength(2);
+    waived.forEach(i => expect(i.status).not.toBe('paid'));
+
+    const summary = loan.getSummary();
+    expect(summary.remainingBalance).toBe(0);
+    // totalPaid = the one paid installment's paidAmount + the settlement amount,
+    // counted exactly once (not once via installments and again via settlement)
+    expect(summary.totalPaid).toBeCloseTo(18667 + settlement.totalPayoff, 2);
   });
 });
 

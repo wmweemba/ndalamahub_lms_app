@@ -1,5 +1,3 @@
-  const debugSchedule = [];
-// ...existing code...
 const mongoose = require('mongoose');
 const {
   calculatePeriodInterest,
@@ -260,7 +258,7 @@ const loanSchema = new mongoose.Schema({
     },
     status: {
       type: String,
-      enum: ['pending', 'paid', 'overdue', 'partial'],
+      enum: ['pending', 'paid', 'overdue', 'partial', 'waived'],
       default: 'pending'
     },
     paidAt: {
@@ -538,13 +536,16 @@ const loanSchema = new mongoose.Schema({
 loanSchema.pre('save', async function(next) {
   if (this.isNew && !this.loanNumber) {
     const year = new Date().getFullYear();
-    const count = await this.constructor.countDocuments({ 
-      applicationDate: { 
-        $gte: new Date(year, 0, 1), 
-        $lt: new Date(year + 1, 0, 1) 
-      } 
-    });
-    this.loanNumber = `LN${year}${(count + 1).toString().padStart(4, '0')}`;
+    const counters = this.constructor.db.collection('counters');
+    const doc = await counters.findOneAndUpdate(
+      { _id: `loanNumber-${year}` },
+      { $inc: { seq: 1 } },
+      { upsert: true, returnDocument: 'after' }
+    );
+    // Driver version note: some driver majors wrap the result in { value: doc }
+    // instead of returning the document directly — handle both.
+    const seq = (doc && doc.value ? doc.value.seq : doc?.seq);
+    this.loanNumber = `LN${year}${seq.toString().padStart(4, '0')}`;
   }
   
   // Calculate loan details if amount, interest rate, or term changes
@@ -1039,34 +1040,28 @@ loanSchema.methods.generateInterestOnlySchedule = function() {
 
 // Get loan summary
 loanSchema.methods.getSummary = function() {
-  const paidInstallments = this.repaymentSchedule.filter(installment => 
-    installment.status === 'paid'
+  const paidInstallments = this.repaymentSchedule.filter(i => i.status === 'paid');
+  const installmentsPaid = paidInstallments.reduce((sum, i) => sum + i.paidAmount, 0);
+  const prepaid = (this.prepayments || []).reduce((sum, p) => sum + p.amount, 0);
+  const settlementPaid = this.earlySettlement?.settled ? this.earlySettlement.settlementAmount : 0;
+  const totalPaid = installmentsPaid + prepaid + settlementPaid;
+
+  const overdueInstallments = this.repaymentSchedule.filter(i =>
+    i.status === 'overdue' && new Date() > i.dueDate
   );
-  
-  const totalPaid = paidInstallments.reduce((sum, installment) => 
-    sum + installment.paidAmount, 0
-  );
-  
-  const overdueInstallments = this.repaymentSchedule.filter(installment => 
-    installment.status === 'overdue' && new Date() > installment.dueDate
-  );
-  
+
   return {
     totalAmount: this.totalAmount,
-    totalPaid: totalPaid,
-    remainingBalance: this.totalAmount - totalPaid,
-    overdueAmount: overdueInstallments.reduce((sum, installment) => 
-      sum + (installment.amount - installment.paidAmount), 0
-    ),
-    nextPayment: this.repaymentSchedule.find(installment => 
-      installment.status === 'pending'
-    )
+    totalPaid,
+    remainingBalance: this.earlySettlement?.settled ? 0 : Math.max(0, this.totalAmount - totalPaid),
+    overdueAmount: overdueInstallments.reduce((sum, i) => sum + (i.amount - i.paidAmount), 0),
+    nextPayment: this.repaymentSchedule.find(i => i.status === 'pending')
   };
 };
 
 // Check if loan can be approved
 loanSchema.methods.canBeApproved = function() {
-  return this.status === 'pending' || this.status === 'pending_approval';
+  return this.status === 'pending_approval';
 };
 
 // Check if loan can be disbursed
@@ -1164,17 +1159,18 @@ loanSchema.methods.calculateRemainingBalance = function() {
  */
 loanSchema.methods.calculateAccruedInterest = function(asOfDate = new Date()) {
   let accruedInterest = 0;
-  
-  // Sum up interest from paid installments
+
+  // Interest already paid is not owed again — only count interest on
+  // obligations still outstanding (not paid, not waived) whose due date has
+  // passed as of asOfDate. Including paid installments here previously
+  // inflated settlement/prepayment quotes with interest the borrower had
+  // already paid.
   this.repaymentSchedule.forEach(installment => {
-    if (installment.status === 'paid' && installment.paidAt <= asOfDate) {
-      accruedInterest += installment.interest;
-    } else if (installment.dueDate <= asOfDate && installment.status !== 'paid') {
-      // Include interest from overdue installments
+    if (installment.status !== 'paid' && installment.status !== 'waived' && installment.dueDate <= asOfDate) {
       accruedInterest += installment.interest;
     }
   });
-  
+
   // Subtract interest portions from prepayments
   if (this.prepayments && this.prepayments.length > 0) {
     this.prepayments.forEach(prepayment => {

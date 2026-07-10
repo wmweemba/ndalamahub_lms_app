@@ -167,13 +167,18 @@ For each site, delete the inline block and call the module. The list below is th
 
 ### Step 3 — Migrate `reports.js`
 
-Every report route builds a company filter from `req.user.role` branches (the ones repaired in Phase 03 Step 4b). Replace each with `loanScopeFilter(req.user)` (+ `mergeFilters` for the route's own criteria). Routes: `/overview`, `/active-loans`, `/overdue-loans`, `/upcoming-payments`, `/:type/export/:format`, `/loans`, `/companies`, and the CSV `/export` route. For `/companies`, use `companyScopeFilter`. Expected behavior change: lender admins get correctly scoped portfolio data everywhere (Phase 03 fixed the role string; this phase makes the filter uniform).
+Every report route builds a company filter from `req.user.role` branches (the ones repaired in Phase 03 Step 4b). Replace each with `loanScopeFilter(req.user)` (+ `mergeFilters` for the route's own criteria). Routes: `/overview`, `/active-loans`, `/overdue-loans`, `/upcoming-payments`, `/:type/export/:format`, `/loans`, `/companies`, and the CSV `/export` route — **all of these filter Loan documents and take `loanScopeFilter`**, including `/companies`, whose `Loan.aggregate` `$match` filters loans before grouping them by company. The one filter in this file that targets the **Company** collection is `/overview`'s second aggregation (the `companiesFilter` block, ~lines 89–115, feeding `Company.aggregate`) — replace that block with `companyScopeFilter(req.user)` merged into the existing `{isActive: true}` match. Expected behavior change: lender admins get correctly scoped portfolio data everywhere (Phase 03 fixed the role string; this phase makes the filter uniform).
+
+> **Amended 2026-07-10 during execution:** the original text here said "For `/companies`, use `companyScopeFilter`" — that mis-identified the collection `GET /reports/companies` queries (it aggregates Loans, not Companies) and, applied literally, would have made the endpoint silently return empty results for lender admins (the Phase 03b test `reports.tenancy.test.js` → "as lenderAdminA -> employerA scope only" would have failed). The execution agent correctly stopped and flagged this instead of implementing it. `companyScopeFilter`'s intended target was `/overview`'s Company aggregation, as now stated above.
 
 ### Step 4 — Migrate `dashboard.js`
 
 - `/stats` (lines 11–45): replace the bogus `{company: req.user.company}` spread into `Company.countDocuments` (Company has no `company` field — counts were always 0). New behavior: `activeCompanies`/`activeCorporates` counted with `companyScopeFilter(req.user)` merged with `{isActive: true}` (and `type: 'corporate'` for the corporates count); users counted with `userScopeFilter`; loans with `loanScopeFilter`.
 - `/lender-stats`: replace its inline lender+clients filter construction with `loanScopeFilter`.
-- `/hr-stats`, `/user-stats`: replace inline `company`/`applicant` filters with the module equivalents. (The orphaned-applicant crash in `/hr-stats` is Phase 06 — don't fix here, don't break it further.)
+- `/hr-stats`: replace its inline `company` filter with the module equivalent. (The orphaned-applicant crash in `/hr-stats` is Phase 06 — don't fix here, don't break it further.)
+- `/user-stats`: **leave unchanged.** Its `{applicant: req.user.id}` filter is an identity filter on a deliberately role-independent personal-stats widget ("my own loans", next payment due, etc.), not an ad hoc tenancy comparison — it is already tenant-safe for every role and is not in this phase's target set. Applying `loanScopeFilter` here would silently broaden staff roles from "my personal loans" to "my tenant's whole portfolio", an authorization change nothing in this phase intends.
+
+> **Amended 2026-07-10 during execution:** the original bullet lumped `/user-stats` in with `/hr-stats` under "replace with the module equivalents". The execution agent correctly flagged that `loanScopeFilter` is *not* the equivalent of an applicant-identity filter for staff roles. Same class of doc slip as the Step 3 `/companies` amendment above.
 
 ### Step 5 — Migrate `users.js` and `companies.js`
 

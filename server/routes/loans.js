@@ -4,12 +4,22 @@ const Loan = require('../models/Loan');
 const User = require('../models/User');
 const Company = require('../models/Company');
 const LoanProduct = require('../models/LoanProduct');
-const { 
-  authenticateToken, 
-  authorize, 
-  authorizeMinRole, 
-  authorizeCompany 
+const {
+  authenticateToken,
+  authorize,
+  authorizeMinRole,
+  authorizeCompany
 } = require('../middleware/auth');
+const {
+  isPlatformAdmin,
+  isLenderSide,
+  isEmployerSide,
+  idsEqual,
+  loanScopeFilter,
+  mergeFilters,
+  canReadLoan,
+  canWriteRepayment
+} = require('../utils/tenantScope');
 
 // ...existing code...
 
@@ -29,19 +39,7 @@ router.get('/:id/repayment-schedule/export/excel', authenticateToken, async (req
     }
 
     // Access control (same as loan details)
-    let hasAccess = false;
-    if (req.user.role === 'platform_admin') {
-      hasAccess = true;
-    } else if (req.user.role === 'lender_admin') {
-      hasAccess = loan.lenderCompany && loan.lenderCompany._id.toString() === req.user.company.toString();
-    } else if (req.user.role === 'employer_admin' || req.user.role === 'employer_hr') {
-      hasAccess = loan.company && loan.company._id.toString() === req.user.company.toString();
-    } else if (req.user.role === 'borrower' || req.user.role === 'lender_officer') {
-      hasAccess = loan.applicant && loan.applicant._id.toString() === req.user.id.toString();
-    } else {
-      hasAccess = loan.applicant && loan.applicant._id.toString() === req.user.id.toString();
-    }
-    if (!hasAccess) {
+    if (!canReadLoan(req.user, loan)) {
       return res.status(403).json({ success: false, message: 'Access denied to this loan' });
     }
 
@@ -150,38 +148,22 @@ router.get('/', authenticateToken, async (req, res) => {
       ];
     }
 
-    // Company access control
-    if (req.user.role === 'platform_admin') {
-      // Super users can see all loans
+    // Company access control (tenant scope)
+    const scope = await loanScopeFilter(req.user);
+    if (isPlatformAdmin(req.user)) {
+      // Platform admins can additionally filter by explicit company/lender query params
       if (companyId) filter.company = companyId;
       if (lenderCompanyId) filter.lenderCompany = lenderCompanyId;
-    } else if (req.user.role === 'lender_admin') {
-      // Lender admins see loans from their lender company and their corporate clients
-      filter.$or = [
-        { lenderCompany: req.user.company },
-        { company: { $in: await Company.find({ lenderCompany: req.user.company }).select('_id') } }
-      ];
-    } else if (req.user.role === 'employer_admin') {
-      // Corporate admins see loans from their company
-      filter.company = req.user.company;
-    } else if (req.user.role === 'employer_hr') {
-      // HR can see loans from their company
-      filter.company = req.user.company;
-    } else if (req.user.role === 'borrower' || req.user.role === 'lender_officer') {
-      // Corporate users and lender users can only see their own loans
-      filter.applicant = req.user.id;
-    } else {
-      // Default: users can only see their own loans
-      filter.applicant = req.user.id;
     }
+    const finalFilter = mergeFilters(filter, scope);
 
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    const total = await Loan.countDocuments(filter);
+    const total = await Loan.countDocuments(finalFilter);
     const totalPages = Math.ceil(total / parseInt(limit));
 
     // Get loans with pagination
-    const loans = await Loan.find(filter)
+    const loans = await Loan.find(finalFilter)
       .populate('applicant', 'firstName lastName email employeeId department')
       .populate('company', 'name type')
       .populate('lenderCompany', 'name type')
@@ -231,25 +213,7 @@ router.get('/:id/summary', authenticateToken, async (req, res) => {
     }
 
     // Check access permissions based on role
-    let hasAccess = false;
-
-    if (req.user.role === 'platform_admin') {
-      hasAccess = true;
-    } else if (req.user.role === 'lender_admin') {
-      // Lender admins can see loans from their lender company and their corporate clients
-      hasAccess = loan.lenderCompany.toString() === req.user.company.toString();
-    } else if (req.user.role === 'employer_admin' || req.user.role === 'employer_hr') {
-      // Corporate admins and HR can see loans from their company
-      hasAccess = loan.company.toString() === req.user.company.toString();
-    } else if (req.user.role === 'borrower' || req.user.role === 'lender_officer') {
-      // Corporate users and lender users can only see their own loans
-      hasAccess = loan.applicant.toString() === req.user.id.toString();
-    } else {
-      // Default: users can only see their own loans
-      hasAccess = loan.applicant.toString() === req.user.id.toString();
-    }
-
-    if (!hasAccess) {
+    if (!canReadLoan(req.user, loan)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied to this loan'
@@ -297,25 +261,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     }
 
     // Check access permissions based on role
-    let hasAccess = false;
-
-    if (req.user.role === 'platform_admin') {
-      hasAccess = true;
-    } else if (req.user.role === 'lender_admin') {
-      // Lender admins can see loans from their lender company and their corporate clients
-      hasAccess = loan.lenderCompany._id.toString() === req.user.company.toString();
-    } else if (req.user.role === 'employer_admin' || req.user.role === 'employer_hr') {
-      // Corporate admins and HR can see loans from their company
-      hasAccess = loan.company._id.toString() === req.user.company.toString();
-    } else if (req.user.role === 'borrower' || req.user.role === 'lender_officer') {
-      // Corporate users and lender users can only see their own loans
-      hasAccess = loan.applicant._id.toString() === req.user.id.toString();
-    } else {
-      // Default: users can only see their own loans
-      hasAccess = loan.applicant._id.toString() === req.user.id.toString();
-    }
-
-    if (!hasAccess) {
+    if (!canReadLoan(req.user, loan)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied to this loan'
@@ -581,24 +527,14 @@ router.put('/:id/approve', authenticateToken, authorize('employer_hr', 'employer
     }
 
     // Check access permissions
-    if (req.user.role === 'lender_admin') {
-      // Lender admins may only act on loans where their company is the lender
-      if (!loan.lenderCompany || loan.lenderCompany.toString() !== req.user.company.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied to this loan'
-        });
-      }
-    } else if (req.user.role !== 'platform_admin') {
-      // Compare the _id of the populated company object
-      if (
-        req.user.company.toString() !== loan.company._id.toString()
-      ) {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied to this loan'
-        });
-      }
+    const ok = isPlatformAdmin(req.user) ||
+      (isEmployerSide(req.user) && idsEqual(loan.company, req.user.company)) ||
+      (isLenderSide(req.user) && idsEqual(loan.lenderCompany, req.user.company));
+    if (!ok) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this loan'
+      });
     }
 
     // Update loan status
@@ -669,21 +605,14 @@ router.put('/:id/reject', authenticateToken, authorize('employer_hr', 'employer_
     }
 
     // Check access permissions
-    if (req.user.role === 'lender_admin') {
-      // Lender admins may only act on loans where their company is the lender
-      if (!loan.lenderCompany || loan.lenderCompany.toString() !== req.user.company.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied to this loan'
-        });
-      }
-    } else if (req.user.role !== 'platform_admin') {
-      if (req.user.company.toString() !== loan.company._id.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied to this loan'
-        });
-      }
+    const ok = isPlatformAdmin(req.user) ||
+      (isEmployerSide(req.user) && idsEqual(loan.company, req.user.company)) ||
+      (isLenderSide(req.user) && idsEqual(loan.lenderCompany, req.user.company));
+    if (!ok) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this loan'
+      });
     }
 
     // Update loan status
@@ -748,16 +677,7 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
     }
 
     // Check access permissions based on role
-    let hasAccess = false;
-
-    if (req.user.role === 'platform_admin') {
-      hasAccess = true;
-    } else if (req.user.role === 'lender_admin') {
-      // Lender admins can disburse loans where they are the lender company
-      hasAccess = loan.lenderCompany && loan.lenderCompany._id.toString() === req.user.company.toString();
-    }
-
-    if (!hasAccess) {
+    if (!canWriteRepayment(req.user, loan)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied: You can only disburse loans for your lender company'
@@ -864,13 +784,11 @@ router.put('/:id/repayment', authenticateToken, authorize('lender_admin', 'lende
 
     // Tenancy check: a lender admin may only record payments on loans
     // where their company is the lender
-    if (req.user.role !== 'platform_admin') {
-      if (!loan.lenderCompany || loan.lenderCompany.toString() !== req.user.company.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied to this loan'
-        });
-      }
+    if (!canWriteRepayment(req.user, loan)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this loan'
+      });
     }
 
     // Find the installment
@@ -957,25 +875,12 @@ router.get('/:id/settlement-quote', authenticateToken, authorize('lender_admin',
       });
     }
 
-    // Check access permissions (multi-tenant)
-    if (req.user.role !== 'platform_admin') {
-      // Lender admin/officer can only access loans from their corporate clients
-      if (req.user.role === 'lender_admin' || req.user.role === 'lender_officer') {
-        if (loan.lenderCompany.toString() !== req.user.company.toString()) {
-          return res.status(403).json({
-            success: false,
-            message: 'Access denied to this loan'
-          });
-        }
-      } else {
-        // Other roles can only access their own company loans
-        if (loan.company.toString() !== req.user.company.toString()) {
-          return res.status(403).json({
-            success: false,
-            message: 'Access denied to this loan'
-          });
-        }
-      }
+    // Check access permissions (multi-tenant, read-only)
+    if (!canReadLoan(req.user, loan)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this loan'
+      });
     }
 
     // Check if loan can be settled
@@ -1048,20 +953,11 @@ router.post('/:id/prepayment', authenticateToken, authorize('lender_admin', 'len
     }
 
     // Check access permissions (multi-tenant)
-    if (req.user.role !== 'platform_admin') {
-      if (req.user.role === 'lender_admin' || req.user.role === 'lender_officer') {
-        if (loan.lenderCompany.toString() !== req.user.company.toString()) {
-          return res.status(403).json({
-            success: false,
-            message: 'Access denied to this loan'
-          });
-        }
-      } else {
-        return res.status(403).json({
-          success: false,
-          message: 'Only lender staff can record prepayments'
-        });
-      }
+    if (!canWriteRepayment(req.user, loan)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this loan'
+      });
     }
 
     // Check if loan can accept prepayment
@@ -1158,20 +1054,11 @@ router.post('/:id/early-settlement', authenticateToken, authorize('lender_admin'
     }
 
     // Check access permissions (multi-tenant)
-    if (req.user.role !== 'platform_admin') {
-      if (req.user.role === 'lender_admin' || req.user.role === 'lender_officer') {
-        if (loan.lenderCompany.toString() !== req.user.company.toString()) {
-          return res.status(403).json({
-            success: false,
-            message: 'Access denied to this loan'
-          });
-        }
-      } else {
-        return res.status(403).json({
-          success: false,
-          message: 'Only lender staff can process early settlements'
-        });
-      }
+    if (!canWriteRepayment(req.user, loan)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this loan'
+      });
     }
 
     // Check if loan can be settled
@@ -1277,22 +1164,11 @@ router.get('/:id/prepayment-history', authenticateToken, async (req, res) => {
     }
 
     // Check access permissions (multi-tenant)
-    if (req.user.role !== 'platform_admin') {
-      if (req.user.role === 'lender_admin') {
-        if (loan.lenderCompany.toString() !== req.user.company.toString()) {
-          return res.status(403).json({
-            success: false,
-            message: 'Access denied to this loan'
-          });
-        }
-      } else {
-        if (loan.company.toString() !== req.user.company.toString()) {
-          return res.status(403).json({
-            success: false,
-            message: 'Access denied to this loan'
-          });
-        }
-      }
+    if (!canReadLoan(req.user, loan)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this loan'
+      });
     }
 
     // Calculate summary

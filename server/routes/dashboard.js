@@ -4,43 +4,36 @@ const User = require('../models/User');
 const Company = require('../models/Company');
 const Loan = require('../models/Loan');
 const { authenticateToken, authorizeMinRole } = require('../middleware/auth');
+const { loanScopeFilter, userScopeFilter, companyScopeFilter, mergeFilters } = require('../utils/tenantScope');
 
 // @route   GET /api/dashboard/stats
 // @desc    Get dashboard statistics
 // @access  Private (Corporate Admin and above)
 router.get('/stats', authenticateToken, authorizeMinRole('employer_admin'), async (req, res) => {
     try {
-        let filter = {};
-        
-        // If not platform_admin, filter by company
-        if (req.user.role !== 'platform_admin') {
-            filter.company = req.user.company;
-        }
+        const companyFilter = await companyScopeFilter(req.user);
+        const userFilter = await userScopeFilter(req.user);
+        const loanFilter = await loanScopeFilter(req.user);
 
         // Get active companies count
-        const activeCompanies = await Company.countDocuments({ 
-            isActive: true,
-            ...filter
-        });
+        const activeCompanies = await Company.countDocuments(
+            mergeFilters({ isActive: true }, companyFilter)
+        );
 
         // Get active corporate clients
-        const activeCorporates = await Company.countDocuments({
-            isActive: true,
-            type: 'corporate',
-            ...filter
-        });
+        const activeCorporates = await Company.countDocuments(
+            mergeFilters({ isActive: true, type: 'corporate' }, companyFilter)
+        );
 
         // Get active users
-        const activeUsers = await User.countDocuments({
-            isActive: true,
-            ...filter
-        });
+        const activeUsers = await User.countDocuments(
+            mergeFilters({ isActive: true }, userFilter)
+        );
 
         // Get active loans and total amount
-        const loans = await Loan.find({
-            status: 'active',
-            ...filter
-        });
+        const loans = await Loan.find(
+            mergeFilters({ status: 'active' }, loanFilter)
+        );
 
         const activeLoans = loans.length;
         const totalLoanAmount = loans.reduce((sum, loan) => sum + loan.amount, 0);
@@ -84,12 +77,7 @@ router.get('/lender-stats', authenticateToken, authorizeMinRole('lender_admin'),
                 const corporateClients = await Company.find({ lenderCompany: req.user.company, isActive: true });
 
                 // Get all loans for this lender and their corporate clients
-                const allLoans = await Loan.find({
-                    $or: [
-                        { lenderCompany: req.user.company },
-                        { company: { $in: corporateClients.map(c => c._id) } }
-                    ]
-                })
+                const allLoans = await Loan.find(await loanScopeFilter(req.user))
                 .populate('applicant', 'firstName lastName')
                 .populate('company', 'name');
 
@@ -244,15 +232,13 @@ router.get('/hr-stats', authenticateToken, authorizeMinRole('employer_hr'), asyn
         }
 
         // Get company employees (users in the same company)
-        const companyUsers = await User.find({ 
-            company: req.user.company,
-            isActive: true 
-        });
+        const companyUsers = await User.find(
+            mergeFilters({ isActive: true }, await userScopeFilter(req.user))
+        );
 
         // Get all loans for company employees
-        const companyLoans = await Loan.find({
-            company: req.user.company
-        }).populate('applicant', 'firstName lastName');
+        const companyLoans = await Loan.find(await loanScopeFilter(req.user))
+            .populate('applicant', 'firstName lastName');
 
         // Calculate loan statistics
         const totalEmployees = companyUsers.length;

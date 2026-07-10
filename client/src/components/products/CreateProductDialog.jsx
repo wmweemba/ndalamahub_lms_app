@@ -12,10 +12,11 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
     description: '',
     category: 'personal',
     interestRate: { min: 12, max: 24, default: 18 },
-    term: { min: 6, max: 36, default: 12 },
+    term: { min: 6, max: 36, default: 12, unit: 'months' },
     amount: { min: 5000, max: 50000, currency: 'ZMW' },
     interestCalculation: {
       method: 'reducing_balance',
+      rateBasis: 'per_annum',
       dayCountConvention: 'actual/365'
     },
     repaymentFrequency: ['monthly'],
@@ -54,10 +55,11 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
         description: '',
         category: 'personal',
         interestRate: { min: 12, max: 24, default: 18 },
-        term: { min: 6, max: 36, default: 12 },
+        term: { min: 6, max: 36, default: 12, unit: 'months' },
         amount: { min: 5000, max: 50000, currency: 'ZMW' },
         interestCalculation: {
           method: 'reducing_balance',
+          rateBasis: 'per_annum',
           dayCountConvention: 'actual/365'
         },
         repaymentFrequency: ['monthly'],
@@ -235,8 +237,10 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
 
             {/* Loan Term */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Loan Term (Months)</h3>
-              <div className="grid grid-cols-3 gap-4">
+              <h3 className="text-sm font-medium text-gray-900">
+                Loan Term ({formData.term.unit === 'days' ? 'Days' : formData.term.unit === 'weeks' ? 'Weeks' : 'Months'})
+              </h3>
+              <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="termMin">Minimum</Label>
                   <Input
@@ -276,13 +280,29 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
                     required
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="termUnit">Unit</Label>
+                  <select
+                    id="termUnit"
+                    value={formData.term.unit}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      term: { ...formData.term, unit: e.target.value }
+                    })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="days">Days</option>
+                    <option value="weeks">Weeks</option>
+                    <option value="months">Months</option>
+                  </select>
+                </div>
               </div>
             </div>
 
             {/* Calculation Method */}
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-gray-900">Interest Calculation</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="method">Calculation Method</Label>
                   <select
@@ -298,6 +318,22 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
                     <option value="flat_rate">Flat Rate</option>
                     <option value="simple_interest">Simple Interest</option>
                     <option value="interest_only">Interest Only</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="rateBasis">Rate Basis</Label>
+                  <select
+                    id="rateBasis"
+                    value={formData.interestCalculation.rateBasis}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      interestCalculation: { ...formData.interestCalculation, rateBasis: e.target.value }
+                    })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="per_annum">Per annum</option>
+                    <option value="per_term">Per term</option>
+                    <option value="per_period">Per period</option>
                   </select>
                 </div>
                 <div className="space-y-2">

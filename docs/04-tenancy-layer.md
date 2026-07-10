@@ -155,7 +155,7 @@ For each site, delete the inline block and call the module. The list below is th
 | `GET /:id` detail access block | `if (!canReadLoan(req.user, loan)) return 403` |
 | `GET /:id/summary` (240–257) | `canReadLoan` (also fixes the legacy-loan `.toString()` 500) |
 | `GET /:id/repayment-schedule/export/excel` access block | `canReadLoan` |
-| `PUT /:id/approve` (607–620) | employer-side must be same company; lender-side must be the loan's lender: `const ok = isPlatformAdmin(req.user) || (isEmployerSide(req.user) && idsEqual(loan.company, req.user.company)) || (isLenderSide(req.user) && idsEqual(loan.lenderCompany, req.user.company)); if (!ok) return 403;` — note this **tightens** the current code, which let any `lender_admin` from any tenant approve; flag this behavior change in the changelog. |
+| `PUT /:id/approve` (607–620) | employer-side must be same company; lender-side must be the loan's lender: `const ok = isPlatformAdmin(req.user) || (isEmployerSide(req.user) && idsEqual(loan.company, req.user.company)) || (isLenderSide(req.user) && idsEqual(loan.lenderCompany, req.user.company)); if (!ok) return 403;` — the cross-tenant lender_admin bypass this originally tightened was **hotfixed on `main` 2026-07-10** (see changelog); this migration must preserve the hotfixed semantics, and the Phase 03b regression tests (`server/tests/api/hotfix-regressions.test.js`) verify it does. |
 | `PUT /:id/reject` (690–697) | same as approve |
 | `PUT /:id/disburse` (763–784) | `canWriteRepayment(req.user, loan)` (disbursement is lender-side money movement; equivalent check) |
 | `PUT /:id/repayment` (block installed in Phase 01) | `canWriteRepayment` |
@@ -195,7 +195,7 @@ Every report route builds a company filter from `req.user.role` branches (the on
 
 ### Step 8 — Close out
 
-Update `CLAUDE.md` Section 7 (target architecture is now the actual architecture — rewrite the section) and Section 6. Changelog entry listing the two intentional behavior changes (approve/reject tenant tightening; product calculators now tenant-checked). Commit; merge green.
+Update `CLAUDE.md` Section 7 (target architecture is now the actual architecture — rewrite the section) and Section 6. Changelog entry listing the intentional behavior change (product calculators now tenant-checked; the approve/reject tenant tightening already landed as the 2026-07-10 hotfix). Commit; merge green.
 
 ## Acceptance criteria
 
@@ -211,7 +211,7 @@ Update `CLAUDE.md` Section 7 (target architecture is now the actual architecture
 
 ## Rollback
 
-Revert the merge commit — no data migrations. Because behavior tightens in two places (noted above), a rollback also reverts those tightenings; nothing else to unwind.
+Revert the merge commit — no data migrations. Because behavior tightens in one place (product calculators, noted above), a rollback also reverts that tightening; the approve/reject tightening predates this phase (2026-07-10 hotfix) and survives a rollback. Nothing else to unwind.
 
 ## Flagged concerns
 

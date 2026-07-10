@@ -538,8 +538,15 @@ router.put('/:id', authenticateToken, async (req, res) => {
       user.email = email.toLowerCase();
     }
 
-    // Role update (admin only)
+    // Role update (admin only) — no caller may assign a role above their own level
+    // (mirrors the no-escalation rule on POST /api/users)
     if (role && hasMinRole(req.user.role, 'employer_admin')) {
+      if (!hasMinRole(req.user.role, role)) {
+        return res.status(403).json({
+          success: false,
+          message: 'You cannot assign a role senior to your own'
+        });
+      }
       user.role = role;
     }
 

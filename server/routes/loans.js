@@ -581,10 +581,15 @@ router.put('/:id/approve', authenticateToken, authorize('employer_hr', 'employer
     }
 
     // Check access permissions
-    if (
-      req.user.role !== 'platform_admin' &&
-      req.user.role !== 'lender_admin'
-    ) {
+    if (req.user.role === 'lender_admin') {
+      // Lender admins may only act on loans where their company is the lender
+      if (!loan.lenderCompany || loan.lenderCompany.toString() !== req.user.company.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied to this loan'
+        });
+      }
+    } else if (req.user.role !== 'platform_admin') {
       // Compare the _id of the populated company object
       if (
         req.user.company.toString() !== loan.company._id.toString()
@@ -664,7 +669,15 @@ router.put('/:id/reject', authenticateToken, authorize('employer_hr', 'employer_
     }
 
     // Check access permissions
-    if (req.user.role !== 'platform_admin' && req.user.role !== 'lender_admin') {
+    if (req.user.role === 'lender_admin') {
+      // Lender admins may only act on loans where their company is the lender
+      if (!loan.lenderCompany || loan.lenderCompany.toString() !== req.user.company.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied to this loan'
+        });
+      }
+    } else if (req.user.role !== 'platform_admin') {
       if (req.user.company.toString() !== loan.company._id.toString()) {
         return res.status(403).json({
           success: false,

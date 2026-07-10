@@ -46,15 +46,14 @@ describe('Users tenancy', () => {
     expect(res.status).toBe(403);
   });
 
-  // Pinned current behavior: GET /api/users/:id uses flat company equality,
-  // so a lender admin cannot view their own corporate client's employee even
-  // though GET /api/users (list) and PATCH /:id/reset-password do allow it.
-  // Phase 04 will revisit this inconsistency (see docs/03b-api-test-scaffold.md).
-  it('GET /api/users/:id as lenderAdminA on borrowerA (own client employee) -> currently 403', async () => {
+  // Phase 04: document-level checks now go through canTouchUser (tenantScope.js),
+  // which allows a lender admin to view their own corporate client's employee,
+  // consistent with GET /api/users (list) and PATCH /:id/reset-password.
+  it('GET /api/users/:id as lenderAdminA on borrowerA (own client employee) -> 200', async () => {
     const res = await request(app)
       .get(`/api/users/${fx.borrowerA._id}`)
       .set(authHeader(fx.lenderAdminA));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
   });
 
   it('POST /api/users as employerAdminA with company: employerB._id -> 403', async () => {

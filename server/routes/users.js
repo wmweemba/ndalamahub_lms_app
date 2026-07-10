@@ -10,12 +10,32 @@ const {
   authorizeCompany,
   hasMinRole
 } = require('../middleware/auth');
-const { 
-  validatePassword, 
-  validateEmail, 
-  validatePhoneNumber, 
-  formatPhoneNumber 
+const {
+  validatePassword,
+  validateEmail,
+  validatePhoneNumber,
+  formatPhoneNumber
 } = require('../utils/auth');
+const {
+  isPlatformAdmin,
+  isLenderSide,
+  idsEqual,
+  clientCompanyIds,
+  userScopeFilter,
+  mergeFilters
+} = require('../utils/tenantScope');
+
+/** Whether reqUser may act on targetUser: platform admin, same company, or
+ * lender-side reqUser with targetUser in one of their client companies. */
+async function canTouchUser(reqUser, targetUser) {
+  if (isPlatformAdmin(reqUser)) return true;
+  if (idsEqual(reqUser.company, targetUser.company)) return true;
+  if (isLenderSide(reqUser)) {
+    const clients = await clientCompanyIds(reqUser.company);
+    return clients.some((id) => idsEqual(id, targetUser.company));
+  }
+  return false;
+}
 
 // @route   GET /api/users
 // @desc    Get all users (with filters)
@@ -36,18 +56,8 @@ router.get('/', authenticateToken, authorizeMinRole('employer_hr'), async (req, 
     let filter = {};
 
     // Company filter based on user role
-    if (req.user.role !== 'platform_admin') {
-      if (req.user.role === 'lender_admin') {
-        // Lender admins can see users from their company and corporate clients
-        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
-        filter.company = {
-          $in: [req.user.company, ...corporateCompanies.map(c => c._id)]
-        };
-      } else {
-        // Other roles see only their company
-        filter.company = req.user.company;
-      }
-    } else if (companyId) {
+    const scope = await userScopeFilter(req.user);
+    if (isPlatformAdmin(req.user) && companyId) {
       filter.company = companyId;
     }
 
@@ -80,12 +90,14 @@ router.get('/', authenticateToken, authorizeMinRole('employer_hr'), async (req, 
       filter.$or = searchConditions;
     }
 
+    const finalFilter = mergeFilters(filter, scope);
+
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    const total = await User.countDocuments(filter);
+    const total = await User.countDocuments(finalFilter);
 
     // Get users without pagination for settings page
-    const users = await User.find(filter)
+    const users = await User.find(finalFilter)
       .populate('company', 'name type')
       .select('-password')
       .sort({ createdAt: -1 });
@@ -133,8 +145,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     }
 
     // Check company access for non-super users
-    if (req.user.role !== 'platform_admin' && 
-        req.user.company.toString() !== user.company._id.toString()) {
+    if (!(await canTouchUser(req.user, user))) {
       return res.status(403).json({
         success: false,
         message: 'Access denied to this user'
@@ -193,7 +204,7 @@ router.post('/', authenticateToken, authorizeMinRole('employer_hr'), async (req,
 
         // Company access validation - corporate users can only create users in their own company
         if (req.user.role === 'employer_admin' || req.user.role === 'employer_hr') {
-            if (company !== req.user.company.toString()) {
+            if (!idsEqual(company, req.user.company)) {
                 return res.status(403).json({
                     success: false,
                     message: 'You can only create users within your own company'
@@ -241,9 +252,8 @@ router.post('/', authenticateToken, authorizeMinRole('employer_hr'), async (req,
                     message: 'You cannot create super user accounts'
                 });
             }
-            const isOwnCompany = company === req.user.company.toString();
-            const isClientCompany = companyDoc.lenderCompany &&
-                companyDoc.lenderCompany.toString() === req.user.company.toString();
+            const isOwnCompany = idsEqual(company, req.user.company);
+            const isClientCompany = idsEqual(companyDoc.lenderCompany, req.user.company);
             if (!isOwnCompany && !isClientCompany) {
                 return res.status(403).json({
                     success: false,
@@ -355,8 +365,7 @@ router.patch('/:id/status', authenticateToken, authorizeMinRole('employer_hr'), 
     }
 
     // Check company access for non-super users
-    if (req.user.role !== 'platform_admin' && 
-        req.user.company.toString() !== user.company.toString()) {
+    if (!(await canTouchUser(req.user, user))) {
       return res.status(403).json({
         success: false,
         message: 'Access denied to this user'
@@ -408,8 +417,7 @@ router.put('/:id/password', authenticateToken, async (req, res) => {
     }
 
     // Check company access for non-super users
-    if (req.user.role !== 'platform_admin' && 
-        req.user.company.toString() !== user.company.toString()) {
+    if (!(await canTouchUser(req.user, user))) {
       return res.status(403).json({
         success: false,
         message: 'Access denied to this user'
@@ -498,8 +506,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
 
     // Check company access for non-super users
-    if (req.user.role !== 'platform_admin' && 
-        req.user.company.toString() !== user.company.toString()) {
+    if (!(await canTouchUser(req.user, user))) {
       return res.status(403).json({
         success: false,
         message: 'Access denied to this user'
@@ -680,8 +687,7 @@ router.delete('/:id', authenticateToken, authorizeMinRole('employer_hr'), async 
     }
 
     // Check company access for non-super users
-    if (req.user.role !== 'platform_admin' && 
-        req.user.company.toString() !== user.company.toString()) {
+    if (!(await canTouchUser(req.user, user))) {
       return res.status(403).json({
         success: false,
         message: 'Access denied to this user'

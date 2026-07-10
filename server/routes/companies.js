@@ -2,46 +2,21 @@ const express = require('express');
 const router = express.Router();
 const Company = require('../models/Company');
 const { authenticateToken, authorizeRole, authorizeMinRole } = require('../middleware/auth');
+const { isPlatformAdmin, idsEqual, companyScopeFilter, canReadCompany } = require('../utils/tenantScope');
 
 // @route   GET /api/companies
 // @desc    Get companies based on user role
 // @access  Private (Admin roles only)
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        let companies;
-        
-        // Super user can see all companies
-        if (req.user.role === 'platform_admin') {
-            companies = await Company.find().select('-settings');
-        }
-        // Lender admin can only see their own lender company and linked corporate clients
-        else if (req.user.role === 'lender_admin') {
-            // First, get the user's company (which should be a lender)
-            const userCompany = await Company.findById(req.user.company);
-            
-            if (!userCompany || userCompany.type !== 'lender') {
-                return res.status(403).json({ message: 'Access denied: User not associated with a lender company' });
-            }
-
-            // Get the lender company and all corporate clients linked to it
-            companies = await Company.find({
-                $or: [
-                    { _id: userCompany._id }, // The lender company itself
-                    { lenderCompany: userCompany._id, type: 'corporate' } // Corporate clients linked to this lender
-                ]
-            }).select('-settings');
-        }
-        // Corporate admin can only see their own company
-        else if (req.user.role === 'employer_admin' || req.user.role === 'employer_hr') {
-            companies = await Company.find({ 
-                _id: req.user.company 
-            }).select('-settings');
-        }
         // Other roles should not access this endpoint
-        else {
+        const allowedRoles = ['platform_admin', 'lender_admin', 'employer_admin', 'employer_hr'];
+        if (!allowedRoles.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied: Insufficient permissions' });
         }
-        
+
+        const companies = await Company.find(await companyScopeFilter(req.user)).select('-settings');
+
         res.json(companies);
     } catch (error) {
         console.error('Companies fetch error:', error);
@@ -115,7 +90,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
         }
 
         // Super user can update any company
-        if (req.user.role === 'platform_admin') {
+        if (isPlatformAdmin(req.user)) {
             const updatedCompany = await Company.findByIdAndUpdate(
                 companyId,
                 req.body,
@@ -125,20 +100,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
         }
         // Lender admin can only update their own lender company or linked corporate companies
         else if (req.user.role === 'lender_admin') {
-            const userCompany = await Company.findById(req.user.company);
-            
-            if (!userCompany || userCompany.type !== 'lender') {
-                return res.status(403).json({ message: 'Access denied: User not associated with a lender company' });
-            }
-
-            // Check if the company being updated is either:
-            // 1. The user's own lender company
-            // 2. A corporate company linked to their lender
-            const canUpdate = 
-                company._id.toString() === userCompany._id.toString() ||
-                (company.type === 'corporate' && company.lenderCompany && company.lenderCompany.toString() === userCompany._id.toString());
-
-            if (!canUpdate) {
+            if (!canReadCompany(req.user, company)) {
                 return res.status(403).json({ message: 'Access denied: Cannot update this company' });
             }
 
@@ -157,7 +119,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
         }
         // Corporate admin can only update their own company (basic info only)
         else if (req.user.role === 'employer_admin') {
-            if (company._id.toString() !== req.user.company.toString()) {
+            if (!canReadCompany(req.user, company)) {
                 return res.status(403).json({ message: 'Access denied: Cannot update this company' });
             }
 
@@ -200,7 +162,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
         }
 
         // Super user can delete any company
-        if (req.user.role === 'platform_admin') {
+        if (isPlatformAdmin(req.user)) {
             // If deleting a corporate company, remove it from lender's corporateClients
             if (company.type === 'corporate' && company.lenderCompany) {
                 await Company.findByIdAndUpdate(
@@ -208,26 +170,22 @@ router.delete('/:id', authenticateToken, async (req, res) => {
                     { $pull: { corporateClients: companyId } }
                 );
             }
-            
+
             await Company.findByIdAndDelete(companyId);
             res.json({ message: 'Company deleted successfully' });
         }
         // Lender admin can only delete corporate companies linked to their lender
+        // (never their own lender company — canReadCompany is deliberately not used
+        // here since it treats same-company as accessible, which is correct for
+        // reads/updates but would wrongly permit self-deletion here)
         else if (req.user.role === 'lender_admin') {
-            const userCompany = await Company.findById(req.user.company);
-            
-            if (!userCompany || userCompany.type !== 'lender') {
-                return res.status(403).json({ message: 'Access denied: User not associated with a lender company' });
-            }
-
-            // Can only delete corporate companies linked to their lender
-            if (company.type !== 'corporate' || !company.lenderCompany || company.lenderCompany.toString() !== userCompany._id.toString()) {
+            if (company.type !== 'corporate' || !idsEqual(company.lenderCompany, req.user.company)) {
                 return res.status(403).json({ message: 'Access denied: Cannot delete this company' });
             }
 
             // Remove from lender's corporateClients array
             await Company.findByIdAndUpdate(
-                userCompany._id,
+                req.user.company,
                 { $pull: { corporateClients: companyId } }
             );
 

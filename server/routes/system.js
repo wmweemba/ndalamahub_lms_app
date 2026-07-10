@@ -4,16 +4,17 @@ const User = require('../models/User');
 const Company = require('../models/Company');
 const Loan = require('../models/Loan');
 const { authenticateToken, authorizeMinRole } = require('../middleware/auth');
+const { userScopeFilter, companyScopeFilter, loanScopeFilter } = require('../utils/tenantScope');
 
 // @route   GET /api/system/info
 // @desc    Get system information
 // @access  Private (Lender Admin and above)
 router.get('/info', authenticateToken, authorizeMinRole('lender_admin'), async (req, res) => {
   try {
-    // Get basic system statistics
-    const totalUsers = await User.countDocuments();
-    const totalCompanies = await Company.countDocuments();
-    const totalLoans = await Loan.countDocuments();
+    // Get basic system statistics (tenant-scoped for non-platform admins)
+    const totalUsers = await User.countDocuments(await userScopeFilter(req.user));
+    const totalCompanies = await Company.countDocuments(await companyScopeFilter(req.user));
+    const totalLoans = await Loan.countDocuments(await loanScopeFilter(req.user));
 
     // Mock system info - in a real app, you'd get this from actual system monitoring
     const systemInfo = {

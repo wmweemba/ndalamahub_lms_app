@@ -3,6 +3,21 @@ const router = express.Router();
 const LoanProduct = require('../models/LoanProduct');
 const Company = require('../models/Company');
 const { authenticateToken, authorize } = require('../middleware/auth');
+const {
+  isPlatformAdmin,
+  idsEqual,
+  canReadProduct,
+  companyLenderId
+} = require('../utils/tenantScope');
+
+/** Access check for product-probing endpoints (eligibility/fees/schedule).
+ * canReadProduct handles platform admin and lender-side; employer-side and
+ * borrowers (where it returns null) are resolved here via companyLenderId. */
+async function canAccessLenderProduct(user, product) {
+  const result = canReadProduct(user, product);
+  if (result !== null) return result;
+  return idsEqual(product.company, await companyLenderId(user.company));
+}
 
 // Get products available for loan application (for corporate users, returns lender's products)
 router.get('/available', authenticateToken, async (req, res) => {
@@ -150,13 +165,13 @@ router.get('/:id', authenticateToken, async (req, res) => {
     }
     
     // Verify company access (unless platform_admin)
-    if (req.user.role !== 'platform_admin' && product.company._id.toString() !== req.user.company.toString()) {
+    if (!isPlatformAdmin(req.user) && !idsEqual(product.company, req.user.company)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied to this product'
       });
     }
-    
+
     res.json({
       success: true,
       data: product
@@ -247,7 +262,7 @@ router.put('/:id', authenticateToken, authorize(['platform_admin', 'lender_admin
     }
     
     // Verify company access (unless platform_admin)
-    if (req.user.role !== 'platform_admin' && product.company.toString() !== req.user.company.toString()) {
+    if (!isPlatformAdmin(req.user) && !idsEqual(product.company, req.user.company)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied to update this product'
@@ -304,7 +319,7 @@ router.delete('/:id', authenticateToken, authorize(['platform_admin', 'lender_ad
     }
     
     // Verify company access (unless platform_admin)
-    if (req.user.role !== 'platform_admin' && product.company.toString() !== req.user.company.toString()) {
+    if (!isPlatformAdmin(req.user) && !idsEqual(product.company, req.user.company)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied to delete this product'
@@ -342,13 +357,20 @@ router.post('/:id/check-eligibility', authenticateToken, async (req, res) => {
       });
     }
     
+    if (!(await canAccessLenderProduct(req.user, product))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this product'
+      });
+    }
+
     if (!product.isActive) {
       return res.status(400).json({
         success: false,
         message: 'Product is not currently active'
       });
     }
-    
+
     const { applicant } = req.body;
     
     if (!applicant) {
@@ -386,8 +408,15 @@ router.post('/:id/calculate-fees', authenticateToken, async (req, res) => {
       });
     }
     
+    if (!(await canAccessLenderProduct(req.user, product))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this product'
+      });
+    }
+
     const { loanAmount } = req.body;
-    
+
     if (!loanAmount || loanAmount <= 0) {
       return res.status(400).json({
         success: false,
@@ -485,8 +514,15 @@ router.post('/:id/calculate-schedule', authenticateToken, async (req, res) => {
       });
     }
     
+    if (!(await canAccessLenderProduct(req.user, product))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this product'
+      });
+    }
+
     const { amount, term, repaymentFrequency } = req.body;
-    
+
     // Validation
     if (!amount || amount <= 0) {
       return res.status(400).json({

@@ -5,6 +5,7 @@
 
 const mongoose = require('mongoose');
 const Loan = require('../../models/Loan');
+const { addDays } = require('../interestCalculator');
 
 // Note: These tests don't require database connection
 // They test the calculation logic directly
@@ -663,6 +664,93 @@ describe('Loan Calculation Integration Tests', () => {
       
       // February should be lower because of fewer days
       expect(februaryInterest).toBeLessThan(januaryInterest);
+    });
+  });
+
+  describe('Rate Basis and Term Unit (Phase 05)', () => {
+    test('Manifi shape: flat_rate + per_term 25% + 30-day term computes interest exactly, single installment', () => {
+      const disbursedAt = new Date('2026-03-01');
+      const loan = new Loan({
+        applicant: testApplicantId,
+        company: testCompanyId,
+        amount: 10000,
+        interestRate: 25,
+        term: 30,
+        termUnit: 'days',
+        repaymentFrequency: 'monthly',
+        disbursedAt,
+        interestCalculation: {
+          method: 'flat_rate',
+          rateBasis: 'per_term',
+          accrualBasis: 'actual/365',
+          accrualFrequency: 'daily'
+        }
+      });
+
+      loan.calculateLoanDetails();
+
+      expect(loan.totalInterest).toBeCloseTo(2500, 8);
+      expect(loan.totalAmount).toBeCloseTo(12500, 8);
+      expect(loan.repaymentSchedule).toHaveLength(1);
+
+      const only = loan.repaymentSchedule[0];
+      expect(only.amount).toBeCloseTo(12500, 2);
+      const expectedDueDate = addDays(disbursedAt, 30);
+      expect(new Date(only.dueDate).toDateString()).toBe(expectedDueDate.toDateString());
+    });
+
+    test('per_annum + month-term control case matches pre-phase expectations exactly (backward compatibility)', () => {
+      const loan = new Loan({
+        applicant: testApplicantId,
+        company: testCompanyId,
+        amount: 10000,
+        interestRate: 24,
+        term: 6,
+        repaymentFrequency: 'monthly',
+        interestCalculation: {
+          method: 'reducing_balance',
+          accrualBasis: 'actual/365',
+          accrualFrequency: 'daily'
+        }
+      });
+
+      loan.calculateLoanDetails();
+
+      // Untouched-field defaults (rateBasis: per_annum, termUnit: months) must
+      // produce byte-identical numbers to the pre-Phase-05 Reducing Balance test above
+      expect(loan.interestCalculation.rateBasis).toBe('per_annum');
+      expect(loan.termUnit).toBe('months');
+      expect(loan.monthlyPayment).toBeCloseTo(1785.26, 2);
+      expect(loan.totalInterest).toBeCloseTo(711.55, 2);
+      expect(loan.totalAmount).toBeCloseTo(10711.55, 2);
+      expect(loan.repaymentSchedule).toHaveLength(6);
+    });
+
+    test('week-term case: 12 weeks at weekly frequency produces 12 installments, last due 84 days after anchor', () => {
+      const disbursedAt = new Date('2026-04-01');
+      const loan = new Loan({
+        applicant: testApplicantId,
+        company: testCompanyId,
+        amount: 6000,
+        interestRate: 20,
+        term: 12,
+        termUnit: 'weeks',
+        repaymentFrequency: 'weekly',
+        disbursedAt,
+        interestCalculation: {
+          method: 'flat_rate',
+          rateBasis: 'per_annum',
+          accrualBasis: 'actual/365',
+          accrualFrequency: 'daily'
+        }
+      });
+
+      loan.calculateLoanDetails();
+
+      expect(loan.repaymentSchedule).toHaveLength(12);
+      const last = loan.repaymentSchedule[loan.repaymentSchedule.length - 1];
+      const expectedLastDueDate = addDays(disbursedAt, 84);
+      expect(new Date(last.dueDate).toDateString()).toBe(expectedLastDueDate.toDateString());
     });
   });
 });

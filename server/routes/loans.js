@@ -389,8 +389,10 @@ router.post('/', authenticateToken, authorize('borrower'), async (req, res) => {
         description: description || product.description,
         interestCalculation: {
           method: product.interestCalculation.method,
+          rateBasis: product.interestCalculation.rateBasis,
           accrualBasis: product.interestCalculation.dayCountConvention
         },
+        termUnit: product.term.unit,
         repaymentFrequency: product.repaymentFrequency[0] // Use first frequency as default
       };
       

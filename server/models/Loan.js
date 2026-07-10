@@ -5,10 +5,13 @@ const {
   calculatePeriodInterest,
   getNextPaymentDate,
   addMonths,
-  calculateFlatRatePayment,
+  addDays,
+  calculateFlatRateInterest,
   calculateSimpleInterest,
   calculateSimpleInterestPayment,
-  calculateInterestOnlyPayment
+  calculateInterestOnlyPayment,
+  annualizeRate,
+  termToDays
 } = require('../utils/interestCalculator');
 
 const loanSchema = new mongoose.Schema({
@@ -83,8 +86,16 @@ const loanSchema = new mongoose.Schema({
   term: {
     type: Number,
     required: [true, 'Loan term is required'],
-    min: [1, 'Minimum term is 1 month'],
+    min: [1, 'Minimum term is 1'],
     max: [60, 'Maximum term is 60 months']
+  },
+  termUnit: {
+    type: String,
+    enum: {
+      values: ['days', 'weeks', 'months'],
+      message: '{VALUE} is not a valid term unit'
+    },
+    default: 'months'
   },
   purpose: {
     type: String,
@@ -105,6 +116,14 @@ const loanSchema = new mongoose.Schema({
       enum: ['reducing_balance', 'flat_rate', 'simple_interest', 'interest_only'],
       default: 'reducing_balance',
       required: true
+    },
+    rateBasis: {
+      type: String,
+      enum: {
+        values: ['per_annum', 'per_term', 'per_period'],
+        message: '{VALUE} is not a valid rate basis'
+      },
+      default: 'per_annum'
     },
     accrualBasis: {
       type: String,
@@ -563,62 +582,106 @@ loanSchema.virtual('netDisbursement').get(function() {
 loanSchema.set('toJSON', { virtuals: true });
 loanSchema.set('toObject', { virtuals: true });
 
+// Length, in days, of one repayment period for a given frequency (rate/installment-count math only)
+function getFrequencyPeriodDays(frequency) {
+  switch (frequency) {
+    case 'weekly': return 7;
+    case 'bi_weekly': return 14;
+    case 'quarterly': return 365 / 4; // ~91.25
+    case 'monthly':
+    default: return 365 / 12; // ~30.42
+  }
+}
+
+// Number of installments the schedule should contain. For month terms this is
+// just `term` (unchanged behavior). For day/week terms, the loan's total length
+// is exact and installments step by repaymentFrequency, clamped to term end —
+// so the count is however many full periods fit (minimum 1, for the
+// shorter-than-one-period case, e.g. Manifi's 30-day/monthly-frequency product).
+loanSchema.methods._getInstallmentCount = function() {
+  const termUnit = this.termUnit || 'months';
+  if (termUnit === 'months') return this.term;
+  const termDays = termToDays(this.term, termUnit);
+  const frequencyPeriodDays = getFrequencyPeriodDays(this.repaymentFrequency || 'monthly');
+  return Math.max(1, Math.floor(termDays / frequencyPeriodDays));
+};
+
+// Due date for installment `i` of `installmentCount`. Month terms are unchanged
+// (calendar-stepped via getNextPaymentDate). Day/week terms step the same way,
+// except the final installment is clamped to exactly anchorDate + term (not one
+// more frequency step past it).
+loanSchema.methods._scheduleDueDate = function(anchorDate, currentDate, i, installmentCount) {
+  const termUnit = this.termUnit || 'months';
+  const frequency = this.repaymentFrequency || 'monthly';
+  if (termUnit !== 'months' && i === installmentCount) {
+    return addDays(anchorDate, termToDays(this.term, termUnit));
+  }
+  return getNextPaymentDate(currentDate, frequency);
+};
+
 // Calculate loan details using daily interest accrual
 loanSchema.methods.calculateLoanDetails = function() {
   const principal = this.amount;
-  const annualRate = this.interestRate;
+  const rateBasis = this.interestCalculation?.rateBasis || 'per_annum';
+  const termUnit = this.termUnit || 'months';
+  const frequency = this.repaymentFrequency || 'monthly';
+  const annualRate = annualizeRate(this.interestRate, rateBasis, this.term, termUnit, frequency);
   const term = this.term;
   const accrualBasis = this.interestCalculation?.accrualBasis || 'actual/365';
-  const frequency = this.repaymentFrequency || 'monthly';
   const method = this.interestCalculation?.method || 'reducing_balance';
-  
+  const installmentCount = this._getInstallmentCount();
+
   // For zero interest loans
-  if (annualRate === 0) {
-    this.monthlyPayment = principal / term;
+  if (this.interestRate === 0) {
+    this.monthlyPayment = principal / installmentCount;
     this.totalInterest = 0;
     this.totalAmount = principal;
     this.generateRepaymentSchedule();
     return;
   }
-  
+
   // Calculate based on method
   if (method === 'flat_rate') {
     // Flat rate: Interest = Principal × Rate × Time
-    const result = calculateFlatRatePayment(principal, annualRate, term);
-    this.monthlyPayment = result.monthlyPayment;
-    this.totalInterest = result.totalInterest;
+    const totalInterest = rateBasis === 'per_term'
+      ? principal * (this.interestRate / 100) // exact per-term contract — no annualization round-trip
+      : (termUnit === 'months'
+          ? calculateFlatRateInterest(principal, annualRate, term) // month-terms only, unchanged
+          : principal * (annualRate / 100) * (termToDays(term, termUnit) / 365));
+    this.totalInterest = totalInterest;
     this.totalAmount = principal + this.totalInterest;
+    this.monthlyPayment = this.totalAmount / installmentCount;
   } else if (method === 'simple_interest') {
     // Simple interest: Interest on original principal per period
-    const result = calculateSimpleInterestPayment(principal, annualRate, term, frequency, accrualBasis);
+    const result = calculateSimpleInterestPayment(principal, annualRate, installmentCount, frequency, accrualBasis);
     this.monthlyPayment = result.averagePayment;
     this.totalInterest = result.totalInterest;
     this.totalAmount = principal + this.totalInterest;
   } else if (method === 'interest_only') {
     // Interest only: Pay interest each period, principal at end
-    const result = calculateInterestOnlyPayment(principal, annualRate, term, frequency, accrualBasis);
+    const result = calculateInterestOnlyPayment(principal, annualRate, installmentCount, frequency, accrualBasis);
     this.monthlyPayment = result.interestPayment;
     this.totalInterest = result.totalInterest;
     this.totalAmount = principal + this.totalInterest;
-  } else if (frequency === 'monthly') {
-    // For monthly frequency, use standard amortization formula
+  } else if (frequency === 'monthly' && termUnit === 'months') {
+    // For monthly frequency month-terms, use standard amortization formula (unchanged)
     const monthlyRate = annualRate / 100 / 12;
-    this.monthlyPayment = (principal * monthlyRate * Math.pow(1 + monthlyRate, term)) / 
+    this.monthlyPayment = (principal * monthlyRate * Math.pow(1 + monthlyRate, term)) /
                           (Math.pow(1 + monthlyRate, term) - 1);
     this.totalInterest = (this.monthlyPayment * term) - principal;
     this.totalAmount = principal + this.totalInterest;
   } else {
-    // For other frequencies, calculate based on payment periods
-    const periodsPerYear = frequency === 'bi_weekly' ? 26 : frequency === 'weekly' ? 52 : 12;
+    // For other frequencies (or day/week terms), calculate based on payment periods
+    const periodsPerYear = frequency === 'bi_weekly' ? 26 : frequency === 'weekly' ? 52 : frequency === 'quarterly' ? 4 : 12;
     const periodRate = annualRate / 100 / periodsPerYear;
-    const totalPeriods = term; // Assuming term is already in correct periods
-    
-    this.monthlyPayment = (principal * periodRate * Math.pow(1 + periodRate, totalPeriods)) / 
+    const totalPeriods = installmentCount;
+
+    this.monthlyPayment = (principal * periodRate * Math.pow(1 + periodRate, totalPeriods)) /
                           (Math.pow(1 + periodRate, totalPeriods) - 1);
     this.totalInterest = (this.monthlyPayment * totalPeriods) - principal;
     this.totalAmount = principal + this.totalInterest;
   }
-  
+
   // Generate repayment schedule with accurate dates
   this.generateRepaymentSchedule();
 };
@@ -641,35 +704,23 @@ loanSchema.methods.generateRepaymentSchedule = function() {
 
 // Generate schedule for reducing balance loans
 loanSchema.methods.generateReducingBalanceSchedule = function() {
-    if (process.env.NODE_ENV === 'test') {
-      // eslint-disable-next-line no-console
-      console.log('DEBUG_GRACE_THIS_VALUES', {
-        gracePeriod: this.gracePeriod,
-        graceType: this.graceType,
-        moratorium: this.moratorium
-      });
-    }
   const schedule = [];
   const paymentAmount = this.monthlyPayment;
   let remainingPrincipal = this.amount;
-  const annualRate = this.interestRate;
-  const accrualBasis = this.interestCalculation?.accrualBasis || 'actual/365';
+  const rateBasis = this.interestCalculation?.rateBasis || 'per_annum';
+  const termUnit = this.termUnit || 'months';
   const frequency = this.repaymentFrequency || 'monthly';
-  
+  const annualRate = annualizeRate(this.interestRate, rateBasis, this.term, termUnit, frequency);
+  const accrualBasis = this.interestCalculation?.accrualBasis || 'actual/365';
+  const installmentCount = this._getInstallmentCount();
+
   // Start date for schedule (use disbursement date or current date)
-  let currentDate = this.disbursedAt || new Date();
-  
-  if (process.env.NODE_ENV === 'test') {
-    // eslint-disable-next-line no-console
-    console.log('DEBUG_GRACE_INPUTS', {
-      gracePeriod: this.gracePeriod,
-      graceType: this.graceType,
-      moratorium: this.moratorium
-    });
-  }
-  for (let i = 1; i <= this.term; i++) {
+  const anchorDate = this.disbursedAt || new Date();
+  let currentDate = anchorDate;
+
+  for (let i = 1; i <= installmentCount; i++) {
     // Calculate next payment date
-    const dueDate = getNextPaymentDate(currentDate, frequency);
+    const dueDate = this._scheduleDueDate(anchorDate, currentDate, i, installmentCount);
 
     // Grace period logic
     let graceType = this.graceType || 'none';
@@ -702,7 +753,7 @@ loanSchema.methods.generateReducingBalanceSchedule = function() {
 
     let principalPortion = paymentAmount - periodInterest;
     let actualPrincipal = Math.min(principalPortion, remainingPrincipal);
-    let actualInterest = i === this.term ? (paymentAmount - actualPrincipal) : periodInterest;
+    let actualInterest = i === installmentCount ? (paymentAmount - actualPrincipal) : periodInterest;
     let installmentAmount = paymentAmount;
 
     // Apply grace/moratorium
@@ -716,17 +767,6 @@ loanSchema.methods.generateReducingBalanceSchedule = function() {
       if (graceType === 'principal_only') {
         actualPrincipal = 0;
         installmentAmount = actualInterest;
-        if (process.env.NODE_ENV === 'test' && i <= 4) {
-          // eslint-disable-next-line no-console
-          console.log('[DEBUG_PRINCIPAL_ONLY_GRACE]', {
-            installment: i,
-            isGrace,
-            graceType,
-            actualPrincipal,
-            actualInterest,
-            installmentAmount
-          });
-        }
       } else if (graceType === 'full_moratorium') {
         actualPrincipal = 0;
         actualInterest = 0;
@@ -735,7 +775,6 @@ loanSchema.methods.generateReducingBalanceSchedule = function() {
     }
 
     remainingPrincipal -= actualPrincipal;
-
 
     // Explicitly coerce isGrace and isMoratorium to boolean
     const inst = {
@@ -749,51 +788,12 @@ loanSchema.methods.generateReducingBalanceSchedule = function() {
       isGrace: Boolean(isGrace),
       isMoratorium: Boolean(isMoratorium)
     };
-    if (process.env.NODE_ENV === 'test' && i <= 4) {
-      // eslint-disable-next-line no-console
-      console.log('[DEBUG_FINAL_INST_BEFORE_PUSH]', {
-        installment: i,
-        isGrace: inst.isGrace,
-        isMoratorium: inst.isMoratorium,
-        graceType,
-        actualPrincipal,
-        actualInterest,
-        installmentAmount
-      });
-    }
-    debugSchedule.push({
-      i,
-      dueDate,
-      isGrace: inst.isGrace,
-      isMoratorium: inst.isMoratorium,
-      graceType,
-      actualPrincipal,
-      actualInterest,
-      installmentAmount
-    });
     schedule.push(inst);
-  // Only print debug info for test runs
-  if (process.env.NODE_ENV === 'test') {
-    // eslint-disable-next-line no-console
-    console.log('DEBUG_GRACE_MORATORIUM', JSON.stringify(debugSchedule, null, 2));
-  }
 
     currentDate = dueDate;
   }
-  
+
   this.repaymentSchedule = schedule;
-  // Targeted debug for grace/moratorium test: print first 5 installments
-  if (process.env.NODE_ENV === 'test') {
-    // eslint-disable-next-line no-console
-    console.log('DEBUG_GRACE_MORATORIUM_FLAGS', schedule.slice(0, 5).map(inst => ({
-      installmentNumber: inst.installmentNumber,
-      isGrace: inst.isGrace,
-      isMoratorium: inst.isMoratorium,
-      principal: inst.principal,
-      interest: inst.interest,
-      amount: inst.amount
-    })));
-  }
 };
 
 // Generate schedule for flat rate loans
@@ -802,20 +802,19 @@ loanSchema.methods.generateFlatRateSchedule = function() {
   const paymentAmount = this.monthlyPayment;
   const principal = this.amount;
   const totalInterest = this.totalInterest;
-  const term = this.term;
-  const frequency = this.repaymentFrequency || 'monthly';
-  
+  const installmentCount = this._getInstallmentCount();
+
   // In flat rate, principal and interest are divided equally across installments
-  const principalPerInstallment = principal / term;
-  const interestPerInstallment = totalInterest / term;
-  
-  const startDate = this.disbursedAt || new Date();
-  let currentDate = new Date(startDate);
+  const principalPerInstallment = principal / installmentCount;
+  const interestPerInstallment = totalInterest / installmentCount;
+
+  const anchorDate = this.disbursedAt || new Date();
+  let currentDate = new Date(anchorDate);
   let remainingPrincipal = principal;
-  
-  for (let i = 1; i <= term; i++) {
+
+  for (let i = 1; i <= installmentCount; i++) {
     // Calculate next payment date
-    const dueDate = getNextPaymentDate(currentDate, frequency);
+    const dueDate = this._scheduleDueDate(anchorDate, currentDate, i, installmentCount);
 
     // Grace period logic
     let graceType = this.graceType || 'none';
@@ -878,20 +877,22 @@ loanSchema.methods.generateFlatRateSchedule = function() {
 loanSchema.methods.generateSimpleInterestSchedule = function() {
   const schedule = [];
   const principal = this.amount;
-  const annualRate = this.interestRate;
-  const term = this.term;
+  const rateBasis = this.interestCalculation?.rateBasis || 'per_annum';
+  const termUnit = this.termUnit || 'months';
   const frequency = this.repaymentFrequency || 'monthly';
+  const annualRate = annualizeRate(this.interestRate, rateBasis, this.term, termUnit, frequency);
   const accrualBasis = this.interestCalculation?.accrualBasis || 'actual/365';
-  
+  const installmentCount = this._getInstallmentCount();
+
   // In simple interest, interest is calculated on original principal per period
-  const principalPerInstallment = principal / term;
-  
-  const startDate = this.disbursedAt || new Date();
-  let currentDate = new Date(startDate);
-  
-  for (let i = 1; i <= term; i++) {
+  const principalPerInstallment = principal / installmentCount;
+
+  const anchorDate = this.disbursedAt || new Date();
+  let currentDate = new Date(anchorDate);
+
+  for (let i = 1; i <= installmentCount; i++) {
     // Calculate next payment date
-    const dueDate = getNextPaymentDate(currentDate, frequency);
+    const dueDate = this._scheduleDueDate(anchorDate, currentDate, i, installmentCount);
 
     // Grace period logic
     let graceType = this.graceType || 'none';
@@ -960,17 +961,19 @@ loanSchema.methods.generateSimpleInterestSchedule = function() {
 loanSchema.methods.generateInterestOnlySchedule = function() {
   const schedule = [];
   const principal = this.amount;
-  const annualRate = this.interestRate;
-  const term = this.term;
+  const rateBasis = this.interestCalculation?.rateBasis || 'per_annum';
+  const termUnit = this.termUnit || 'months';
   const frequency = this.repaymentFrequency || 'monthly';
+  const annualRate = annualizeRate(this.interestRate, rateBasis, this.term, termUnit, frequency);
   const accrualBasis = this.interestCalculation?.accrualBasis || 'actual/365';
-  
-  const startDate = this.disbursedAt || new Date();
-  let currentDate = new Date(startDate);
-  
-  for (let i = 1; i <= term; i++) {
+  const installmentCount = this._getInstallmentCount();
+
+  const anchorDate = this.disbursedAt || new Date();
+  let currentDate = new Date(anchorDate);
+
+  for (let i = 1; i <= installmentCount; i++) {
     // Calculate next payment date
-    const dueDate = getNextPaymentDate(currentDate, frequency);
+    const dueDate = this._scheduleDueDate(anchorDate, currentDate, i, installmentCount);
 
     // Grace period logic
     let graceType = this.graceType || 'none';
@@ -998,7 +1001,7 @@ loanSchema.methods.generateInterestOnlySchedule = function() {
       accrualBasis
     );
 
-    const isLastPayment = (i === term);
+    const isLastPayment = (i === installmentCount);
     let paymentAmount = isLastPayment ? principal + periodInterest : periodInterest;
     let principalPaid = isLastPayment ? principal : 0;
 
@@ -1301,27 +1304,31 @@ loanSchema.methods.recalculateSchedule = function(strategy = 'reduce_term') {
   }
   
   // Count paid installments to determine where we are in the schedule
+  // (installmentCount, not this.term — day/week terms don't measure term in installments)
+  const installmentCount = this._getInstallmentCount();
   const paidInstallments = this.repaymentSchedule.filter(i => i.status === 'paid').length;
-  const remainingTerm = this.term - paidInstallments;
-  
+  const remainingTerm = installmentCount - paidInstallments;
+
   if (remainingTerm <= 0) {
     // No more installments
     this.repaymentSchedule = this.repaymentSchedule.filter(i => i.status === 'paid');
     return this.repaymentSchedule;
   }
-  
+
   // Get the last payment date or disbursement date as starting point
   const lastPaidInstallment = this.repaymentSchedule
     .filter(i => i.status === 'paid')
     .sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt))[0];
-  
-  const startDate = lastPaidInstallment 
+
+  const startDate = lastPaidInstallment
     ? new Date(lastPaidInstallment.paidAt)
     : (this.disbursedAt || new Date());
-  
+
   const method = this.interestCalculation?.method || 'reducing_balance';
-  const annualRate = this.interestRate;
+  const rateBasis = this.interestCalculation?.rateBasis || 'per_annum';
+  const termUnit = this.termUnit || 'months';
   const frequency = this.repaymentFrequency || 'monthly';
+  const annualRate = annualizeRate(this.interestRate, rateBasis, this.term, termUnit, frequency);
   
   let newSchedule = [];
   

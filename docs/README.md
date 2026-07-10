@@ -13,6 +13,7 @@ Phases must be executed in order. Each phase leaves the app in a working, testab
 | 01 | `01-security-critical-fixes.md` | Registration lockdown, both `531d954` regressions, `hasPermission` crashes, repayment tenancy check. Gets the test suite to 133/133. | 1 |
 | 02 | `02-security-hardening.md` | JWT fallback secret, token payload unification (fixes refresh), rate limiting, helmet/mongo-sanitize, console.log strip, error-message gating, CORS, `.env.example`, dependency bumps. | 1–2 |
 | 03 | `03-role-rename.md` | `super_user`→`platform_admin` etc. across schema, middleware, routes, client, seeds, tests + DB migration + ghost-role removal (`client_admin`, `staff`). | 2 |
+| 03b | `03b-api-test-scaffold.md` | App/bootstrap split (`server/app.js`) + first API-level test suite (supertest + mongodb-memory-server) against the live Express app; tenant-isolation regression baseline pinning current ad hoc scoping (including the 2026-07-10 hotfix) before Phase 04 replaces it. | 3 |
 | 04 | `04-tenancy-layer.md` | Middleware/helper-based tenant scoping layer replacing ~30 ad-hoc checks; closes remaining cross-tenant leaks. | 2 |
 | 05 | `05-loan-engine-rebuild.md` | Configurable rate basis (annual/per-term/per-period), schedule anchored to disbursement, early-settlement bookkeeping fix, model cleanups. | 2 |
 | 06 | `06-user-deletion-orphan-safety.md` | Soft-delete policy enforcement; orphan-safe populate guards in dashboards/reports/exports. | 1 |
@@ -32,7 +33,7 @@ Three pre-existing docs were kept **live** in `docs/` (not archived) because the
 ## Standing rules for the execution agent
 
 - Follow the phase document **exactly**. If it is ambiguous, incomplete, or looks wrong once you're in the code, **stop and flag it** — do not improvise.
-- The regression gate for every phase: `cd server && pnpm test` must pass **133/133** from Phase 01 onward (more once phases add tests). Never commit with a red suite.
+- The regression gate for every phase: `cd server && pnpm test` must pass **133/133** from Phase 01 onward, and **178/178** from Phase 03b onward (more once phases add tests). Never commit with a red suite.
 - Old role names are used in phase 01–02 documents (they match the code as it exists then); from Phase 03 onward documents use the new names.
 - Do not make frontend visual/design changes in any phase (per `CLAUDE.md` Section 9) — frontend edits are limited to the functional minimum each phase specifies.
 - Update `CLAUDE.md` (sections listed in each phase's final step) and `changelog.md` when a phase completes.

@@ -1,6 +1,6 @@
 # Phase 04 — Multi-Tenancy Scoping Layer
 
-**Prerequisite:** Phases 01–03 merged; suite green; roles use new names. Branch: `phase/04-tenancy-layer` off `main`.
+**Prerequisite:** Phases 01–03 merged; suite green; roles use new names. Branch: `phase/04-tenancy-layer` off `main`. Phase 03b merged; its API suite (including `server/tests/api/hotfix-regressions.test.js`) is the regression gate for every route migration in this phase.
 
 ## Objective
 

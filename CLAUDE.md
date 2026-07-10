@@ -2,7 +2,7 @@
 
 **This is a living document.** It is the single file that explains the whole application — architecture, decisions, current state, and rules of engagement. Update it whenever a meaningful state change happens (a phase from `docs/` is completed, an architecture decision changes, auth is migrated, UI_SPEC lands, etc.). Do not let it drift out of sync with reality — a stale CLAUDE.md is worse than no CLAUDE.md, because it will be trusted.
 
-**Last updated:** 2026-07-10 — Phase 03b (API test scaffold & tenant-isolation baseline) planned and documented at `docs/03b-api-test-scaffold.md`, inserted before Phase 04. During that planning, two critical authorization defects were found and hotfixed same day on `main` (cross-tenant loan approve/reject bypass; role-escalation via user update — see Section 6). Suite remains 133/133.
+**Last updated:** 2026-07-10 — Phase 03b (API test scaffold & tenant-isolation baseline) executed end-to-end: `server/server.js` split into `server/app.js` (exported Express app) + a thin bootstrap, and the first API-level test suite (supertest + mongodb-memory-server against the live app) added under `server/tests/api/`, including regression pins for the two authorization defects hotfixed on `main` earlier the same day (cross-tenant loan approve/reject bypass; role-escalation via user update — see Section 6). Suite is now 178/178 (up from 133/133); both required mutation checks performed and reverted. No production route/middleware/model code changed by this phase itself.
 
 ---
 
@@ -27,7 +27,7 @@ Nexus (platform owner)
 - `feature/phase-0-loan-engine` was **merged into `main`** on 2026-07-04 (clean fast-forward, `main` @ `8ad1f57`). All work now happens against `main`.
 - A full pre-go-live audit has been completed and lives at `docs/AUDIT_REPORT.md`. It found several critical issues (see Section 6) that must be fixed before any client-facing use. **Do not treat the app as production-ready until those are resolved.** The audit's original baseline (133 server tests, 111 pass / 22 fail, all failures from the `canAcceptPrepayment` regression) is historical — that regression was fixed in Phase 01, and the suite has been 133/133 since the Phase 01 merge (`0ef9b50`). Phases 02 and 03 are also complete; suite remains 133/133. See `docs/AUDIT_REPORT.md` for the original pre-fix figures.
 - Locked decisions from the planning session live at `docs/DECISIONS.md`. Treat that file as authoritative — this CLAUDE.md summarizes it, but `DECISIONS.md` is the source of truth if they ever disagree (and if they do, that's a bug in this file — fix it).
-- Phased execution plans **have been generated**: `docs/01-security-critical-fixes.md` through `docs/10-subscription-gating.md`, indexed in `docs/README.md`, plus `docs/03b-api-test-scaffold.md` (generated 2026-07-10, inserted between 03 and 04 — an API/route-level test scaffold and tenant-isolation regression baseline that must run before the tenancy phase). Phases 01–03 are executed; 03b and 04–10 have not been. Claude Code executing a phase must follow that phase's document exactly — see Section 11 (Working Rules) before touching code.
+- Phased execution plans **have been generated**: `docs/01-security-critical-fixes.md` through `docs/10-subscription-gating.md`, indexed in `docs/README.md`, plus `docs/03b-api-test-scaffold.md` (generated 2026-07-10, inserted between 03 and 04 — an API/route-level test scaffold and tenant-isolation regression baseline that must run before the tenancy phase). Phases 01–03 and 03b are executed; 04–10 have not been. Claude Code executing a phase must follow that phase's document exactly — see Section 11 (Working Rules) before touching code.
 - Pre-existing roadmap/planning documents (PRODUCTION_ROADMAP, WEEK_* summaries, etc.) were archived to `docs/archive/` and must not be used as planning input.
 
 ---
@@ -39,11 +39,11 @@ Nexus (platform owner)
 - **Backend**: Node.js, Express 4.21.2 (do not upgrade to Express 5.x — this was previously tried and reverted due to a `path-to-regexp` compatibility issue), Mongoose 8.x, MongoDB (currently Atlas, migrating — see Section 4)
 - **Frontend**: React 19, Vite 7, Tailwind CSS 4, shadcn/ui, TanStack Query, React Hook Form + Zod, React Router 7
 - **Auth**: JWT (`jsonwebtoken`, `bcryptjs`) — see Section 8, this is planned to change
-- **Testing**: Jest 30 + Supertest + `mongodb-memory-server` on the server (133 tests as of the audit). No client-side automated tests exist yet.
+- **Testing**: Jest 30 on the server, 178 tests total. 133 are model/utility tests under `server/utils/__tests__/` (instantiate models and call methods directly — no DB connection, no middleware, no auth). As of Phase 03b, Supertest and `mongodb-memory-server` are now actually exercised by 45 API-level tests under `server/tests/api/`, which hit the live Express app (`server/app.js`) over HTTP against a real (in-memory) MongoDB — the first tests to exercise route handlers, `authorize`/`authorizeMinRole` chains, and per-route tenancy checks. A `test.failing` entry (none currently exist) marks a known, deliberately-unfixed defect the test suite pins rather than hides. No client-side automated tests exist yet.
 - **Exports**: PDFKit, ExcelJS — confirmed working end-to-end (not placeholders)
 
 ### Test command — resolved
-The placeholder-test-script concern was based on a stale pre-merge snapshot. Post-merge, `server/package.json` has `"test": "jest"` (plus `test:watch`, `test:coverage`), and `cd server && pnpm test` was verified to run the real 133-test suite on 2026-07-04. Treat `pnpm test` in `server/` as the regression gate.
+The placeholder-test-script concern was based on a stale pre-merge snapshot. Post-merge, `server/package.json` has `"test": "jest"` (plus `test:watch`, `test:coverage`), and `cd server && pnpm test` was verified to run the real test suite on 2026-07-04 (133 tests then; 178 as of Phase 03b). Treat `pnpm test` in `server/` as the regression gate. Since Phase 03b, `server.js` is a thin bootstrap (dotenv/env fail-fast/`connectDB()`/`app.listen()`); the actual Express app lives in `server/app.js` and is what the API tests import — `pnpm start`/`pnpm dev` behavior is unchanged.
 
 ---
 
@@ -149,7 +149,7 @@ If you are Claude Code operating in this repo and there is no specific phase doc
 
 Every phase document is expected to be sized to fit a single ~1.5–2 hour focused session, with explicit stopping/resume points if it can't be. Don't try to compress multiple phases into one sitting even if it seems achievable — the phase boundaries exist on purpose.
 
-The test suite (133 server tests; `docs/AUDIT_REPORT.md` Section 10 records the original pre-fix baseline of 111 passing, since fixed in Phase 01 — suite is currently 133/133) is the standing regression check. Treat "suite is green" as a gate before considering any phase complete, once the test-command issue in Section 3 is resolved.
+The test suite (178 server tests as of Phase 03b — 133 model/utility tests plus 45 API-level tests; `docs/AUDIT_REPORT.md` Section 10 records the original pre-fix baseline of 111 passing, since fixed in Phase 01) is the standing regression check. Treat "suite is green" as a gate before considering any phase complete, once the test-command issue in Section 3 is resolved. From Phase 04 onward, `server/tests/api/hotfix-regressions.test.js` specifically is the regression gate for the two 2026-07-10 authorization fixes — any route migration must keep it green.
 
 ---
 

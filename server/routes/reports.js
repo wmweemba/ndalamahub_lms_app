@@ -5,11 +5,12 @@ const ExcelJS = require('exceljs');
 const Loan = require('../models/Loan');
 const User = require('../models/User');
 const Company = require('../models/Company');
-const { 
-  authenticateToken, 
-  authorize, 
-  authorizeMinRole 
+const {
+  authenticateToken,
+  authorize,
+  authorizeMinRole
 } = require('../middleware/auth');
+const { isPlatformAdmin, loanScopeFilter, companyScopeFilter, mergeFilters } = require('../utils/tenantScope');
 
 // Helper function to get date range
 const getDateRange = (period) => {
@@ -46,33 +47,7 @@ const getDateRange = (period) => {
 router.get('/overview', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     // Build company filter based on user role
-    let companyFilter = {};
-    if (req.user.role !== 'platform_admin') {
-      if (req.user.role === 'lender_admin') {
-        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
-        companyFilter.$or = [
-          { company: req.user.company },
-          { company: { $in: corporateCompanies.map(c => c._id) } }
-        ];
-      } else if (req.user.role === 'employer_admin' || req.user.role === 'employer_hr') {
-        // Get user's company details to determine if it's a lender or corporate company
-        const userCompany = await Company.findById(req.user.company);
-
-        if (userCompany.type === 'lender') {
-          // If user belongs to a lender company, show loans where lenderCompany matches
-          // Also include loans from corporate companies that this lender serves
-          const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
-
-          companyFilter.$or = [
-            { lenderCompany: req.user.company },
-            { company: { $in: corporateCompanies.map(c => c._id) } }
-          ];
-        } else {
-          // If user belongs to a corporate company, show loans where company matches
-          companyFilter.company = req.user.company;
-        }
-      }
-    }
+    const companyFilter = await loanScopeFilter(req.user);
 
     // Get loans by status
     const loansByStatus = await Loan.aggregate([
@@ -86,36 +61,10 @@ router.get('/overview', authenticateToken, authorizeMinRole('employer_hr'), asyn
     });
 
     // Get companies by type
-    let companiesFilter = {};
-    if (req.user.role !== 'platform_admin') {
-      if (req.user.role === 'lender_admin') {
-        companiesFilter = {
-          $or: [
-            { _id: req.user.company },
-            { lenderCompany: req.user.company }
-          ]
-        };
-      } else if (req.user.role === 'employer_admin' || req.user.role === 'employer_hr') {
-        // Get user's company details to determine filtering approach
-        const userCompany = await Company.findById(req.user.company);
-        
-        if (userCompany.type === 'lender') {
-          // If user belongs to a lender company, show both the lender and its corporate companies
-          companiesFilter = {
-            $or: [
-              { _id: req.user.company },
-              { lenderCompany: req.user.company }
-            ]
-          };
-        } else {
-          // If user belongs to a corporate company, show only their company
-          companiesFilter = { _id: req.user.company };
-        }
-      }
-    }
+    const companiesFilter = await companyScopeFilter(req.user);
 
     const companiesByType = await Company.aggregate([
-      { $match: { isActive: true, ...companiesFilter } },
+      { $match: mergeFilters({ isActive: true }, companiesFilter) },
       { $group: { _id: '$type', count: { $sum: 1 } } }
     ]);
 
@@ -196,23 +145,11 @@ router.get('/overview', authenticateToken, authorizeMinRole('employer_hr'), asyn
 // @access  Private (Admin roles)
 router.get('/active-loans', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
-    let companyFilter = {};
-    if (req.user.role !== 'platform_admin') {
-      if (req.user.role === 'lender_admin') {
-        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
-        companyFilter.$or = [
-          { lenderCompany: req.user.company },
-          { company: { $in: corporateCompanies.map(c => c._id) } }
-        ];
-      } else {
-        companyFilter.company = req.user.company;
-      }
-    }
+    const companyFilter = await loanScopeFilter(req.user);
 
-    const loans = await Loan.find({ 
-      status: { $in: ['active', 'disbursed'] },
-      ...companyFilter 
-    })
+    const loans = await Loan.find(
+      mergeFilters({ status: { $in: ['active', 'disbursed'] } }, companyFilter)
+    )
     .populate('applicant', 'firstName lastName phone email')
     .populate('company', 'name')
     .populate('lenderCompany', 'name')
@@ -247,23 +184,11 @@ router.get('/active-loans', authenticateToken, authorizeMinRole('employer_hr'), 
 // @access  Private (Admin roles)
 router.get('/overdue-loans', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
-    let companyFilter = {};
-    if (req.user.role !== 'platform_admin') {
-      if (req.user.role === 'lender_admin') {
-        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
-        companyFilter.$or = [
-          { lenderCompany: req.user.company },
-          { company: { $in: corporateCompanies.map(c => c._id) } }
-        ];
-      } else {
-        companyFilter.company = req.user.company;
-      }
-    }
+    const companyFilter = await loanScopeFilter(req.user);
 
-    const loans = await Loan.find({ 
-      status: { $in: ['in_arrears', 'defaulted'] },
-      ...companyFilter 
-    })
+    const loans = await Loan.find(
+      mergeFilters({ status: { $in: ['in_arrears', 'defaulted'] } }, companyFilter)
+    )
     .populate('applicant', 'firstName lastName phone email')
     .populate('company', 'name')
     .populate('lenderCompany', 'name')
@@ -310,26 +235,14 @@ router.get('/overdue-loans', authenticateToken, authorizeMinRole('employer_hr'),
 // @access  Private (Admin roles)
 router.get('/upcoming-payments', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
-    let companyFilter = {};
-    if (req.user.role !== 'platform_admin') {
-      if (req.user.role === 'lender_admin') {
-        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
-        companyFilter.$or = [
-          { lenderCompany: req.user.company },
-          { company: { $in: corporateCompanies.map(c => c._id) } }
-        ];
-      } else {
-        companyFilter.company = req.user.company;
-      }
-    }
+    const companyFilter = await loanScopeFilter(req.user);
 
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
-    const loans = await Loan.find({ 
-      status: { $in: ['active', 'disbursed'] },
-      ...companyFilter 
-    })
+    const loans = await Loan.find(
+      mergeFilters({ status: { $in: ['active', 'disbursed'] } }, companyFilter)
+    )
     .populate('applicant', 'firstName lastName phone email')
     .populate('company', 'name')
     .populate('lenderCompany', 'name');
@@ -387,18 +300,7 @@ router.get('/:type/export/:format', authenticateToken, authorizeMinRole('employe
     const { type, format } = req.params;
     
     // Build company filter based on user role
-    let companyFilter = {};
-    if (req.user.role !== 'platform_admin') {
-      if (req.user.role === 'lender_admin') {
-        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
-        companyFilter.$or = [
-          { lenderCompany: req.user.company },
-          { company: { $in: corporateCompanies.map(c => c._id) } }
-        ];
-      } else {
-        companyFilter.company = req.user.company;
-      }
-    }
+    const companyFilter = await loanScopeFilter(req.user);
 
     let data = [];
     let reportTitle = '';
@@ -407,10 +309,9 @@ router.get('/:type/export/:format', authenticateToken, authorizeMinRole('employe
     switch (type) {
       case 'active-loans':
         reportTitle = 'Active Loans Report';
-        const activeLoans = await Loan.find({ 
-          status: { $in: ['active', 'disbursed'] },
-          ...companyFilter 
-        })
+        const activeLoans = await Loan.find(
+          mergeFilters({ status: { $in: ['active', 'disbursed'] } }, companyFilter)
+        )
         .populate('applicant', 'firstName lastName phone email')
         .populate('company', 'name')
         .populate('lenderCompany', 'name')
@@ -432,10 +333,9 @@ router.get('/:type/export/:format', authenticateToken, authorizeMinRole('employe
         
       case 'overdue-loans':
         reportTitle = 'Overdue Loans Report';
-        const overdueLoans = await Loan.find({ 
-          status: { $in: ['in_arrears', 'defaulted'] },
-          ...companyFilter 
-        })
+        const overdueLoans = await Loan.find(
+          mergeFilters({ status: { $in: ['in_arrears', 'defaulted'] } }, companyFilter)
+        )
         .populate('applicant', 'firstName lastName phone email')
         .populate('company', 'name')
         .populate('lenderCompany', 'name')
@@ -470,10 +370,9 @@ router.get('/:type/export/:format', authenticateToken, authorizeMinRole('employe
         const thirtyDaysFromNow = new Date();
         thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
-        const loansForPayments = await Loan.find({ 
-          status: { $in: ['active', 'disbursed'] },
-          ...companyFilter 
-        })
+        const loansForPayments = await Loan.find(
+          mergeFilters({ status: { $in: ['active', 'disbursed'] } }, companyFilter)
+        )
         .populate('applicant', 'firstName lastName phone email')
         .populate('company', 'name')
         .populate('lenderCompany', 'name');
@@ -771,20 +670,8 @@ router.get('/loans', authenticateToken, authorizeMinRole('employer_admin'), asyn
     }
 
     // Build company filter
-    let companyFilter = {};
-    if (req.user.role !== 'platform_admin') {
-      if (req.user.role === 'lender_admin') {
-        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
-        companyFilter.$or = [
-          { lenderCompany: req.user.company },
-          { company: { $in: corporateCompanies.map(c => c._id) } }
-        ];
-      } else {
-        companyFilter.company = req.user.company;
-      }
-    } else if (companyId) {
-      companyFilter.company = companyId;
-    }
+    const companyFilter = await loanScopeFilter(req.user);
+    const companyIdFilter = (isPlatformAdmin(req.user) && companyId) ? { company: companyId } : {};
 
     // Build status filter
     let statusFilter = {};
@@ -793,7 +680,7 @@ router.get('/loans', authenticateToken, authorizeMinRole('employer_admin'), asyn
     }
 
     // Combine filters
-    const filter = { ...dateFilter, ...companyFilter, ...statusFilter };
+    const filter = mergeFilters(dateFilter, companyFilter, companyIdFilter, statusFilter);
 
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -851,21 +738,10 @@ router.get('/companies', authenticateToken, authorizeMinRole('lender_admin'), as
     }
 
     // Build company filter
-    let companyFilter = {};
-    if (req.user.role !== 'platform_admin') {
-      if (req.user.role === 'lender_admin') {
-        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
-        companyFilter.$or = [
-          { lenderCompany: req.user.company },
-          { company: { $in: corporateCompanies.map(c => c._id) } }
-        ];
-      } else {
-        companyFilter.company = req.user.company;
-      }
-    }
+    const companyFilter = await loanScopeFilter(req.user);
 
     // Combine filters
-    const filter = { ...dateFilter, ...companyFilter };
+    const filter = mergeFilters(dateFilter, companyFilter);
 
     // Get company-wise statistics
     const companyStats = await Loan.aggregate([
@@ -1089,20 +965,8 @@ router.get('/export', authenticateToken, authorizeMinRole('employer_hr'), async 
     }
 
     // Build company filter
-    let companyFilter = {};
-    if (req.user.role !== 'platform_admin') {
-      if (req.user.role === 'lender_admin') {
-        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
-        companyFilter.$or = [
-          { lenderCompany: req.user.company },
-          { company: { $in: corporateCompanies.map(c => c._id) } }
-        ];
-      } else {
-        companyFilter.company = req.user.company;
-      }
-    } else if (companyId) {
-      companyFilter.company = companyId;
-    }
+    const companyFilter = await loanScopeFilter(req.user);
+    const companyIdFilter = (isPlatformAdmin(req.user) && companyId) ? { company: companyId } : {};
 
     // Build status filter
     let statusFilter = {};
@@ -1111,7 +975,7 @@ router.get('/export', authenticateToken, authorizeMinRole('employer_hr'), async 
     }
 
     // Combine filters
-    const filter = { ...dateFilter, ...companyFilter, ...statusFilter };
+    const filter = mergeFilters(dateFilter, companyFilter, companyIdFilter, statusFilter);
 
     // Get loans for export
     const loans = await Loan.find(filter)

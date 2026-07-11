@@ -29,8 +29,8 @@ router.get('/available', authenticateToken, async (req, res) => {
     // Determine which company's products to show
     let productCompanyId;
     
-    if (req.user.role === 'platform_admin') {
-      // Super user can see all products, or filter by company
+    if (isPlatformAdmin(req.user)) {
+      // Platform admin can see all products, or filter by company
       if (req.query.company) {
         productCompanyId = req.query.company;
       }
@@ -38,26 +38,27 @@ router.get('/available', authenticateToken, async (req, res) => {
     } else {
       // Get user's company to check if it's a lender or corporate
       const userCompany = await Company.findById(req.user.company);
-      
+
       if (!userCompany) {
         return res.status(404).json({
           success: false,
           message: 'User company not found'
         });
       }
-      
+
       if (userCompany.type === 'lender') {
         // Lender users see their own products
         productCompanyId = req.user.company;
       } else if (userCompany.type === 'corporate') {
         // Corporate users see their lender's products
-        if (!userCompany.lenderCompany) {
+        const lenderId = await companyLenderId(req.user.company);
+        if (!lenderId) {
           return res.status(400).json({
             success: false,
             message: 'Your company is not linked to a lender. Please contact your administrator.'
           });
         }
-        productCompanyId = userCompany.lenderCompany;
+        productCompanyId = lenderId;
       }
     }
     
@@ -189,7 +190,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Get products by category
 router.get('/category/:category', authenticateToken, async (req, res) => {
   try {
-    const companyId = req.user.role === 'platform_admin' ? null : req.user.company;
+    const companyId = isPlatformAdmin(req.user) ? null : req.user.company;
     const products = await LoanProduct.findByCategory(req.params.category, companyId);
     
     res.json({
@@ -461,7 +462,7 @@ router.post('/:id/calculate-fees', authenticateToken, async (req, res) => {
 // Get product statistics (admin only)
 router.get('/stats/overview', authenticateToken, authorize(['platform_admin', 'lender_admin']), async (req, res) => {
   try {
-    const companyFilter = req.user.role === 'platform_admin' ? {} : { company: req.user.company };
+    const companyFilter = isPlatformAdmin(req.user) ? {} : { company: req.user.company };
     
     const [
       totalProducts,

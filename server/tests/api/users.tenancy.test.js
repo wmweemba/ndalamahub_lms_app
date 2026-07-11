@@ -109,4 +109,20 @@ describe('Users tenancy', () => {
     const stillExists = await User.findById(fx.borrowerB._id);
     expect(stillExists).not.toBeNull();
   });
+
+  it('PATCH /api/users/:id/reset-password as lenderAdminA on borrowerB (not their client) -> 403', async () => {
+    const res = await request(app)
+      .patch(`/api/users/${fx.borrowerB._id}/reset-password`)
+      .set(authHeader(fx.lenderAdminA))
+      .send({ newPassword: 'NewPass123!' });
+    expect(res.status).toBe(403);
+  });
+
+  it('PATCH /api/users/:id/reset-password as lenderAdminA on borrowerA (own client employee) -> 200', async () => {
+    const res = await request(app)
+      .patch(`/api/users/${fx.borrowerA._id}/reset-password`)
+      .set(authHeader(fx.lenderAdminA))
+      .send({ newPassword: 'NewPass123!' });
+    expect(res.status).toBe(200);
+  });
 });

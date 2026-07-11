@@ -625,24 +625,12 @@ router.patch('/:id/reset-password', authenticateToken, authorize(['platform_admi
       });
     }
 
-    // Check company access for non-super users
-    if (req.user.role !== 'platform_admin') {
-      if (req.user.role === 'lender_admin') {
-        // Lender admins can reset passwords for their company and corporate clients
-        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
-        const allowedCompanies = [req.user.company, ...corporateCompanies.map(c => c._id)];
-        if (!allowedCompanies.some(companyId => companyId.toString() === user.company.toString())) {
-          return res.status(403).json({
-            success: false,
-            message: 'Access denied to this user'
-          });
-        }
-      } else if (req.user.company.toString() !== user.company.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied to this user'
-        });
-      }
+    // Check company access
+    if (!(await canTouchUser(req.user, user))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this user'
+      });
     }
 
     // Update password

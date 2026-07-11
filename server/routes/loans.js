@@ -129,7 +129,11 @@ router.get('/', authenticateToken, async (req, res) => {
     const filter = {};
 
     // Status filter
-    if (status) {
+    if (status !== undefined) {
+      const validStatuses = Loan.schema.path('status').enumValues;
+      if (typeof status !== 'string' || !validStatuses.includes(status)) {
+        return res.status(400).json({ success: false, message: 'Invalid status filter' });
+      }
       filter.status = status;
     }
 

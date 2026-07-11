@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const Company = require('../models/Company');
+const Loan = require('../models/Loan');
 const {
   authenticateToken,
   authorize,
@@ -694,11 +695,24 @@ router.delete('/:id', authenticateToken, authorizeMinRole('employer_hr'), async 
       });
     }
 
-    await User.findByIdAndDelete(id);
+    const hasLoanHistory = await Loan.exists({ applicant: id });
 
+    if (hasLoanHistory) {
+      // Locked policy: users with any loan history are never hard-deleted
+      user.isActive = false;
+      await user.save();
+      return res.json({
+        success: true,
+        message: 'User has loan history and was deactivated instead of deleted',
+        data: { deleted: false, deactivated: true }
+      });
+    }
+
+    await User.findByIdAndDelete(id);
     res.json({
       success: true,
-      message: 'User deleted successfully'
+      message: 'User deleted successfully',
+      data: { deleted: true, deactivated: false }
     });
 
   } catch (error) {

@@ -309,7 +309,7 @@ router.get('/hr-stats', authenticateToken, authorizeMinRole('employer_hr'), asyn
             .map(loan => ({
                 id: loan._id,
                 loanNumber: loan.loanNumber,
-                applicantName: `${loan.applicant.firstName} ${loan.applicant.lastName}`,
+                applicantName: loan.applicant ? `${loan.applicant.firstName} ${loan.applicant.lastName}` : 'Deleted user',
                 amount: loan.amount,
                 status: loan.status,
                 applicationDate: loan.applicationDate,
@@ -325,7 +325,11 @@ router.get('/hr-stats', authenticateToken, authorizeMinRole('employer_hr'), asyn
         );
 
         // Calculate employee loan statistics
-        const employeesWithLoans = [...new Set(companyLoans.map(loan => loan.applicant.toString()))].length;
+        const employeesWithLoans = [...new Set(
+          companyLoans
+            .map(loan => loan.applicant && (loan.applicant._id || loan.applicant).toString())
+            .filter(Boolean)
+        )].length;
         const employeesWithoutLoans = totalEmployees - employeesWithLoans;
 
         // Get role distribution
@@ -421,24 +425,22 @@ router.get('/user-stats', authenticateToken, async (req, res) => {
             .sort((a, b) => new Date(b.applicationDate) - new Date(a.applicationDate))
             .slice(0, 5);
 
-        // Calculate next payment due (for active loans)
+        // Calculate next payment due: earliest pending installment due date across all active loans
         let nextPaymentDue = null;
-        const activeLoanWithPayments = userLoans.find(loan => 
-            loan.status === 'active' && loan.repaymentSchedule && loan.repaymentSchedule.length > 0
-        );
-        
-        if (activeLoanWithPayments) {
-            const nextPayment = activeLoanWithPayments.repaymentSchedule.find(payment => 
-                payment.status === 'pending'
-            );
-            if (nextPayment) {
-                nextPaymentDue = {
-                    amount: nextPayment.amount,
-                    dueDate: nextPayment.dueDate,
-                    loanNumber: activeLoanWithPayments.loanNumber
-                };
-            }
-        }
+        userLoans
+            .filter(loan => loan.status === 'active' && loan.repaymentSchedule && loan.repaymentSchedule.length > 0)
+            .forEach(loan => {
+                const nextPayment = loan.repaymentSchedule.find(payment =>
+                    payment.status === 'pending'
+                );
+                if (nextPayment && (!nextPaymentDue || new Date(nextPayment.dueDate) < new Date(nextPaymentDue.dueDate))) {
+                    nextPaymentDue = {
+                        amount: nextPayment.amount,
+                        dueDate: nextPayment.dueDate,
+                        loanNumber: loan.loanNumber
+                    };
+                }
+            });
 
         res.json({
             success: true,

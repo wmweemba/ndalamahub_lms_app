@@ -10,6 +10,10 @@ if (missingEnv.length > 0) {
 const connectDB = require('./config/db');
 connectDB();
 
+if (process.env.NODE_ENV !== 'test' && process.env.ENABLE_CRON !== 'false') {
+  require('./jobs/scheduler')();
+}
+
 const app = require('./app');
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

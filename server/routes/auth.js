@@ -11,6 +11,8 @@ const {
   hashPasswordResetToken,
   createRateLimiter
 } = require('../utils/auth');
+const { sendEmail } = require('../utils/email');
+const emailTemplates = require('../utils/emailTemplates');
 
 // Rate limiter for login attempts
 const loginRateLimiter = createRateLimiter(5, 15 * 60 * 1000); // 5 attempts per 15 minutes
@@ -153,15 +155,12 @@ router.post('/forgot-password', async (req, res) => {
     user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
     await user.save();
 
-    // TODO: Send email with reset token
-    // For now, just return the token (in production, send via email)
+    const resetUrl = `${process.env.APP_URL}/reset-password?token=${resetToken}`;
+    void sendEmail({ to: user.email, ...emailTemplates.passwordReset(user, resetUrl) });
+
     res.json({
       success: true,
-      message: 'Password reset link sent to your email',
-      data: {
-        // TODO(phase-09): remove once reset emails send
-        resetToken: process.env.NODE_ENV === 'development' ? resetToken : undefined
-      }
+      message: 'Password reset link sent to your email'
     });
 
   } catch (error) {

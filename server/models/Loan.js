@@ -297,6 +297,12 @@ const loanSchema = new mongoose.Schema({
       enum: ['principal_only', 'full_moratorium', 'none'],
       default: 'none'
     },
+    reminderSentAt: {
+      type: Date
+    },
+    overdueNoticeSentAt: {
+      type: Date
+    },
     isBalloonPayment: {
       type: Boolean,
       default: false

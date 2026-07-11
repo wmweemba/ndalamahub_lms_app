@@ -22,6 +22,8 @@ const {
 } = require('../utils/tenantScope');
 
 const ExcelJS = require('exceljs');
+const { sendEmail } = require('../utils/email');
+const emailTemplates = require('../utils/emailTemplates');
 // @route   GET /api/loans/:id/repayment-schedule/export/excel
 // @desc    Export detailed repayment schedule for a loan as Excel
 // @access  Private (same as loan details)
@@ -545,6 +547,10 @@ router.put('/:id/approve', authenticateToken, authorize('employer_hr', 'employer
 
     await loan.save();
 
+    if (loan.applicant) {
+      void sendEmail({ to: loan.applicant.email, ...emailTemplates.loanApproved(loan.applicant, loan) });
+    }
+
     // Populate references for response
     await loan.populate([
       { path: 'applicant', select: 'firstName lastName email' },
@@ -623,6 +629,10 @@ router.put('/:id/reject', authenticateToken, authorize('employer_hr', 'employer_
 
     await loan.save();
 
+    if (loan.applicant) {
+      void sendEmail({ to: loan.applicant.email, ...emailTemplates.loanRejected(loan.applicant, loan, approvalNotes) });
+    }
+
     // Populate references for response
     await loan.populate([
       { path: 'applicant', select: 'firstName lastName email' },
@@ -697,6 +707,10 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
       : loan.endDate;
 
     await loan.save();
+
+    if (loan.applicant) {
+      void sendEmail({ to: loan.applicant.email, ...emailTemplates.loanDisbursed(loan.applicant, loan) });
+    }
 
     // Populate references for response
     await loan.populate([

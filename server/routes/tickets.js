@@ -12,6 +12,8 @@ const {
   canReadLoan,
   companyLenderId
 } = require('../utils/tenantScope');
+const { sendEmail } = require('../utils/email');
+const emailTemplates = require('../utils/emailTemplates');
 
 /** Mongo filter limiting a Ticket query to what the caller may see. */
 function ticketScopeFilter(user) {
@@ -45,10 +47,26 @@ function isHandler(user, ticket) {
 }
 
 const populateOpts = [
-  { path: 'createdBy', select: 'firstName lastName' },
-  { path: 'assignedTo', select: 'firstName lastName' },
+  { path: 'createdBy', select: 'firstName lastName email' },
+  { path: 'assignedTo', select: 'firstName lastName email' },
   { path: 'messages.author', select: 'firstName lastName' }
 ];
+
+/**
+ * Resolve who should be notified about a new message: the creator if a
+ * handler wrote, or the assignee (falling back to a handler-side user,
+ * since ticket.handlerCompany is a company, not a person) if the creator wrote.
+ */
+async function counterpartyForMessage(user, ticket) {
+  if (isHandler(user, ticket)) {
+    return ticket.createdBy || null;
+  }
+  if (ticket.assignedTo) return ticket.assignedTo;
+  if (ticket.handlerCompany) {
+    return User.findOne({ company: ticket.handlerCompany, role: { $in: ['lender_admin', 'lender_officer'] } }).select('firstName lastName email');
+  }
+  return User.findOne({ role: 'platform_admin' }).select('firstName lastName email');
+}
 
 const displayName = (u) => (u ? `${u.firstName} ${u.lastName}` : 'Deleted user');
 
@@ -217,6 +235,11 @@ router.post('/:id/messages', authenticateToken, async (req, res) => {
     await ticket.save();
     await ticket.populate(populateOpts);
 
+    const recipient = await counterpartyForMessage(req.user, ticket);
+    if (recipient && recipient.email) {
+      void sendEmail({ to: recipient.email, ...emailTemplates.ticketUpdate(recipient, ticket, body.trim()) });
+    }
+
     res.status(201).json({ success: true, message: 'Message added', data: { ticket: serializeTicket(ticket) } });
   } catch (error) {
     console.error('Add ticket message error:', error);
@@ -254,6 +277,10 @@ router.put('/:id/status', authenticateToken, async (req, res) => {
     ticket.status = status;
     await ticket.save();
     await ticket.populate(populateOpts);
+
+    if (ticket.createdBy && ticket.createdBy.email) {
+      void sendEmail({ to: ticket.createdBy.email, ...emailTemplates.ticketUpdate(ticket.createdBy, ticket, null) });
+    }
 
     res.json({ success: true, message: 'Ticket status updated', data: { ticket: serializeTicket(ticket) } });
   } catch (error) {

@@ -8,6 +8,7 @@ import ProductsPage from './pages/products/ProductsPage';
 import UsersPage from './pages/users/UsersPage';
 import ReportsPage from './pages/reports/ReportsPage';
 import SettingsPage from './pages/settings/SettingsPage';
+import SupportPage from './pages/support/SupportPage';
 import { Navbar } from './components/layout/Navbar';
 
 export function App() {
@@ -117,6 +118,22 @@ export function App() {
                                     <main className="pt-16 px-4">
                                         <div className="max-w-7xl mx-auto">
                                             <SettingsPage />
+                                        </div>
+                                    </main>
+                                </>
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/support"
+                        element={
+                            <ProtectedRoute>
+                                <>
+                                    <Navbar />
+                                    <main className="pt-16 px-4">
+                                        <div className="max-w-7xl mx-auto">
+                                            <SupportPage />
                                         </div>
                                     </main>
                                 </>

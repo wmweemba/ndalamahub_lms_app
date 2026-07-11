@@ -71,5 +71,10 @@ The original hierarchy placing `lender_officer` below employer-side roles was an
 
 **Regression-check requirement:** `authorizeMinRole()` compares by this number, and the audit already found one bug caused by numeric drift (the `client_admin` ghost role resolving to level 0 and passing everyone). The renumbering must not silently change effective access anywhere except where the lender/employer reorder is the deliberate intent. Phase 03's acceptance criteria require enumerating every `authorizeMinRole()` call site and confirming its effective access list unchanged before/after — any unintended access change at any other site is a regression to be fixed before the phase completes, not noted and moved past.
 
+## Production cutover: fresh database, no data migration (locked 2026-07-11)
+Production on Coolify starts on a **fresh, empty MongoDB**. Nothing is migrated from the Atlas dev cluster — every loan, lender, employer, and user in it is dummy/verification data; the system has never had a live user. Consequences: the Phase 05 `counters` seed, the Phase 03 `renameRoles` migration, and the Phase 07/09 backfill runs are all unnecessary against production (the job runners may still be executed harmlessly); Manifi's production company + subscription state are created fresh via the platform-admin UI (Billing tab) rather than the Phase 10 backfill script. The Atlas cluster and the dev environment **remain in service indefinitely as the combined dev/staging/demo environment** — client demo sessions run against it, and its accumulated dummy data (loans in arrears, tickets, subscription states) is a feature for demos, not debt.
+
 ## Explicitly deferred (not decided yet, not blocking current planning)
-- *(none currently — the previously deferred schedule-anchor and early-settlement questions were resolved above)*
+- Where the demo environment is hosted for client-facing sessions (current Render/Vercel split vs. a Coolify staging instance pointed at Atlas) — decide when the migration runbook is written.
+- Auth migration approach (see CLAUDE.md Section 8) vs. the per-request `isActive` stopgap — must be decided before real users exist.
+- Penalty interest / late fees for Manifi's product — business decision, raise with Clement; affects go-live product terms.

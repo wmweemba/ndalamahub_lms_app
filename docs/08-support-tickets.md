@@ -110,3 +110,4 @@ Revert the merge commit; optionally drop the `tickets` collection (and `ticketNu
 
 - Categories/priorities are a guess pending real support workflow input from Manifi — they're enum values, trivially extendable; confirm with William before executing if possible.
 - No email on ticket events until Phase 09 — until then handlers must poll the Support page; acceptable interim.
+- **Added 2026-07-11:** William wants new-ticket creation to also fire an owner-facing alert — an email to `support@mynexusgroup.com` and a Telegram message to him — mirroring how his other applications (Chama360's `NS-005` support scaffold) notify him. This is deliberately deferred, not implemented in this phase; noted as a follow-up in `docs/09-email-notifications.md`'s Flagged concerns.

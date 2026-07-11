@@ -130,4 +130,4 @@ const seedTwoTenants = async () => {
   };
 };
 
-module.exports = { seedTwoTenants, PASSWORD, createLoan };
+module.exports = { seedTwoTenants, PASSWORD, createLoan, createUser };

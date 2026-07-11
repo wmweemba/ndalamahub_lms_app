@@ -26,6 +26,7 @@ const reportRoutes = require('./routes/reports');
 const dashboardRoutes = require('./routes/dashboard');
 const systemRoutes = require('./routes/system');
 const productRoutes = require('./routes/products');
+const ticketRoutes = require('./routes/tickets');
 
 // Route middleware
 app.use('/api/auth', authRoutes);
@@ -36,6 +37,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/tickets', ticketRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

@@ -101,6 +101,8 @@ router.get('/lender-stats', authenticateToken, authorizeMinRole('lender_admin'),
                 const disbursedLoans = allLoans.filter(loan => loan.status === 'disbursed').length;
                 const completedLoans = allLoans.filter(loan => loan.status === 'completed').length;
                 const rejectedLoans = allLoans.filter(loan => loan.status === 'rejected').length;
+                const inArrearsLoans = allLoans.filter(loan => loan.status === 'in_arrears').length;
+                const defaultedLoans = allLoans.filter(loan => loan.status === 'defaulted').length;
 
                 // Calculate loan amounts
                 const totalLoanAmount = allLoans.reduce((sum, loan) => sum + loan.amount, 0);
@@ -194,6 +196,8 @@ router.get('/lender-stats', authenticateToken, authorizeMinRole('lender_admin'),
                                         disbursedLoans,
                                         completedLoans,
                                         rejectedLoans,
+                                        inArrearsLoans,
+                                        defaultedLoans,
                                         totalLoanAmount,
                                         activeLoanAmount,
                                         pendingLoanAmount,
@@ -254,6 +258,8 @@ router.get('/hr-stats', authenticateToken, authorizeMinRole('employer_hr'), asyn
         const activeLoans = companyLoans.filter(loan => loan.status === 'active').length;
         const rejectedLoans = companyLoans.filter(loan => loan.status === 'rejected').length;
         const completedLoans = companyLoans.filter(loan => loan.status === 'completed').length;
+        const inArrearsLoans = companyLoans.filter(loan => loan.status === 'in_arrears').length;
+        const defaultedLoans = companyLoans.filter(loan => loan.status === 'defaulted').length;
 
 
                 // Calculate amounts
@@ -353,6 +359,8 @@ router.get('/hr-stats', authenticateToken, authorizeMinRole('employer_hr'), asyn
                     activeLoans,
                     rejectedLoans,
                     completedLoans,
+                    inArrearsLoans,
+                    defaultedLoans,
                     totalLoanAmount,
                     pendingLoanAmount,
                     activeLoanAmount,

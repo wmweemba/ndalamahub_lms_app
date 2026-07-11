@@ -10,7 +10,7 @@ const {
   authorize,
   authorizeMinRole
 } = require('../middleware/auth');
-const { isPlatformAdmin, loanScopeFilter, companyScopeFilter, mergeFilters } = require('../utils/tenantScope');
+const { isPlatformAdmin, loanScopeFilter, companyScopeFilter, userScopeFilter, mergeFilters } = require('../utils/tenantScope');
 
 // Helper function to get date range
 const getDateRange = (period) => {
@@ -840,23 +840,10 @@ router.get('/users', authenticateToken, authorizeMinRole('employer_admin'), asyn
     }
 
     // Build company filter
-    let companyFilter = {};
-    if (req.user.role !== 'platform_admin') {
-      if (req.user.role === 'lender_admin') {
-        const corporateCompanies = await Company.find({ lenderCompany: req.user.company }).select('_id');
-        companyFilter.$or = [
-          { lenderCompany: req.user.company },
-          { company: { $in: corporateCompanies.map(c => c._id) } }
-        ];
-      } else {
-        companyFilter.company = req.user.company;
-      }
-    } else if (companyId) {
-      companyFilter.company = companyId;
-    }
+    const companyIdFilter = (isPlatformAdmin(req.user) && companyId) ? { company: companyId } : {};
 
     // Combine filters
-    const filter = { ...dateFilter, ...companyFilter };
+    const filter = mergeFilters(dateFilter, await userScopeFilter(req.user), companyIdFilter);
 
     // Get user-wise statistics
     const userStats = await Loan.aggregate([

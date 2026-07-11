@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const markOverdueInstallments = require('./markOverdueInstallments');
 const sendPaymentReminders = require('./sendPaymentReminders');
+const expireSubscriptions = require('./expireSubscriptions');
 
 function startScheduler() {
   // Daily at 01:00 Zambia time
@@ -23,7 +24,17 @@ function startScheduler() {
     }
   }, { timezone: 'Africa/Lusaka' });
 
-  console.log('[cron] scheduler started (markOverdueInstallments daily @ 01:00, sendPaymentReminders daily @ 08:00, Africa/Lusaka)');
+  // Daily at 02:00 Zambia time
+  cron.schedule('0 2 * * *', async () => {
+    try {
+      const result = await expireSubscriptions();
+      console.log('[cron] expireSubscriptions:', result);
+    } catch (error) {
+      console.error('[cron] expireSubscriptions failed:', error);
+    }
+  }, { timezone: 'Africa/Lusaka' });
+
+  console.log('[cron] scheduler started (markOverdueInstallments daily @ 01:00, expireSubscriptions daily @ 02:00, sendPaymentReminders daily @ 08:00, Africa/Lusaka)');
 }
 
 module.exports = startScheduler;

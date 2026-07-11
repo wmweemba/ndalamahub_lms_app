@@ -31,7 +31,14 @@ router.post('/', authenticateToken, async (req, res) => {
     try {
         // Super user can create any type of company
         if (req.user.role === 'platform_admin') {
-            const company = new Company(req.body);
+            const companyData = { ...req.body };
+            if (companyData.type === 'lender') {
+                companyData.subscription = {
+                    ...(companyData.subscription || {}),
+                    trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                };
+            }
+            const company = new Company(companyData);
             const savedCompany = await company.save();
             res.status(201).json(savedCompany);
         }

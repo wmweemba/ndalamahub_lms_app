@@ -104,6 +104,22 @@ const companySchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // Subscription/billing state — lender companies only, by convention.
+  // Employer companies and borrowers inherit their lender's state (see
+  // server/middleware/subscription.js). Manual billing: a platform_admin
+  // moves this along via PUT /api/subscriptions/:companyId.
+  subscription: {
+    status: {
+      type: String,
+      enum: ['trialing', 'active', 'past_due', 'read_only', 'suspended', 'cancelled'],
+      default: 'trialing'
+    },
+    plan: { type: String, default: 'standard' },
+    trialEndsAt: Date,
+    currentPeriodEnd: Date,
+    suspendedAt: Date,
+    notes: String // manual-billing bookkeeping, platform admin only
+  },
   logo: {
     type: String, // URL to logo image
     trim: true

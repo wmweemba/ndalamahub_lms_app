@@ -11,7 +11,8 @@
     "dev": "nodemon server.js",
     "seed": "node utils/seeder.js",
     "job:overdue": "node jobs/runMarkOverdue.js",
-    "job:reminders": "node jobs/runSendReminders.js"
+    "job:reminders": "node jobs/runSendReminders.js",
+    "job:subscriptions": "node jobs/runExpireSubscriptions.js"
   },
   "keywords": [],
   "author": "",

@@ -27,6 +27,13 @@ const dashboardRoutes = require('./routes/dashboard');
 const systemRoutes = require('./routes/system');
 const productRoutes = require('./routes/products');
 const ticketRoutes = require('./routes/tickets');
+const subscriptionRoutes = require('./routes/subscriptions');
+
+// Subscription/trial gate — applied to every /api/* route before the route
+// mounts below, except the exempt prefixes it defines itself (auth, tickets,
+// health, subscription status). See server/middleware/subscription.js.
+const { enforceSubscription } = require('./middleware/subscription');
+app.use(enforceSubscription);
 
 // Route middleware
 app.use('/api/auth', authRoutes);
@@ -38,6 +45,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/tickets', ticketRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

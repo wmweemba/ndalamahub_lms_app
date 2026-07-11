@@ -9,7 +9,9 @@ import UsersPage from './pages/users/UsersPage';
 import ReportsPage from './pages/reports/ReportsPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import SupportPage from './pages/support/SupportPage';
+import AccountLockedPage from './pages/account/AccountLockedPage';
 import { Navbar } from './components/layout/Navbar';
+import { SubscriptionBanner } from './components/layout/SubscriptionBanner';
 
 export function App() {
     return (
@@ -17,6 +19,7 @@ export function App() {
                 <Routes>
                     {/* Public routes */}
                     <Route path="/login" element={<LoginPage />} />
+                    <Route path="/account-locked" element={<AccountLockedPage />} />
 
                     {/* Protected routes */}
                     <Route
@@ -26,6 +29,7 @@ export function App() {
                                 <>
                                     <Navbar />
                                     <main className="pt-16 px-4">
+                                        <SubscriptionBanner />
                                         <div className="max-w-7xl mx-auto">
                                             <DashboardPage />
                                         </div>
@@ -41,6 +45,7 @@ export function App() {
                                 <>
                                     <Navbar />
                                     <main className="pt-16 px-4">
+                                        <SubscriptionBanner />
                                         <div className="max-w-7xl mx-auto">
                                             <CompaniesPage />
                                         </div>
@@ -56,6 +61,7 @@ export function App() {
                                 <>
                                     <Navbar />
                                     <main className="pt-16 px-4">
+                                        <SubscriptionBanner />
                                         <div className="max-w-7xl mx-auto">
                                             <LoansPage />
                                         </div>
@@ -71,6 +77,7 @@ export function App() {
                                 <>
                                     <Navbar />
                                     <main className="pt-16 px-4">
+                                        <SubscriptionBanner />
                                         <div className="max-w-7xl mx-auto">
                                             <ProductsPage />
                                         </div>
@@ -86,6 +93,7 @@ export function App() {
                                 <>
                                     <Navbar />
                                     <main className="pt-16 px-4">
+                                        <SubscriptionBanner />
                                         <div className="max-w-7xl mx-auto">
                                             <UsersPage />
                                         </div>
@@ -101,6 +109,7 @@ export function App() {
                                 <>
                                     <Navbar />
                                     <main className="pt-16 px-4">
+                                        <SubscriptionBanner />
                                         <div className="max-w-7xl mx-auto">
                                             <ReportsPage />
                                         </div>
@@ -116,6 +125,7 @@ export function App() {
                                 <>
                                     <Navbar />
                                     <main className="pt-16 px-4">
+                                        <SubscriptionBanner />
                                         <div className="max-w-7xl mx-auto">
                                             <SettingsPage />
                                         </div>
@@ -132,6 +142,7 @@ export function App() {
                                 <>
                                     <Navbar />
                                     <main className="pt-16 px-4">
+                                        <SubscriptionBanner />
                                         <div className="max-w-7xl mx-auto">
                                             <SupportPage />
                                         </div>

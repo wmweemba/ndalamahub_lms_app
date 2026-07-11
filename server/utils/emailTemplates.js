@@ -123,6 +123,37 @@ function ticketUpdate(user, ticket, message) {
   };
 }
 
+const SUBSCRIPTION_NOTICE_COPY = {
+  trial_ended: {
+    subject: (company) => `${company.name}: your NdalamaHub trial has ended`,
+    body: () => `<p>Your 30-day trial has ended. You have a 7-day grace period with full access while payment is arranged, after which the account moves to read-only, then locked if unpaid.</p>`
+  },
+  renewal_due: {
+    subject: (company) => `${company.name}: your NdalamaHub subscription is due for renewal`,
+    body: () => `<p>Your current billing period has ended. You have a 7-day grace period with full access while payment is arranged, after which the account moves to read-only, then locked if unpaid.</p>`
+  },
+  read_only: {
+    subject: (company) => `${company.name}: NdalamaHub access is now read-only`,
+    body: () => `<p>Your grace period has ended without payment. Your account is now <strong>read-only</strong> — you can still view dashboards and reports, but cannot create or modify records. You have 7 more days before full lockout.</p>`
+  },
+  suspended: {
+    subject: (company) => `${company.name}: NdalamaHub access has been suspended`,
+    body: () => `<p>Your account is now <strong>suspended</strong> due to non-payment. You can still log in and contact support, but all other functionality is locked until payment is received.</p>`
+  }
+};
+
+function subscriptionNotice(adminUser, company, kind) {
+  const copy = SUBSCRIPTION_NOTICE_COPY[kind];
+  return {
+    subject: copy.subject(company),
+    html: layout('Subscription notice', `
+      <p>Hi ${adminUser.firstName},</p>
+      ${copy.body()}
+      <p>Please contact Nexus support if you believe this is in error, or to arrange payment.</p>
+    `)
+  };
+}
+
 module.exports = {
   passwordReset,
   loanApproved,
@@ -130,5 +161,6 @@ module.exports = {
   loanDisbursed,
   paymentReminder,
   paymentOverdue,
-  ticketUpdate
+  ticketUpdate,
+  subscriptionNotice
 };

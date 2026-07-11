@@ -5,15 +5,17 @@ import api from '@/utils/api';
 import UserManagement from '@/components/settings/UserManagement';
 import CompanySettings from '@/components/settings/CompanySettings';
 import SystemSettings from '@/components/settings/SystemSettings';
-import { 
-  Users, 
-  Building2, 
-  Settings as SettingsIcon, 
-  Shield, 
+import SubscriptionManagement from '@/components/settings/SubscriptionManagement';
+import {
+  Users,
+  Building2,
+  Settings as SettingsIcon,
+  Shield,
   Bell,
   Database,
   Key,
-  Globe
+  Globe,
+  CreditCard
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -116,6 +118,13 @@ export default function SettingsPage() {
       icon: Globe,
       description: 'Third-party integrations and API settings',
       requiredRole: 'lender_admin'
+    },
+    {
+      id: 'billing',
+      label: 'Billing',
+      icon: CreditCard,
+      description: 'Manage lender subscription and trial status',
+      requiredRole: 'platform_admin'
     }
   ];
 
@@ -135,6 +144,8 @@ export default function SettingsPage() {
         return <NotificationSettings />;
       case 'integrations':
         return <IntegrationSettings />;
+      case 'billing':
+        return <SubscriptionManagement />;
       default:
         return <UserManagement />;
     }

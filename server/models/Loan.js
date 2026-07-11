@@ -1085,14 +1085,15 @@ loanSchema.methods.updatePaymentTracking = function() {
 
 // Add method to calculate days in arrears
 loanSchema.methods.calculateDaysInArrears = function() {
-  const overdueInstallment = this.repaymentSchedule
-      .find(i => i.status === 'overdue');
-  
-  if (!overdueInstallment) return 0;
-  
+  const overdueInstallments = this.repaymentSchedule
+      .filter(i => i.status === 'overdue');
+
+  if (overdueInstallments.length === 0) return 0;
+
+  const earliestDueDate = new Date(Math.min(...overdueInstallments.map(i => new Date(i.dueDate))));
+
   const now = new Date();
-  const dueDate = new Date(overdueInstallment.dueDate);
-  const diffTime = Math.abs(now - dueDate);
+  const diffTime = Math.abs(now - earliestDueDate);
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
 
@@ -1100,10 +1101,14 @@ loanSchema.methods.calculateDaysInArrears = function() {
 loanSchema.methods.checkArrearsStatus = function() {
   const daysInArrears = this.calculateDaysInArrears();
   if (daysInArrears > 90) {
-      this.status = 'defaulted';
+    this.status = 'defaulted';
   } else if (daysInArrears > 0) {
-      this.status = 'in_arrears';
+    this.status = 'in_arrears';
+  } else if (this.status === 'in_arrears') {
+    // all overdue installments cleared — recover
+    this.status = 'active';
   }
+  // 'defaulted' does NOT auto-recover; reversing a default is a human decision
 };
 
 // ============================================================

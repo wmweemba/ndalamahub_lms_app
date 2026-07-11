@@ -4,7 +4,9 @@
 
 ## Objective
 
-Give the platform its first scheduled job. Today **nothing ever marks an installment overdue** (only test fixtures write that status), so `in_arrears`/`defaulted` loan statuses, `checkArrearsStatus()`, the overdue-loans report, and every overdue dashboard metric are permanently-dead paths. This phase adds a daily job that transitions overdue installments and loan arrears statuses, plus the scheduler plumbing that Phase 09's email reminders will reuse.
+Give the platform its first scheduled job. Today **nothing ever marks an installment overdue** (only test fixtures write that status), so `in_arrears`/`defaulted` loan statuses, `checkArrearsStatus()`, and the overdue-loans report are permanently-dead paths. This phase adds a daily job that transitions overdue installments and loan arrears statuses, plus the scheduler plumbing that Phase 09's email reminders will reuse.
+
+> **Amended 2026-07-11 during execution:** the original Objective (and Step 6.2 / acceptance criterion 2) also referred to "overdue dashboard metrics" as dead paths this phase would light up. That was a planning-doc error: `server/routes/dashboard.js` has **no** arrears/overdue/defaulted fields at all — a loan this job moves to `in_arrears` drops out of `activeLoans` and appears in no dashboard count. The execution agent correctly flagged this instead of inventing dashboard fields (dashboard.js is not in this phase's Scope). The gap is recorded under Flagged concerns below as a follow-up.
 
 ## Scope
 
@@ -146,14 +148,14 @@ Add a tiny runner `server/jobs/runMarkOverdue.js` (connect via `config/db` or a 
 ### Step 6 — Verify & close out
 
 1. Suite green (+6 tests).
-2. Manual: seed a loan with a past due date, run `pnpm job:overdue`, then `GET /api/reports/overdue-loans` returns it and the lender dashboard shows non-zero overdue metrics — the first time those paths have ever had data.
+2. Manual: seed a loan with a past due date, run `pnpm job:overdue`, then `GET /api/reports/overdue-loans` returns it, tenant-scoped, with correct `daysInArrears`/`missedPayments` — the first time that path has ever had data. (Dashboard overdue metrics do not exist — see the amendment note in the Objective.)
 3. Boot server, confirm the `[cron] scheduler started` log; boot with `ENABLE_CRON=false`, confirm absent.
 4. `CLAUDE.md` Section 6 (arrears item resolved) + note the new job in Section 3 or a new "Scheduled jobs" line; changelog (include the deploy step: run `pnpm job:overdue` once after deploy). Commit; merge green.
 
 ## Acceptance criteria
 
 1. Suite green including all Step 5 cases.
-2. Overdue report/dashboards show real data after the manual run.
+2. Overdue-loans report shows real, tenant-scoped data after the manual run.
 3. Job idempotent; today-due installments unaffected; defaulted loans don't auto-recover.
 4. Scheduler startup is env-gated and absent under test.
 
@@ -169,3 +171,4 @@ Revert the merge commit and set `ENABLE_CRON=false` on the deployment. Data writ
 
 - No penalty interest / late fees are computed anywhere; if Manifi's product includes them, that's a Phase 05-style engine addition needing a product-config decision — raise with Clement alongside the rate-basis confirmation.
 - `defaulted` currently has no manual un-default admin action. If operations need one, it's a small follow-on route — flag when it comes up.
+- **Dashboards are blind to arrears (found during this phase's verification, 2026-07-11):** `/lender-stats` and `/hr-stats` have no `in_arrears`/`defaulted`/overdue counts, and a loan entering `in_arrears` vanishes from `activeLoans` without appearing anywhere else — so portfolio totals silently shrink as loans go overdue. Follow-up: add `inArrearsLoans` and `defaultedLoans` counts (server-side, additive response fields via the existing `tenantScope` filters; no client change until UI_SPEC). Small enough to ride along with Phase 08 or 09 as a called-out extra, or a standalone mini-pass — planner to slot it before dashboards are trusted for portfolio health.

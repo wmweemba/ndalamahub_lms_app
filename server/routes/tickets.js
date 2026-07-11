@@ -3,6 +3,7 @@ const router = express.Router();
 const Ticket = require('../models/Ticket');
 const User = require('../models/User');
 const Loan = require('../models/Loan');
+const Company = require('../models/Company');
 const { authenticateToken } = require('../middleware/auth');
 const {
   isPlatformAdmin,
@@ -14,6 +15,7 @@ const {
 } = require('../utils/tenantScope');
 const { sendEmail } = require('../utils/email');
 const emailTemplates = require('../utils/emailTemplates');
+const { sendTelegramMessage } = require('../utils/telegram');
 
 /** Mongo filter limiting a Ticket query to what the caller may see. */
 function ticketScopeFilter(user) {
@@ -133,6 +135,27 @@ router.post('/', authenticateToken, async (req, res) => {
 
     await ticket.save();
     await ticket.populate(populateOpts);
+
+    {
+      const company = await Company.findById(req.user.company).select('name');
+      const creatorName = displayName(ticket.createdBy);
+      const companyName = company ? company.name : 'Unknown company';
+
+      if (process.env.OWNER_ALERT_EMAIL) {
+        void sendEmail({
+          to: process.env.OWNER_ALERT_EMAIL,
+          ...emailTemplates.ticketCreated({
+            ticketNumber: ticket.ticketNumber,
+            subject: ticket.subject,
+            category: ticket.category,
+            priority: ticket.priority,
+            creatorName,
+            companyName
+          })
+        });
+      }
+      void sendTelegramMessage(`New ticket ${ticket.ticketNumber} [${ticket.priority}] from ${creatorName} (${companyName}): ${ticket.subject}`);
+    }
 
     res.status(201).json({
       success: true,

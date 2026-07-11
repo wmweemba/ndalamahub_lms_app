@@ -1,9 +1,14 @@
+jest.mock('../../utils/email', () => ({ sendEmail: jest.fn().mockResolvedValue({ sent: true }) }));
+jest.mock('../../utils/telegram', () => ({ sendTelegramMessage: jest.fn().mockResolvedValue({ skipped: false, ok: true }) }));
+
 const request = require('supertest');
 const app = require('../../app');
 const Ticket = require('../../models/Ticket');
 const db = require('../helpers/db');
 const { seedTwoTenants, createUser } = require('../helpers/fixtures');
 const { authHeader } = require('../helpers/tokens');
+const { sendEmail } = require('../../utils/email');
+const { sendTelegramMessage } = require('../../utils/telegram');
 
 describe('Support tickets (Phase 08)', () => {
   let fx;
@@ -15,6 +20,50 @@ describe('Support tickets (Phase 08)', () => {
 
   afterAll(async () => {
     await db.disconnect();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('POST /api/tickets — owner alert', () => {
+    const originalOwnerAlertEmail = process.env.OWNER_ALERT_EMAIL;
+
+    afterEach(() => {
+      if (originalOwnerAlertEmail === undefined) delete process.env.OWNER_ALERT_EMAIL;
+      else process.env.OWNER_ALERT_EMAIL = originalOwnerAlertEmail;
+    });
+
+    it('fires the owner email and telegram alert when OWNER_ALERT_EMAIL is configured', async () => {
+      process.env.OWNER_ALERT_EMAIL = 'owner@example.com';
+
+      const res = await request(app)
+        .post('/api/tickets')
+        .set(authHeader(fx.borrowerA))
+        .send({ subject: 'Alert test', category: 'technical', message: 'Please help' });
+
+      expect(res.status).toBe(201);
+      expect(sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'owner@example.com',
+          subject: expect.stringContaining(res.body.data.ticket.ticketNumber)
+        })
+      );
+      expect(sendTelegramMessage).toHaveBeenCalledTimes(1);
+      expect(sendTelegramMessage.mock.calls[0][0]).toContain(res.body.data.ticket.ticketNumber);
+    });
+
+    it('still returns 201 with both channels unconfigured (no email alert sent)', async () => {
+      delete process.env.OWNER_ALERT_EMAIL;
+
+      const res = await request(app)
+        .post('/api/tickets')
+        .set(authHeader(fx.borrowerA))
+        .send({ subject: 'No alert test', category: 'technical', message: 'Please help' });
+
+      expect(res.status).toBe(201);
+      expect(sendEmail).not.toHaveBeenCalled();
+    });
   });
 
   describe('POST /api/tickets — routing', () => {

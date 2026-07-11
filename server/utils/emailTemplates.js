@@ -123,6 +123,18 @@ function ticketUpdate(user, ticket, message) {
   };
 }
 
+function ticketCreated({ ticketNumber, subject, category, priority, creatorName, companyName }) {
+  return {
+    subject: `New ticket ${ticketNumber}: ${subject}`,
+    html: layout('New support ticket', `
+      <p>A new support ticket was created.</p>
+      <p><strong>${ticketNumber}</strong> — ${subject}</p>
+      <p>Category: ${category} &nbsp;|&nbsp; Priority: ${priority}</p>
+      <p>From: ${creatorName} (${companyName})</p>
+    `)
+  };
+}
+
 const SUBSCRIPTION_NOTICE_COPY = {
   trial_ended: {
     subject: (company) => `${company.name}: your NdalamaHub trial has ended`,
@@ -162,5 +174,6 @@ module.exports = {
   paymentReminder,
   paymentOverdue,
   ticketUpdate,
+  ticketCreated,
   subscriptionNotice
 };

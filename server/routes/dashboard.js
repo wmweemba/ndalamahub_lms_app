@@ -61,8 +61,8 @@ router.get('/stats', authenticateToken, authorizeMinRole('employer_admin'), asyn
 
 // @route   GET /api/dashboard/lender-stats
 // @desc    Get lender-specific dashboard statistics
-// @access  Private (Lender Admin and above)
-router.get('/lender-stats', authenticateToken, authorizeMinRole('lender_admin'), async (req, res) => {
+// @access  Private (Lender Officer and above)
+router.get('/lender-stats', authenticateToken, authorizeMinRole('lender_officer'), async (req, res) => {
     try {
         // Get lender company information
         const lenderCompany = await Company.findById(req.user.company);

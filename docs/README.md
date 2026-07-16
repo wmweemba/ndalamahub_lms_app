@@ -22,6 +22,14 @@ Phases must be executed in order. Each phase leaves the app in a working, testab
 | 09 | `09-email-notifications.md` | Email integration (Resend): password reset, loan lifecycle + repayment reminder emails. | 2 |
 | 10 | `10-subscription-gating.md` | Lender-tenant subscription/trial gating middleware. | 2 |
 | 11 | `11-pre-demo-cleanup.md` | Arrears-aware dashboards, loan status-param validation, Phase 04 tenancy leftovers, owner-facing new-ticket alert, housekeeping. | 2 |
+| — | `UI_SPEC.md` | UI specification (2026-07-16): adopted design system + screen inventory, demo scope, conventions, testing approach. Lifts the CLAUDE.md §9 freeze; governs phases 12–17. | — |
+| 12 | `12-ui-foundation-shell.md` | Functional hotfixes (stale role keys, lender_officer dashboard, companies shape); tokens/fonts/brand; shared `AppLayout` + sidebar + borrower bottom nav; login restyle; toasts; dead-file cleanup; Settings stubs hidden; Vitest harness. | 1 |
+| 13 | `13-ui-dashboards.md` | DashboardPage split into per-role components; MetricCard/StatusPill; arrears surfaced on lender + employer dashboards; sample chart removed. | 1 |
+| 14 | `14-ui-loans-workflow.md` | Loans list, filters, detail dialog, approve/reject/disburse — the demo centerpiece; term-unit display fix; TanStack Query + toasts. | 1 |
+| 15 | `15-ui-loan-forms-repayments-products.md` | Apply flow, repayment/prepayment/history dialogs, Products page + dialogs; rate-basis/term-unit rendering. | 1 |
+| 16 | `16-ui-borrower-mobile.md` | Consumer register: borrower hero dashboard, mobile loans/apply QA at 375px, bottom-nav polish, banner/lock-page token alignment. | 1 |
+| 17 | `17-ui-admin-surfaces-demo-polish.md` | Companies, Settings, Reports, Support restyle; `/users` removal; consistency sweep; scripted demo dress rehearsal. | 1 |
+| 18 | `18-post-demo-ui-punchlist.md` | Backlog, not a session — deliberate demo-runway scope cuts, to be prioritized post-demo. | — |
 
 ## Live legacy docs
 
@@ -35,4 +43,4 @@ Phases must be executed in order. Each phase leaves the app in a working, testab
 - Do not make frontend visual/design changes in any phase (per `CLAUDE.md` Section 9) — frontend edits are limited to the functional minimum each phase specifies.
 - Update `CLAUDE.md` (sections listed in each phase's final step) and `changelog.md` when a phase completes. Sweep **all** of CLAUDE.md's phase-status references (Sections 2, 3, 11 have each drifted before), not just the sections the phase doc names.
 - After merging a phase: **push `main` to origin** (phases 07–10 were each left stranded locally), then delete the phase branch (`git branch -d`; also the remote branch if it was pushed). Repo policy since 2026-07-15: `main`-only between phases.
-- From the UI build onward: the Section 9 frontend freeze lifts only once `docs/UI_SPEC.md` exists; UI phases must keep the 261-test server suite green untouched — a UI phase that needs a server change should flag it, not make it.
+- From the UI build onward (`docs/UI_SPEC.md` exists as of 2026-07-16, so the Section 9 freeze is lifted): UI phases must keep the 261-test server suite green **untouched** — `git diff main -- server/` empty at every phase merge; a UI phase that needs a server change flags it, never makes it. Additional per-phase gates: `cd client && pnpm lint && pnpm build && pnpm test` (test harness exists from Phase 12). For any visual/UX question, `docs/UI_SPEC.md` is the source of truth over a phase doc.

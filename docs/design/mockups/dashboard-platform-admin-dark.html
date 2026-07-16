@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NdalamaHub — platform admin dashboard, dark (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --nh-sage:#CCDAD1; --nh-periwinkle:#7E78D2; --nh-accent:#D6295E;
+    --surface-page:#1C1C1C; --surface-card:#242422; --surface-card-alt:#2E2320;
+    --text-1:#FFFFFF; --text-2:#8A8A88; --border:#333331;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:'Inter',sans-serif; background:#0F0F0E; color:var(--text-1); padding:40px;}
+  .app{max-width:1180px; margin:0 auto; background:var(--surface-page); border-radius:20px; border:0.5px solid var(--border); padding:32px 36px;}
+  .topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:28px;}
+  .topbar h1{margin:0; font-size:20px; font-weight:500;}
+  .topbar p{margin:2px 0 0; color:var(--text-2); font-size:13px;}
+  .tenant-switch{display:flex; gap:10px;}
+  .tenant-switch div{border:0.5px solid var(--border); border-radius:8px; padding:8px 14px; font-size:12px; color:var(--nh-sage);}
+  .tenant-switch div.muted{color:var(--text-2);}
+  .kpi-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;}
+  .kpi{background:var(--surface-card); border:0.5px solid var(--border); border-radius:10px; padding:16px;}
+  .kpi.flag{background:var(--surface-card-alt); border-color:var(--nh-accent);}
+  .kpi p.label{margin:0 0 8px; font-size:12px; color:var(--text-2);}
+  .kpi.flag p.label{color:#E88FA9;}
+  .kpi p.value{margin:0; font-family:'IBM Plex Mono',monospace; font-size:20px; font-weight:500; color:var(--nh-sage);}
+  .kpi.flag p.value{color:var(--nh-accent);}
+  .row{display:grid; grid-template-columns:1.3fr 1fr; gap:12px;}
+  .card{background:var(--surface-card); border:0.5px solid var(--border); border-radius:10px; padding:18px;}
+  .card h2{margin:0 0 16px; font-size:14px; font-weight:500;}
+  .bars{display:flex; align-items:flex-end; gap:12px; height:100px; margin-bottom:10px;}
+  .bars .bar{flex:1; border-radius:5px; background:var(--nh-sage);}
+  .bars .bar.hero{background:var(--nh-periwinkle);}
+  .bar-labels{display:flex; justify-content:space-around; font-size:11px; color:var(--text-2);}
+  .flagged-row{display:flex; justify-content:space-between; align-items:center; padding:10px 0; font-size:13px; color:#C7C7C5;}
+  .flagged-row:not(:last-child){border-bottom:0.5px solid var(--border);}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div>
+      <h1>Platform overview</h1>
+      <p>All tenants &middot; platform admin</p>
+    </div>
+    <div class="tenant-switch">
+      <div>Manifi Investments</div>
+      <div class="muted">+ Add tenant</div>
+    </div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi"><p class="label">Total disbursed</p><p class="value">ZMW 18.6M</p></div>
+    <div class="kpi"><p class="label">Active loans</p><p class="value">1,204</p></div>
+    <div class="kpi flag"><p class="label">Overdue, all tenants</p><p class="value">63</p></div>
+    <div class="kpi"><p class="label">Lender tenants</p><p class="value">3</p></div>
+  </div>
+  <div class="row">
+    <div class="card">
+      <h2>Disbursement by tenant</h2>
+      <div class="bars">
+        <div class="bar hero" style="height:85%"></div>
+        <div class="bar" style="height:52%"></div>
+        <div class="bar" style="height:34%"></div>
+      </div>
+      <div class="bar-labels"><span>Manifi</span><span>Tenant B</span><span>Tenant C</span></div>
+    </div>
+    <div class="card">
+      <h2>Flagged</h2>
+      <div class="flagged-row"><span>Pioneer Logistics &mdash; overdue cluster</span></div>
+      <div class="flagged-row"><span>Tenant B onboarding stalled</span></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

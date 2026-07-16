@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 492 80" width="492" height="80">
+  <g transform="translate(12,68)">
+    <path d="M0,-56 L0,0" stroke="#1C1C1C" stroke-width="8" stroke-linecap="round"></path>
+    <path d="M36,-56 L36,0" stroke="#1C1C1C" stroke-width="8" stroke-linecap="round"></path>
+    <path d="M0,-56 L36,0" stroke="#D6295E" stroke-width="8" stroke-linecap="round"></path>
+    <text x="54" y="0" font-family="Inter" font-weight="500" font-size="77" fill="#1C1C1C">dalamaHub</text>
+  </g>
+</svg>

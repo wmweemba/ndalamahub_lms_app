@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NdalamaHub — borrower mobile view (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --nh-sage:#CCDAD1; --nh-periwinkle:#7E78D2; --nh-mauve:#C492B1; --nh-accent:#D6295E;
+    --text-1:#1C1C1C; --text-2:#5F5E5A; --text-3:#8A8A88; --border:#E4E4E1;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:'Inter',sans-serif; background:#EAEAE7; padding:40px; display:flex; justify-content:center;}
+  .phone{width:375px; background:#FFFFFF; border-radius:36px; border:8px solid #1C1C1C; overflow:hidden; box-shadow:0 4px 16px rgba(28,28,28,0.15);}
+  .screen{padding:22px 20px 90px; position:relative; min-height:700px;}
+  .top{display:flex; justify-content:space-between; align-items:center; margin-bottom:22px;}
+  .top span.greet{font-size:14px; color:var(--text-2);}
+  .avatar{width:34px; height:34px; border-radius:50%; background:var(--nh-mauve); display:flex; align-items:center; justify-content:center; color:#4B1528; font-weight:500; font-size:13px;}
+  .hero{background:#F4F7F5; border-radius:20px; padding:22px; margin-bottom:16px;}
+  .hero p.label{margin:0 0 6px; font-size:13px; color:var(--text-2);}
+  .hero p.amount{margin:0; font-family:'IBM Plex Mono',monospace; font-size:34px; font-weight:500; color:var(--text-1);}
+  .hero .due{margin-top:14px; font-size:13px; color:var(--text-2);}
+  .hero .due b{color:var(--text-1); font-weight:500;}
+  .btn{margin-top:16px; width:100%; background:var(--nh-accent); color:#fff; border:none; border-radius:14px; padding:14px; font-size:15px; font-weight:500; font-family:'Inter',sans-serif;}
+  .cards{display:flex; flex-direction:column; gap:12px;}
+  .mini{display:flex; justify-content:space-between; align-items:center; background:#F4F7F5; border-radius:16px; padding:16px 18px;}
+  .mini.purple{background:#EFEDFB;}
+  .mini p.t{margin:0; font-size:14px; color:var(--text-1); font-weight:500;}
+  .mini p.s{margin:2px 0 0; font-size:12px; color:var(--text-2);}
+  .mini p.val{margin:0; font-family:'IBM Plex Mono',monospace; font-size:16px; font-weight:500; color:var(--text-1);}
+  .navbar{position:absolute; bottom:0; left:0; right:0; height:70px; background:#fff; border-top:0.5px solid var(--border); display:flex; align-items:center; justify-content:space-around;}
+  .navbar .item{display:flex; flex-direction:column; align-items:center; gap:4px; font-size:11px; color:var(--text-3);}
+  .navbar .item.active{color:var(--nh-accent);}
+  .dot{width:22px; height:22px; border-radius:6px; background:currentColor; opacity:0.15;}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="screen">
+    <div class="top">
+      <span class="greet">Good evening, Mulenga</span>
+      <div class="avatar">MK</div>
+    </div>
+    <div class="hero">
+      <p class="label">Outstanding balance</p>
+      <p class="amount">ZMW 3,240</p>
+      <div class="due">Next payment <b>ZMW 850</b> due 18 July</div>
+      <button class="btn">Make a payment</button>
+    </div>
+    <div class="cards">
+      <div class="mini purple">
+        <div><p class="t">Loan status</p><p class="s">Active &middot; 8 of 12 months paid</p></div>
+        <p class="val">67%</p>
+      </div>
+      <div class="mini">
+        <div><p class="t">Last payment</p><p class="s">3 July 2026</p></div>
+        <p class="val">ZMW 850</p>
+      </div>
+      <div class="mini">
+        <div><p class="t">Contact loan officer</p><p class="s">Manifi Investments</p></div>
+        <p class="val">&#8250;</p>
+      </div>
+    </div>
+  </div>
+  <div class="navbar">
+    <div class="item active"><div class="dot"></div>Home</div>
+    <div class="item"><div class="dot"></div>Loans</div>
+    <div class="item"><div class="dot"></div>History</div>
+    <div class="item"><div class="dot"></div>Profile</div>
+  </div>
+</div>
+</body>
+</html>

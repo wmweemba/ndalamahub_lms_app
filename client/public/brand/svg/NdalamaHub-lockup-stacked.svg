@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="320" height="320">
+  <g transform="translate(80,40) scale(1.6)">
+    <path d="M50,42 L50,14" stroke="#1C1C1C" stroke-width="6" stroke-linecap="round"></path>
+    <path d="M50,42 L22,82" stroke="#1C1C1C" stroke-width="6" stroke-linecap="round"></path>
+    <path d="M50,42 L78,82" stroke="#1C1C1C" stroke-width="6" stroke-linecap="round"></path>
+    <circle cx="50" cy="14" r="8" fill="#1C1C1C"></circle>
+    <circle cx="22" cy="82" r="8" fill="#1C1C1C"></circle>
+    <circle cx="78" cy="82" r="8" fill="#1C1C1C"></circle>
+    <circle cx="50" cy="42" r="13" fill="#D6295E"></circle>
+  </g>
+  <g transform="translate(31.4,265) scale(0.55)">
+    <path d="M0,-56 L0,0" stroke="#1C1C1C" stroke-width="8" stroke-linecap="round"></path>
+    <path d="M36,-56 L36,0" stroke="#1C1C1C" stroke-width="8" stroke-linecap="round"></path>
+    <path d="M0,-56 L36,0" stroke="#D6295E" stroke-width="8" stroke-linecap="round"></path>
+    <text x="54" y="0" font-family="Inter" font-weight="500" font-size="77" fill="#1C1C1C">dalamaHub</text>
+  </g>
+</svg>

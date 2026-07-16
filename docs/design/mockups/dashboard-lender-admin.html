@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NdalamaHub — lender admin dashboard (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --nh-charcoal:#1C1C1C; --nh-sage:#CCDAD1; --nh-periwinkle:#7E78D2; --nh-mauve:#C492B1; --nh-accent:#D6295E;
+    --surface-page:#F4F7F5; --surface-card:#FFFFFF; --surface-tint:#F4F7F5;
+    --text-1:#1C1C1C; --text-2:#5F5E5A; --text-3:#8A8A88; --border:#E4E4E1;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:'Inter',sans-serif; background:#EAEAE7; color:var(--text-1); padding:40px;}
+  .app{display:flex; max-width:1180px; margin:0 auto; background:var(--surface-card); border-radius:20px; border:0.5px solid var(--border); overflow:hidden; box-shadow:0 1px 3px rgba(28,28,28,0.06);}
+  .sidebar{width:220px; background:#FAFAF8; padding:28px 18px; border-right:0.5px solid var(--border); flex-shrink:0;}
+  .logo{display:flex; align-items:center; gap:10px; margin-bottom:36px;}
+  .logo .mark{width:32px; height:32px; border-radius:9px; background:var(--nh-accent); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:500;}
+  .logo span{font-weight:500; font-size:16px;}
+  nav{display:flex; flex-direction:column; gap:4px;}
+  nav a{text-decoration:none; color:var(--text-2); padding:10px 14px; border-radius:10px; display:flex; align-items:center; gap:10px; font-size:14px;}
+  nav a.active{background:var(--nh-sage); color:var(--text-1); font-weight:500;}
+  .main{flex:1; padding:32px 36px;}
+  .topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:28px;}
+  .topbar h1{font-size:22px; font-weight:500; margin:0;}
+  .topbar p{margin:2px 0 0; color:var(--text-2); font-size:13px;}
+  .avatars{display:flex; gap:10px; align-items:center;}
+  .icon-btn{width:36px; height:36px; border-radius:50%; background:var(--surface-tint); display:flex; align-items:center; justify-content:center; color:var(--text-2); font-size:16px;}
+  .avatar{width:36px; height:36px; border-radius:50%; background:var(--nh-mauve); display:flex; align-items:center; justify-content:center; color:#4B1528; font-weight:500; font-size:13px;}
+  .kpi-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px;}
+  .kpi{background:var(--surface-tint); border-radius:14px; padding:18px;}
+  .kpi.accent{background:#FCEAF0;}
+  .kpi.purple{background:#EFEDFB;}
+  .kpi p.label{margin:0 0 8px; font-size:12px; color:var(--text-2);}
+  .kpi.accent p.label{color:#7A1638;}
+  .kpi.purple p.label{color:#3C3489;}
+  .kpi p.value{margin:0; font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:500;}
+  .kpi.accent p.value{color:#7A1638;}
+  .kpi.purple p.value{color:#26215C;}
+  .row{display:grid; grid-template-columns:1.3fr 1fr; gap:14px;}
+  .card{background:var(--surface-tint); border-radius:16px; padding:20px;}
+  .card h2{margin:0 0 16px; font-size:15px; font-weight:500;}
+  .bars{display:flex; align-items:flex-end; gap:10px; height:110px;}
+  .bars .bar{flex:1; border-radius:6px; background:var(--nh-periwinkle);}
+  .bars .bar.peak{background:var(--nh-accent);}
+  .app-row{display:flex; justify-content:space-between; align-items:center; padding:10px 0; font-size:13px;}
+  .app-row:not(:last-child){border-bottom:0.5px solid var(--border);}
+  .pill{padding:3px 12px; border-radius:20px; font-size:11px; font-weight:500;}
+  .pill.success{background:#EAF3DE; color:#3B6D11;}
+  .pill.warning{background:#FAEEDA; color:#854F0B;}
+  .pill.danger{background:#FCEBEB; color:#A32D2D;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="logo"><div class="mark">N</div><span>NdalamaHub</span></div>
+    <nav>
+      <a class="active" href="#">Overview</a>
+      <a href="#">Applications</a>
+      <a href="#">Portfolio</a>
+      <a href="#">Repayments</a>
+      <a href="#">Employers</a>
+      <a href="#">Reports</a>
+    </nav>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1>Good morning, Chanda</h1>
+        <p>Manifi Investments portfolio &middot; lender officer</p>
+      </div>
+      <div class="avatars">
+        <div class="icon-btn">&#128276;</div>
+        <div class="avatar">CM</div>
+      </div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi"><p class="label">Active portfolio</p><p class="value">ZMW 4.2M</p></div>
+      <div class="kpi purple"><p class="label">Active loans</p><p class="value">312</p></div>
+      <div class="kpi"><p class="label">Overdue</p><p class="value">18</p></div>
+      <div class="kpi accent"><p class="label">New applications</p><p class="value">7</p></div>
+    </div>
+    <div class="row">
+      <div class="card">
+        <h2>Repayment trend</h2>
+        <div class="bars">
+          <div class="bar" style="height:45%"></div>
+          <div class="bar" style="height:65%"></div>
+          <div class="bar" style="height:55%"></div>
+          <div class="bar peak" style="height:95%"></div>
+          <div class="bar" style="height:70%"></div>
+          <div class="bar" style="height:80%"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Applications</h2>
+        <div class="app-row"><span>Sarah Jenkins</span><span class="pill success">approved</span></div>
+        <div class="app-row"><span>Northside Retail</span><span class="pill warning">in review</span></div>
+        <div class="app-row"><span>Pioneer Logistics</span><span class="pill danger">overdue</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

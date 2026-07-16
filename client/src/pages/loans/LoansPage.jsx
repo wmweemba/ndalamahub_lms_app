@@ -13,7 +13,7 @@ import {
 import { LoanDetailsDialog } from '@/components/loans/LoanDetailsDialog';
 import ProductBasedLoanForm from '@/components/loans/ProductBasedLoanForm';
 import api from '@/utils/api';
-import { ROLES } from '@/utils/roleUtils';
+import { ROLES, canApplyForLoan } from '@/utils/roleUtils';
 
 export default function LoansPage() {
     const [loans, setLoans] = useState([]);
@@ -56,9 +56,7 @@ export default function LoansPage() {
     const fetchCompanies = async () => {
         try {
             const response = await api.get('/companies');
-            if (response.data.success) {
-                setCompanies(response.data.data.companies || []);
-            }
+            setCompanies(Array.isArray(response.data) ? response.data : []);
         } catch (err) {
             console.error('Failed to fetch companies:', err);
         }
@@ -164,11 +162,6 @@ export default function LoansPage() {
         });
     };
 
-    // Check if user can apply for loans (only corporate users, not HR)
-    const canApplyForLoan = () => {
-        return currentUser && [ROLES.CORPORATE_USER, ROLES.CORPORATE_ADMIN].includes(currentUser.role);
-    };
-
     const handleLoanApplicationSuccess = () => {
         setIsApplicationFormOpen(false);
         fetchLoans(); // Refresh the loans list
@@ -182,8 +175,8 @@ export default function LoansPage() {
         <div className="p-4 md:p-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <h1 className="text-2xl font-bold text-gray-900">Loan Management</h1>
-                {/* Only show Apply for Loan button for corporate users and admins, not HR */}
-                {canApplyForLoan() && (
+                {/* Only show Apply for Loan button for borrowers */}
+                {currentUser && canApplyForLoan(currentUser.role) && (
                     <Button 
                         onClick={() => setIsApplicationFormOpen(true)}
                         className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
@@ -240,8 +233,8 @@ export default function LoansPage() {
                         </Select>
                     </div>
 
-                    {/* Company Filter - Only show for lender admins and super users */}
-                    {currentUser && [ROLES.SUPER_USER, ROLES.LENDER_ADMIN].includes(currentUser.role) && (
+                    {/* Company Filter - Only show for platform admins and lender-side staff */}
+                    {currentUser && [ROLES.PLATFORM_ADMIN, ROLES.LENDER_ADMIN, ROLES.LENDER_OFFICER].includes(currentUser.role) && (
                         <div>
                             <Label htmlFor="company-filter" className="text-sm font-medium mb-2 block">
                                 Company

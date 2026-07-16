@@ -39,7 +39,7 @@ export function LoginForm({ onSuccess }) {
                         type="text"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        className="w-full pl-10 pr-3 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-colors"
+                        className="w-full pl-10 pr-3 py-3 rounded-lg border border-[--input] bg-[--card] text-[--foreground] focus:outline-none focus:ring-2 focus:ring-[--ring] focus:border-transparent transition-colors"
                         placeholder="Username"
                         required
                     />
@@ -61,7 +61,7 @@ export function LoginForm({ onSuccess }) {
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full pl-10 pr-3 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-colors"
+                        className="w-full pl-10 pr-3 py-3 rounded-lg border border-[--input] bg-[--card] text-[--foreground] focus:outline-none focus:ring-2 focus:ring-[--ring] focus:border-transparent transition-colors"
                         placeholder="Password"
                         required
                     />
@@ -69,7 +69,7 @@ export function LoginForm({ onSuccess }) {
             </div>
 
             {error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
+                <div className="bg-[--status-danger-bg] border border-[--status-danger-fg]/20 text-[--status-danger-fg] px-4 py-3 rounded-lg text-sm">
                     <p>{error}</p>
                 </div>
             )}
@@ -77,9 +77,9 @@ export function LoginForm({ onSuccess }) {
             <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-gray-800 text-white font-semibold rounded-lg shadow-md hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors disabled:bg-gray-400"
+                className="w-full py-3 bg-[--primary] text-[--primary-foreground] font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[--ring] focus:ring-offset-2 transition-opacity disabled:opacity-50"
             >
-                {loading ? 'Signing in...' : 'Sign In'}
+                {loading ? 'Signing in...' : 'Sign in'}
             </button>
         </form>
     );

@@ -30,7 +30,9 @@ Phases must be executed in order. Each phase leaves the app in a working, testab
 ## Standing rules for the execution agent
 
 - Follow the phase document **exactly**. If it is ambiguous, incomplete, or looks wrong once you're in the code, **stop and flag it** — do not improvise.
-- The regression gate for every phase: `cd server && pnpm test` must pass **133/133** from Phase 01 onward, and **178/178** from Phase 03b onward (more once phases add tests). Never commit with a red suite.
+- The regression gate for every phase: `cd server && pnpm test` must pass in full — **261/261 as of Phase 11** (historically 133 from Phase 01, 178 from Phase 03b; more once phases add tests). Never commit with a red suite.
 - Old role names are used in phase 01–02 documents (they match the code as it exists then); from Phase 03 onward documents use the new names.
 - Do not make frontend visual/design changes in any phase (per `CLAUDE.md` Section 9) — frontend edits are limited to the functional minimum each phase specifies.
-- Update `CLAUDE.md` (sections listed in each phase's final step) and `changelog.md` when a phase completes.
+- Update `CLAUDE.md` (sections listed in each phase's final step) and `changelog.md` when a phase completes. Sweep **all** of CLAUDE.md's phase-status references (Sections 2, 3, 11 have each drifted before), not just the sections the phase doc names.
+- After merging a phase: **push `main` to origin** (phases 07–10 were each left stranded locally), then delete the phase branch (`git branch -d`; also the remote branch if it was pushed). Repo policy since 2026-07-15: `main`-only between phases.
+- From the UI build onward: the Section 9 frontend freeze lifts only once `docs/UI_SPEC.md` exists; UI phases must keep the 261-test server suite green untouched — a UI phase that needs a server change should flag it, not make it.

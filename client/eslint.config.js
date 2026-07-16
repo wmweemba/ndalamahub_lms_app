@@ -26,4 +26,18 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  {
+    files: ['**/*.test.{js,jsx}', 'src/test/**/*.{js,jsx}'],
+    languageOptions: {
+      globals: globals.vitest,
+    },
+  },
+  {
+    // shadcn/ui-generated primitives co-export cva variant helpers and
+    // hooks alongside components by convention; not restructured here.
+    files: ['src/components/ui/**/*.{js,jsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

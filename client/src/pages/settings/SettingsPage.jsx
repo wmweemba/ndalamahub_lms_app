@@ -10,17 +10,11 @@ import {
   Users,
   Building2,
   Settings as SettingsIcon,
-  Shield,
-  Bell,
-  Database,
-  Key,
-  Globe,
   CreditCard
 } from 'lucide-react';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
 
@@ -68,6 +62,7 @@ export default function SettingsPage() {
       }
     } catch (err) {
       console.error('Failed to fetch current user:', err);
+      setError('Failed to load user information');
       // If auth fails, redirect to login
       if (err.response?.status === 401) {
         localStorage.removeItem('ndalamahub-token');
@@ -99,27 +94,6 @@ export default function SettingsPage() {
       requiredRole: 'lender_admin'
     },
     {
-      id: 'security',
-      label: 'Security',
-      icon: Shield,
-      description: 'Security settings and access controls',
-      requiredRole: 'employer_admin'
-    },
-    {
-      id: 'notifications',
-      label: 'Notifications',
-      icon: Bell,
-      description: 'Configure notification preferences',
-      requiredRole: 'borrower' // Changed to lower requirement
-    },
-    {
-      id: 'integrations',
-      label: 'Integrations',
-      icon: Globe,
-      description: 'Third-party integrations and API settings',
-      requiredRole: 'lender_admin'
-    },
-    {
       id: 'billing',
       label: 'Billing',
       icon: CreditCard,
@@ -138,12 +112,6 @@ export default function SettingsPage() {
         return <CompanySettings />;
       case 'system':
         return <SystemSettings />;
-      case 'security':
-        return <SecuritySettings />;
-      case 'notifications':
-        return <NotificationSettings />;
-      case 'integrations':
-        return <IntegrationSettings />;
       case 'billing':
         return <SubscriptionManagement />;
       default:
@@ -277,337 +245,6 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-// Security Settings Component
-function SecuritySettings() {
-  const [settings, setSettings] = useState({
-    passwordPolicy: {
-      minLength: 8,
-      requireUppercase: true,
-      requireLowercase: true,
-      requireNumbers: true,
-      requireSpecialChars: true
-    },
-    sessionTimeout: 30,
-    twoFactorEnabled: false,
-    loginAttempts: 5
-  });
-
-  return (
-    <div className="space-y-6">
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <Key className="w-5 h-5 mr-2" />
-          Password Policy
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Minimum Length
-            </label>
-            <input
-              type="number"
-              min="6"
-              max="32"
-              value={settings.passwordPolicy.minLength}
-              onChange={(e) => setSettings(prev => ({
-                ...prev,
-                passwordPolicy: {
-                  ...prev.passwordPolicy,
-                  minLength: parseInt(e.target.value)
-                }
-              }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Session Timeout (minutes)
-            </label>
-            <input
-              type="number"
-              min="5"
-              max="480"
-              value={settings.sessionTimeout}
-              onChange={(e) => setSettings(prev => ({
-                ...prev,
-                sessionTimeout: parseInt(e.target.value)
-              }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-        
-        <div className="mt-4 space-y-3">
-          {Object.entries({
-            requireUppercase: 'Require uppercase letters',
-            requireLowercase: 'Require lowercase letters',
-            requireNumbers: 'Require numbers',
-            requireSpecialChars: 'Require special characters'
-          }).map(([key, label]) => (
-            <label key={key} className="flex items-center">
-              <input
-                type="checkbox"
-                checked={settings.passwordPolicy[key]}
-                onChange={(e) => setSettings(prev => ({
-                  ...prev,
-                  passwordPolicy: {
-                    ...prev.passwordPolicy,
-                    [key]: e.target.checked
-                  }
-                }))}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <span className="ml-2 text-sm text-gray-700">{label}</span>
-            </label>
-          ))}
-        </div>
-        
-        <Button className="mt-4">Save Security Settings</Button>
-      </Card>
-    </div>
-  );
-}
-
-// Notification Settings Component
-function NotificationSettings() {
-  const [notifications, setNotifications] = useState({
-    email: {
-      loanApplications: true,
-      paymentReminders: true,
-      overduePayments: true,
-      systemUpdates: false
-    },
-    sms: {
-      loanApplications: false,
-      paymentReminders: true,
-      overduePayments: true,
-      systemUpdates: false
-    },
-    inApp: {
-      loanApplications: true,
-      paymentReminders: true,
-      overduePayments: true,
-      systemUpdates: true
-    }
-  });
-
-  return (
-    <div className="space-y-6">
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <Bell className="w-5 h-5 mr-2" />
-          Notification Preferences
-        </h3>
-        
-        <div className="space-y-6">
-          {Object.entries({
-            email: 'Email Notifications',
-            sms: 'SMS Notifications',
-            inApp: 'In-App Notifications'
-          }).map(([type, title]) => (
-            <div key={type}>
-              <h4 className="font-medium text-gray-900 mb-3">{title}</h4>
-              <div className="space-y-2">
-                {Object.entries({
-                  loanApplications: 'New loan applications',
-                  paymentReminders: 'Payment reminders',
-                  overduePayments: 'Overdue payment alerts',
-                  systemUpdates: 'System updates and maintenance'
-                }).map(([setting, label]) => (
-                  <label key={setting} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={notifications[type][setting]}
-                      onChange={(e) => setNotifications(prev => ({
-                        ...prev,
-                        [type]: {
-                          ...prev[type],
-                          [setting]: e.target.checked
-                        }
-                      }))}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">{label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        <Button className="mt-4">Save Notification Settings</Button>
-      </Card>
-    </div>
-  );
-}
-
-// Integration Settings Component
-function IntegrationSettings() {
-  const [integrations, setIntegrations] = useState({
-    paymentGateway: {
-      enabled: false,
-      provider: '',
-      apiKey: ''
-    },
-    smsProvider: {
-      enabled: false,
-      provider: '',
-      apiKey: ''
-    },
-    emailProvider: {
-      enabled: true,
-      provider: 'smtp',
-      settings: {}
-    }
-  });
-
-  return (
-    <div className="space-y-6">
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <Globe className="w-5 h-5 mr-2" />
-          Third-Party Integrations
-        </h3>
-        
-        <div className="space-y-6">
-          <div>
-            <h4 className="font-medium text-gray-900 mb-3">Payment Gateway</h4>
-            <div className="space-y-3">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={integrations.paymentGateway.enabled}
-                  onChange={(e) => setIntegrations(prev => ({
-                    ...prev,
-                    paymentGateway: {
-                      ...prev.paymentGateway,
-                      enabled: e.target.checked
-                    }
-                  }))}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <span className="ml-2 text-sm text-gray-700">Enable payment gateway integration</span>
-              </label>
-              
-              {integrations.paymentGateway.enabled && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Provider
-                    </label>
-                    <select
-                      value={integrations.paymentGateway.provider}
-                      onChange={(e) => setIntegrations(prev => ({
-                        ...prev,
-                        paymentGateway: {
-                          ...prev.paymentGateway,
-                          provider: e.target.value
-                        }
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Select provider</option>
-                      <option value="stripe">Stripe</option>
-                      <option value="paypal">PayPal</option>
-                      <option value="airtel_money">Airtel Money</option>
-                      <option value="mtn_money">MTN Money</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      API Key
-                    </label>
-                    <input
-                      type="password"
-                      value={integrations.paymentGateway.apiKey}
-                      onChange={(e) => setIntegrations(prev => ({
-                        ...prev,
-                        paymentGateway: {
-                          ...prev.paymentGateway,
-                          apiKey: e.target.value
-                        }
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter API key"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <h4 className="font-medium text-gray-900 mb-3">SMS Provider</h4>
-            <div className="space-y-3">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={integrations.smsProvider.enabled}
-                  onChange={(e) => setIntegrations(prev => ({
-                    ...prev,
-                    smsProvider: {
-                      ...prev.smsProvider,
-                      enabled: e.target.checked
-                    }
-                  }))}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <span className="ml-2 text-sm text-gray-700">Enable SMS notifications</span>
-              </label>
-              
-              {integrations.smsProvider.enabled && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Provider
-                    </label>
-                    <select
-                      value={integrations.smsProvider.provider}
-                      onChange={(e) => setIntegrations(prev => ({
-                        ...prev,
-                        smsProvider: {
-                          ...prev.smsProvider,
-                          provider: e.target.value
-                        }
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Select provider</option>
-                      <option value="twilio">Twilio</option>
-                      <option value="africas_talking">Africa's Talking</option>
-                      <option value="clicksend">ClickSend</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      API Key
-                    </label>
-                    <input
-                      type="password"
-                      value={integrations.smsProvider.apiKey}
-                      onChange={(e) => setIntegrations(prev => ({
-                        ...prev,
-                        smsProvider: {
-                          ...prev.smsProvider,
-                          apiKey: e.target.value
-                        }
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter API key"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        <Button className="mt-4">Save Integration Settings</Button>
-      </Card>
     </div>
   );
 }

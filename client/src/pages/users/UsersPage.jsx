@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import api from '@/utils/api';
-import { getCurrentUser } from '@/utils/roleUtils';
 
 export function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -8,7 +7,6 @@ export function UsersPage() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
-  const currentUser = getCurrentUser();
 
   const roles = [
     { value: 'all', label: 'All Roles' },

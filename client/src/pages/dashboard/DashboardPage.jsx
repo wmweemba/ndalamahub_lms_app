@@ -11,12 +11,7 @@ import { getCurrentUser, ROLES } from '@/utils/roleUtils';
 export default function DashboardPage() {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
-  
-  // Add authentication check at the top
-  if (!currentUser) {
-    return <Navigate to="/login" replace />;
-  }
-  
+
   const [adminStats, setAdminStats] = useState({
     activeLoans: 0,
     activeCompanies: 0,
@@ -90,7 +85,7 @@ export default function DashboardPage() {
 
   // Check user role
   const isAdmin = currentUser && currentUser.role === ROLES.PLATFORM_ADMIN;
-  const isLenderAdmin = currentUser && currentUser.role === ROLES.LENDER_ADMIN;
+  const isLenderSide = currentUser && [ROLES.LENDER_ADMIN, ROLES.LENDER_OFFICER].includes(currentUser.role);
 
   const isHROrCorporateAdmin = currentUser && [
     ROLES.EMPLOYER_HR,
@@ -110,7 +105,7 @@ export default function DashboardPage() {
           } else {
             setError('Invalid response format from server');
           }
-        } else if (isLenderAdmin) {
+        } else if (isLenderSide) {
           // Fetch lender admin dashboard stats
           const response = await api.get('/dashboard/lender-stats');
           if (response.data.success && response.data.data) {
@@ -145,7 +140,7 @@ export default function DashboardPage() {
     };
 
     fetchDashboardData();
-  }, [isAdmin, isLenderAdmin, isHROrCorporateAdmin, isCorporateUser]);
+  }, [isAdmin, isLenderSide, isHROrCorporateAdmin, isCorporateUser]);
 
   if (loading) {
     return <div className="p-8">Loading dashboard...</div>;
@@ -216,7 +211,7 @@ export default function DashboardPage() {
   }
 
   // Render lender admin dashboard
-  if (isLenderAdmin) {
+  if (isLenderSide) {
     if (!lenderStats.lenderCompany) {
       return (
         <div className="p-8">

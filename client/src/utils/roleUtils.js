@@ -122,3 +122,12 @@ export const canViewProducts = (role) => {
         ROLES.BORROWER
     ].includes(role);
 };
+
+// Check if user sees the Products nav entry (lender-side staff only)
+export const canAccessProductsNav = (role) => {
+    return [
+        ROLES.PLATFORM_ADMIN,
+        ROLES.LENDER_ADMIN,
+        ROLES.LENDER_OFFICER
+    ].includes(role);
+};

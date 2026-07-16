@@ -42,7 +42,7 @@ export function CompaniesPage() {
             try {
                 await api.delete(`/companies/${id}`);
                 setCompanies(companies.filter(company => company._id !== id));
-            } catch (err) {
+            } catch {
                 setError('Failed to delete company');
             }
         }

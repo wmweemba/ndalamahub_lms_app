@@ -55,6 +55,52 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
     });
   };
 
+  const handleApprove = async () => {
+    if (!approvalComment.trim()) {
+      setActionError('Please provide an approval comment');
+      return;
+    }
+
+    setLoading(true);
+    setActionError(null);
+    try {
+      await api.put(`/loans/${loan._id}/approve`, {
+        approvalNotes: approvalComment
+      });
+      setShowApprovalForm(false);
+      setApprovalComment('');
+      onUpdate();
+      onClose();
+    } catch (err) {
+      setActionError(err.response?.data?.message || 'Failed to approve loan');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectionComment.trim()) {
+      setActionError('Please provide a rejection reason');
+      return;
+    }
+
+    setLoading(true);
+    setActionError(null);
+    try {
+      await api.put(`/loans/${loan._id}/reject`, {
+        approvalNotes: rejectionComment
+      });
+      setShowRejectionForm(false);
+      setRejectionComment('');
+      onUpdate();
+      onClose();
+    } catch (err) {
+      setActionError(err.response?.data?.message || 'Failed to reject loan');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDisburse = async () => {
     if (!disbursementNotes.trim()) {
       setActionError('Please provide disbursement notes');
@@ -84,7 +130,7 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
   const canDisburse = loan.status === 'approved';
   const canPrepay = loan.status === 'active' || loan.status === 'disbursed' || loan.status === 'in_arrears';
 
-  const handlePrepaymentSuccess = (data) => {
+  const handlePrepaymentSuccess = () => {
     if (onUpdate) {
       onUpdate();
     }

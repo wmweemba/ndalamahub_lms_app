@@ -11,12 +11,7 @@ import { getCurrentUser, ROLES } from '@/utils/roleUtils';
 export default function DashboardPage() {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
-  
-  // Add authentication check at the top
-  if (!currentUser) {
-    return <Navigate to="/login" replace />;
-  }
-  
+
   const [adminStats, setAdminStats] = useState({
     activeLoans: 0,
     activeCompanies: 0,

@@ -29,7 +29,7 @@ export default function LoansPage() {
     const [statusFilter, setStatusFilter] = useState('all');
     const [companyFilter, setCompanyFilter] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
-    const [companies, setCompanies] = useState([]);
+    const [_companies, setCompanies] = useState([]);
 
     useEffect(() => {
         fetchLoans();

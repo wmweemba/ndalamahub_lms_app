@@ -99,7 +99,7 @@ export default function CreateUserDialog({ onClose, onUserCreated }) {
       setLoading(true);
       setError(null);
 
-      const { confirmPassword, ...userData } = formData;
+      const { confirmPassword: _confirmPassword, ...userData } = formData;
       console.log('Submitting user data:', userData);
       console.log('Current user:', currentUser);
       

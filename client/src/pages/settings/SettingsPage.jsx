@@ -123,8 +123,8 @@ export default function SettingsPage() {
     return (
       <div className="p-8 flex items-center justify-center min-h-96">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading settings...</p>
+          <div className="h-8 w-8 rounded-full border-2 border-border border-t-foreground animate-spin mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">Loading settings...</p>
         </div>
       </div>
     );
@@ -133,8 +133,8 @@ export default function SettingsPage() {
   return (
     <div className="p-4 md:p-8 max-w-full">
       <header className="mb-6 md:mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-500 mt-2">Manage your application settings and preferences</p>
+        <h1 className="text-[22px] font-medium text-foreground">Settings</h1>
+        <p className="text-sm text-muted-foreground mt-2">Manage your application settings and preferences</p>
       </header>
 
       {/* Mobile-First: Card Grid Layout */}
@@ -142,25 +142,25 @@ export default function SettingsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {availableTabs.map((tab) => {
             const Icon = tab.icon;
-            
+
             return (
-              <Card 
+              <Card
                 key={tab.id}
-                className="p-4 cursor-pointer hover:shadow-md transition-all duration-200 border-2 hover:border-blue-200"
+                className="p-4 cursor-pointer rounded-2xl"
                 onClick={() => setActiveTab(tab.id)}
               >
                 <div className="flex items-start space-x-3">
                   <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Icon className="w-5 h-5 text-blue-600" />
+                    <div className="w-10 h-10 bg-status-info-bg rounded-lg flex items-center justify-center">
+                      <Icon className="w-5 h-5 text-status-info-fg" />
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 text-sm">{tab.label}</h3>
-                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{tab.description}</p>
+                    <h3 className="font-medium text-foreground text-sm">{tab.label}</h3>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{tab.description}</p>
                   </div>
                   <div className="flex-shrink-0">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>
@@ -176,16 +176,16 @@ export default function SettingsPage() {
             <div className="flex items-center mb-4">
               <button
                 onClick={() => setActiveTab('')}
-                className="flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
+                className="flex items-center text-foreground hover:text-muted-foreground text-sm font-medium"
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-                Back to Settings
+                Back to settings
               </button>
             </div>
-            
-            <div className="bg-white rounded-lg">
+
+            <div className="bg-card rounded-2xl">
               {renderTabContent()}
             </div>
           </div>
@@ -196,26 +196,26 @@ export default function SettingsPage() {
       <div className="hidden lg:flex gap-6 max-w-full">
         {/* Sidebar Navigation */}
         <div className="w-64 flex-shrink-0">
-          <Card className="p-4">
-            <nav className="space-y-2">
+          <Card className="p-4 rounded-2xl">
+            <nav className="space-y-1">
               {availableTabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
-                
+
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-start px-3 py-3 rounded-lg text-left transition-colors ${
+                    className={`w-full flex items-start px-3 py-3 rounded-[10px] text-left transition-colors ${
                       isActive
-                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        ? 'bg-[--nh-sage] text-foreground font-medium'
+                        : 'text-muted-foreground hover:bg-[--nh-sage]/40'
                     }`}
                   >
                     <Icon className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-sm">{tab.label}</div>
-                      <div className="text-xs text-gray-500 mt-1 line-clamp-2">{tab.description}</div>
+                      <div className="text-sm font-medium text-foreground">{tab.label}</div>
+                      <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{tab.description}</div>
                     </div>
                   </button>
                 );
@@ -227,17 +227,17 @@ export default function SettingsPage() {
         {/* Main Content */}
         <div className="flex-1 min-w-0">
           {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+            <div className="mb-4 p-4 bg-status-danger-bg text-status-danger-fg rounded-2xl text-sm">
               {error}
             </div>
           )}
-          
+
           {availableTabs.length === 0 ? (
-            <Card className="p-8 text-center">
-              <div className="text-gray-500">
-                <SettingsIcon className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Settings Available</h3>
-                <p>You don't have permission to access any settings sections.</p>
+            <Card className="p-8 text-center rounded-2xl">
+              <div className="text-muted-foreground">
+                <SettingsIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-base font-medium text-foreground mb-2">No settings available</h3>
+                <p className="text-sm">You don't have permission to access any settings sections.</p>
               </div>
             </Card>
           ) : (

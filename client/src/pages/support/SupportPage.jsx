@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/ui/status-pill';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,16 +34,6 @@ const CATEGORIES = [
 const STATUSES = ['open', 'in_progress', 'resolved', 'closed'];
 
 const HANDLER_ROLES = ['lender_admin', 'lender_officer', 'platform_admin'];
-
-const statusBadgeColor = (status) => {
-  const colors = {
-    open: 'bg-blue-100 text-blue-800',
-    in_progress: 'bg-yellow-100 text-yellow-800',
-    resolved: 'bg-green-100 text-green-800',
-    closed: 'bg-gray-100 text-gray-800',
-  };
-  return colors[status] || 'bg-gray-100 text-gray-800';
-};
 
 export function SupportPage() {
   const currentUser = getCurrentUser();
@@ -120,59 +110,59 @@ export function SupportPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading tickets...</p>
+          <div className="h-8 w-8 rounded-full border-2 border-border border-t-foreground animate-spin mx-auto" />
+          <p className="mt-4 text-sm text-muted-foreground">Loading tickets...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="py-6">
+    <div className="p-4 md:p-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Support</h1>
-          <p className="mt-1 text-sm text-gray-600">Raise and track support tickets</p>
+          <h1 className="text-[22px] font-medium text-foreground">Support</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Raise and track support tickets</p>
         </div>
         <Button onClick={() => setNewTicketOpen(true)}>New ticket</Button>
       </div>
 
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div className="mb-6 bg-status-danger-bg text-status-danger-fg rounded-2xl px-4 py-3 text-sm">
           Failed to load tickets
         </div>
       )}
 
       {(!data || data.length === 0) ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No tickets found</h3>
-          <p className="mt-1 text-sm text-gray-500">Raise a new ticket to get help.</p>
-        </div>
+        <Card className="p-8 text-center rounded-2xl">
+          <h3 className="text-base font-medium text-foreground mb-2">No tickets found</h3>
+          <p className="text-sm text-muted-foreground">Raise a new ticket to get help.</p>
+        </Card>
       ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="bg-card rounded-2xl border border-border overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Number</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">Number</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">Subject</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">Updated</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody>
                 {data.map((ticket) => (
                   <tr
                     key={ticket._id}
-                    className="hover:bg-gray-50 cursor-pointer"
+                    className="border-b border-border last:border-0 hover:bg-muted cursor-pointer"
                     onClick={() => setDetailTicketId(ticket._id)}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{ticket.ticketNumber}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{ticket.subject}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-foreground">{ticket.ticketNumber}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">{ticket.subject}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge className={statusBadgeColor(ticket.status)}>{ticket.status.replace('_', ' ')}</Badge>
+                      <StatusPill status={ticket.status} />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {new Date(ticket.updatedAt).toLocaleDateString()}
                     </td>
                   </tr>
@@ -248,14 +238,14 @@ export function SupportPage() {
                 </div>
               )}
 
-              <Card>
+              <Card className="rounded-2xl">
                 <CardContent className="space-y-3 max-h-80 overflow-y-auto">
                   {detailTicket.messages.map((m) => (
-                    <div key={m._id} className="border-b border-gray-100 pb-2 last:border-b-0">
-                      <div className="text-xs text-gray-500">
+                    <div key={m._id} className="border-b border-border pb-2 last:border-b-0">
+                      <div className="text-xs text-muted-foreground">
                         {m.author.name} · {new Date(m.createdAt).toLocaleString()}
                       </div>
-                      <div className="text-sm text-gray-900">{m.body}</div>
+                      <div className="text-sm text-foreground">{m.body}</div>
                     </div>
                   ))}
                 </CardContent>

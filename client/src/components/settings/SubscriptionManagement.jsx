@@ -24,16 +24,17 @@ import { CreditCard, Edit } from 'lucide-react';
 
 const STATUS_OPTIONS = ['trialing', 'active', 'past_due', 'read_only', 'suspended', 'cancelled'];
 
+// Subscription status -> pill tint mapping, UI_SPEC §17 Step 2.
 const statusBadgeColor = (status) => {
   const colors = {
-    trialing: 'bg-blue-100 text-blue-800',
-    active: 'bg-green-100 text-green-800',
-    past_due: 'bg-yellow-100 text-yellow-800',
-    read_only: 'bg-orange-100 text-orange-800',
-    suspended: 'bg-red-100 text-red-800',
-    cancelled: 'bg-gray-100 text-gray-800',
+    trialing: 'bg-status-info-bg text-status-info-fg',
+    active: 'bg-status-success-bg text-status-success-fg',
+    past_due: 'bg-status-warning-bg text-status-warning-fg',
+    read_only: 'bg-status-warning-bg text-status-warning-fg',
+    suspended: 'bg-status-danger-bg text-status-danger-fg',
+    cancelled: 'bg-status-danger-bg text-status-danger-fg',
   };
-  return colors[status] || 'bg-gray-100 text-gray-800';
+  return colors[status] || 'bg-[#F0F0EE] text-[#5F5E5A]';
 };
 
 const formatDate = (date) => (date ? new Date(date).toLocaleDateString() : '—');
@@ -69,48 +70,52 @@ export default function SubscriptionManagement() {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500">Loading subscriptions...</div>;
+    return (
+      <div className="p-8 flex justify-center">
+        <div className="h-6 w-6 rounded-full border-2 border-border border-t-foreground animate-spin" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <CreditCard className="w-5 h-5 mr-2" />
+      <Card className="p-6 rounded-2xl">
+        <h3 className="text-base font-medium text-foreground mb-4 flex items-center">
+          <CreditCard className="w-4 h-4 mr-2 text-muted-foreground" />
           Lender subscriptions
         </h3>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">{error}</div>
+          <div className="mb-4 p-4 bg-status-danger-bg text-status-danger-fg rounded-2xl text-sm">{error}</div>
         )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 border-b">
-                <th className="py-2 pr-4">Lender</th>
-                <th className="py-2 pr-4">Status</th>
-                <th className="py-2 pr-4">Plan</th>
-                <th className="py-2 pr-4">Trial ends</th>
-                <th className="py-2 pr-4">Period ends</th>
+              <tr className="text-left text-muted-foreground border-b border-border">
+                <th className="py-2 pr-4 text-xs font-medium">Lender</th>
+                <th className="py-2 pr-4 text-xs font-medium">Status</th>
+                <th className="py-2 pr-4 text-xs font-medium">Plan</th>
+                <th className="py-2 pr-4 text-xs font-medium">Trial ends</th>
+                <th className="py-2 pr-4 text-xs font-medium">Period ends</th>
                 <th className="py-2 pr-4"></th>
               </tr>
             </thead>
             <tbody>
               {lenders.map((lender) => (
-                <tr key={lender._id} className="border-b last:border-0">
-                  <td className="py-3 pr-4 font-medium text-gray-900">{lender.name}</td>
+                <tr key={lender._id} className="border-b border-border last:border-0">
+                  <td className="py-3 pr-4 font-medium text-foreground">{lender.name}</td>
                   <td className="py-3 pr-4">
-                    <Badge className={statusBadgeColor(lender.subscription?.status)}>
+                    <Badge className={`rounded-full ${statusBadgeColor(lender.subscription?.status)}`}>
                       {(lender.subscription?.status || 'trialing').replace('_', ' ')}
                     </Badge>
                   </td>
-                  <td className="py-3 pr-4 text-gray-600">{lender.subscription?.plan || 'standard'}</td>
-                  <td className="py-3 pr-4 text-gray-600">{formatDate(lender.subscription?.trialEndsAt)}</td>
-                  <td className="py-3 pr-4 text-gray-600">{formatDate(lender.subscription?.currentPeriodEnd)}</td>
+                  <td className="py-3 pr-4 text-muted-foreground">{lender.subscription?.plan || 'standard'}</td>
+                  <td className="py-3 pr-4 font-mono text-muted-foreground">{formatDate(lender.subscription?.trialEndsAt)}</td>
+                  <td className="py-3 pr-4 font-mono text-muted-foreground">{formatDate(lender.subscription?.currentPeriodEnd)}</td>
                   <td className="py-3 pr-4 text-right">
                     <Button variant="outline" size="sm" onClick={() => setEditing(lender)}>
-                      <Edit className="w-4 h-4 mr-1" /> Edit
+                      <Edit className="w-3.5 h-3.5 mr-1" /> Edit
                     </Button>
                   </td>
                 </tr>
@@ -118,7 +123,7 @@ export default function SubscriptionManagement() {
             </tbody>
           </table>
           {lenders.length === 0 && (
-            <p className="text-center text-gray-500 py-6">No lender companies found.</p>
+            <p className="text-center text-muted-foreground py-6 text-sm">No lender companies found.</p>
           )}
         </div>
       </Card>
@@ -177,7 +182,7 @@ function EditSubscriptionDialog({ company, onClose, onUpdated }) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>}
+          {error && <div className="p-3 bg-status-danger-bg text-status-danger-fg rounded-2xl text-sm">{error}</div>}
 
           <div>
             <Label>Status</Label>
@@ -215,7 +220,7 @@ function EditSubscriptionDialog({ company, onClose, onUpdated }) {
                 onChange={(e) => setFormData((p) => ({ ...p, currentPeriodEnd: e.target.value }))}
               />
               {formData.status === 'active' && !formData.currentPeriodEnd && (
-                <p className="text-xs text-red-600 mt-1">Required to set status to active</p>
+                <p className="text-xs text-status-danger-fg mt-1">Required to set status to active</p>
               )}
             </div>
           </div>

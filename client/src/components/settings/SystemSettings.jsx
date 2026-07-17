@@ -130,7 +130,7 @@ export default function SystemSettings() {
   };
 
   if (loading) {
-    return <div className="p-6">Loading system settings...</div>;
+    return <div className="p-6 flex justify-center"><div className="h-6 w-6 rounded-full border-2 border-border border-t-foreground animate-spin" /></div>;
   }
 
   return (
@@ -139,47 +139,47 @@ export default function SystemSettings() {
       <Card className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
-            <Server className="w-6 h-6 text-purple-600" />
-            <h3 className="text-lg font-semibold text-gray-900">System Information</h3>
+            <Server className="w-6 h-6 text-[--nh-periwinkle]" />
+            <h3 className="text-base font-medium text-foreground">System Information</h3>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="bg-muted p-4 rounded-lg">
             <div className="flex items-center space-x-2 mb-2">
-              <Database className="w-5 h-5 text-blue-600" />
-              <span className="font-medium text-gray-900">Database</span>
+              <Database className="w-5 h-5 text-status-info-fg" />
+              <span className="font-medium text-foreground">Database</span>
             </div>
-            <p className="text-sm text-gray-600">Status: {systemInfo.dbStatus}</p>
-            <p className="text-sm text-gray-600">Version: MongoDB 5.0</p>
+            <p className="text-sm text-muted-foreground">Status: {systemInfo.dbStatus}</p>
+            <p className="text-sm text-muted-foreground">Version: MongoDB 5.0</p>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="bg-muted p-4 rounded-lg">
             <div className="flex items-center space-x-2 mb-2">
-              <Clock className="w-5 h-5 text-green-600" />
-              <span className="font-medium text-gray-900">Uptime</span>
+              <Clock className="w-5 h-5 text-status-success-fg" />
+              <span className="font-medium text-foreground">Uptime</span>
             </div>
-            <p className="text-sm text-gray-600">{formatUptime(systemInfo.uptime)}</p>
-            <p className="text-sm text-gray-600">Version: {systemInfo.version}</p>
+            <p className="text-sm text-muted-foreground">{formatUptime(systemInfo.uptime)}</p>
+            <p className="text-sm text-muted-foreground">Version: {systemInfo.version}</p>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="bg-muted p-4 rounded-lg">
             <div className="flex items-center space-x-2 mb-2">
-              <HardDrive className="w-5 h-5 text-orange-600" />
-              <span className="font-medium text-gray-900">Storage</span>
+              <HardDrive className="w-5 h-5 text-status-warning-fg" />
+              <span className="font-medium text-foreground">Storage</span>
             </div>
-            <p className="text-sm text-gray-600">Used: {formatBytes(systemInfo.storageUsed)}</p>
-            <p className="text-sm text-gray-600">Available: {formatBytes(1024 * 1024 * 1024 * 10)}</p>
+            <p className="text-sm text-muted-foreground">Used: {formatBytes(systemInfo.storageUsed)}</p>
+            <p className="text-sm text-muted-foreground">Available: {formatBytes(1024 * 1024 * 1024 * 10)}</p>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="bg-muted p-4 rounded-lg">
             <div className="flex items-center space-x-2 mb-2">
-              <Globe className="w-5 h-5 text-purple-600" />
-              <span className="font-medium text-gray-900">Statistics</span>
+              <Globe className="w-5 h-5 text-[--nh-periwinkle]" />
+              <span className="font-medium text-foreground">Statistics</span>
             </div>
-            <p className="text-sm text-gray-600">Users: {systemInfo.totalUsers}</p>
-            <p className="text-sm text-gray-600">Companies: {systemInfo.totalCompanies}</p>
-            <p className="text-sm text-gray-600">Loans: {systemInfo.totalLoans}</p>
+            <p className="text-sm text-muted-foreground">Users: {systemInfo.totalUsers}</p>
+            <p className="text-sm text-muted-foreground">Companies: {systemInfo.totalCompanies}</p>
+            <p className="text-sm text-muted-foreground">Loans: {systemInfo.totalLoans}</p>
           </div>
         </div>
       </Card>
@@ -188,26 +188,26 @@ export default function SystemSettings() {
       <Card className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
-            <Database className="w-6 h-6 text-blue-600" />
-            <h3 className="text-lg font-semibold text-gray-900">General Settings</h3>
+            <Database className="w-6 h-6 text-status-info-fg" />
+            <h3 className="text-base font-medium text-foreground">General Settings</h3>
           </div>
           <Button 
             onClick={handleSaveSettings}
             disabled={saving}
             className="flex items-center"
           >
-            {saving ? 'Saving...' : 'Save Settings'}
+            {saving ? 'Saving...' : 'Save settings'}
           </Button>
         </div>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+          <div className="mb-4 p-4 bg-status-danger-bg text-status-danger-fg rounded-2xl text-sm">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
+          <div className="mb-4 p-4 bg-status-success-bg text-status-success-fg rounded-2xl text-sm">
             {success}
           </div>
         )}
@@ -215,10 +215,10 @@ export default function SystemSettings() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* System Configuration */}
           <div className="space-y-4">
-            <h4 className="font-medium text-gray-900">System Configuration</h4>
+            <h4 className="font-medium text-foreground">System Configuration</h4>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Session Timeout (minutes)
               </label>
               <input
@@ -227,12 +227,12 @@ export default function SystemSettings() {
                 max="480"
                 value={settings.system.sessionTimeout}
                 onChange={(e) => handleNestedChange('system', 'sessionTimeout', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Max Login Attempts
               </label>
               <input
@@ -241,18 +241,18 @@ export default function SystemSettings() {
                 max="10"
                 value={settings.system.maxLoginAttempts}
                 onChange={(e) => handleNestedChange('system', 'maxLoginAttempts', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Backup Frequency
               </label>
               <select
                 value={settings.system.backupFrequency}
                 onChange={(e) => handleNestedChange('system', 'backupFrequency', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="hourly">Hourly</option>
                 <option value="daily">Daily</option>
@@ -267,9 +267,9 @@ export default function SystemSettings() {
                   type="checkbox"
                   checked={settings.system.maintenanceMode}
                   onChange={(e) => handleNestedChange('system', 'maintenanceMode', e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-status-info-fg focus:ring-ring border-input rounded"
                 />
-                <span className="ml-2 text-sm text-gray-700">Maintenance Mode</span>
+                <span className="ml-2 text-sm text-foreground">Maintenance Mode</span>
               </label>
 
               <label className="flex items-center">
@@ -277,19 +277,19 @@ export default function SystemSettings() {
                   type="checkbox"
                   checked={settings.system.allowRegistration}
                   onChange={(e) => handleNestedChange('system', 'allowRegistration', e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-status-info-fg focus:ring-ring border-input rounded"
                 />
-                <span className="ml-2 text-sm text-gray-700">Allow New User Registration</span>
+                <span className="ml-2 text-sm text-foreground">Allow New User Registration</span>
               </label>
             </div>
           </div>
 
           {/* API Configuration */}
           <div className="space-y-4">
-            <h4 className="font-medium text-gray-900">API Configuration</h4>
+            <h4 className="font-medium text-foreground">API Configuration</h4>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Rate Limit (requests per minute)
               </label>
               <input
@@ -298,31 +298,31 @@ export default function SystemSettings() {
                 max="1000"
                 value={settings.api.rateLimit}
                 onChange={(e) => handleNestedChange('api', 'rateLimit', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 API Version
               </label>
               <input
                 type="text"
                 value={settings.api.apiVersion}
                 onChange={(e) => handleNestedChange('api', 'apiVersion', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Allowed Origins (comma-separated)
               </label>
               <textarea
                 value={settings.api.allowedOrigins}
                 onChange={(e) => handleNestedChange('api', 'allowedOrigins', e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                 placeholder="https://example.com, https://app.example.com"
               />
             </div>
@@ -333,9 +333,9 @@ export default function SystemSettings() {
                   type="checkbox"
                   checked={settings.api.enableCors}
                   onChange={(e) => handleNestedChange('api', 'enableCors', e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-status-info-fg focus:ring-ring border-input rounded"
                 />
-                <span className="ml-2 text-sm text-gray-700">Enable CORS</span>
+                <span className="ml-2 text-sm text-foreground">Enable CORS</span>
               </label>
             </div>
           </div>
@@ -345,84 +345,84 @@ export default function SystemSettings() {
       {/* Email Configuration */}
       <Card className="p-6">
         <div className="flex items-center space-x-3 mb-6">
-          <Mail className="w-6 h-6 text-red-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Email Configuration</h3>
+          <Mail className="w-6 h-6 text-status-danger-fg" />
+          <h3 className="text-base font-medium text-foreground">Email Configuration</h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 SMTP Host
               </label>
               <input
                 type="text"
                 value={settings.email.smtpHost}
                 onChange={(e) => handleNestedChange('email', 'smtpHost', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                 placeholder="smtp.gmail.com"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 SMTP Port
               </label>
               <input
                 type="number"
                 value={settings.email.smtpPort}
                 onChange={(e) => handleNestedChange('email', 'smtpPort', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 SMTP Username
               </label>
               <input
                 type="text"
                 value={settings.email.smtpUser}
                 onChange={(e) => handleNestedChange('email', 'smtpUser', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 SMTP Password
               </label>
               <input
                 type="password"
                 value={settings.email.smtpPassword}
                 onChange={(e) => handleNestedChange('email', 'smtpPassword', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 From Email
               </label>
               <input
                 type="email"
                 value={settings.email.fromEmail}
                 onChange={(e) => handleNestedChange('email', 'fromEmail', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 From Name
               </label>
               <input
                 type="text"
                 value={settings.email.fromName}
                 onChange={(e) => handleNestedChange('email', 'fromName', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
 
@@ -432,9 +432,9 @@ export default function SystemSettings() {
                   type="checkbox"
                   checked={settings.email.smtpSecure}
                   onChange={(e) => handleNestedChange('email', 'smtpSecure', e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-status-info-fg focus:ring-ring border-input rounded"
                 />
-                <span className="ml-2 text-sm text-gray-700">Use SSL/TLS</span>
+                <span className="ml-2 text-sm text-foreground">Use SSL/TLS</span>
               </label>
             </div>
           </div>

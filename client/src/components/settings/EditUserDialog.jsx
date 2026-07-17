@@ -1,15 +1,21 @@
 import { useState, useEffect } from 'react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter 
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import api from '@/utils/api';
 import { getCurrentUser } from '@/utils/roleUtils';
 import { User, Mail, Phone, Shield, Building2, Key, Eye, EyeOff } from 'lucide-react';
+
+const SELECT_CLASSES =
+  'w-full h-10 px-3 py-2 border border-input rounded-md bg-background text-sm';
 
 export default function EditUserDialog({ user, onClose, onUserUpdated }) {
   const [currentUser, setCurrentUser] = useState(null);
@@ -37,10 +43,8 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
     try {
       // Get current user
       const userData = getCurrentUser();
-      console.log('EditUserDialog - Current user:', userData);
-      console.log('EditUserDialog - User being edited:', user);
       setCurrentUser(userData);
-      
+
       fetchCompanies();
     } catch (error) {
       console.error('EditUserDialog - Error in useEffect:', error);
@@ -52,7 +56,6 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
     try {
       const response = await api.get('/companies');
       // Companies API returns companies array directly in response.data
-      console.log('Fetched companies:', response.data);
       setCompanies(response.data || []);
     } catch (err) {
       console.error('Failed to fetch companies:', err);
@@ -78,6 +81,7 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
       const response = await api.put(`/users/${user._id}`, formData);
 
       if (response.data.success) {
+        toast.success('User updated');
         onUserUpdated(response.data.data);
       }
     } catch (err) {
@@ -116,7 +120,7 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
       });
 
       if (response.data.success) {
-        alert('Password reset successfully!');
+        toast.success('Password reset successfully');
         setNewPassword('');
         setShowPasswordReset(false);
       }
@@ -130,11 +134,11 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
 
   const canResetPassword = () => {
     if (!currentUser) return false;
-    
+
     // Only admins can reset passwords, and not their own
     const isAdmin = ['platform_admin', 'lender_admin', 'employer_admin'].includes(currentUser.role);
     const isNotSelf = user._id !== (currentUser.id || currentUser._id);
-    
+
     return isAdmin && isNotSelf;
   };
 
@@ -186,109 +190,107 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="w-full max-w-2xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center text-lg sm:text-xl">
-            <User className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" />
-            Edit User: {user.firstName} {user.lastName}
+          <DialogTitle className="flex items-center text-base font-medium">
+            <User className="w-4 h-4 mr-2 text-muted-foreground" />
+            Edit user — {user.firstName} {user.lastName}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-3 sm:p-4 text-sm">
+            <div className="bg-status-danger-bg text-status-danger-fg rounded-2xl p-3 sm:p-4 text-sm">
               {error}
             </div>
           )}
 
           {/* Personal Information */}
           <div>
-            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4 flex items-center">
-              <User className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" />
-              Personal Information
+            <h3 className="text-sm font-medium text-foreground mb-3 sm:mb-4 flex items-center">
+              <User className="w-4 h-4 mr-2 text-muted-foreground" />
+              Personal information
             </h3>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  First Name *
-                </label>
-                <input
+                <Label htmlFor="firstName">First name *</Label>
+                <Input
+                  id="firstName"
                   type="text"
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="mt-1"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Last Name *
-                </label>
-                <input
+                <Label htmlFor="lastName">Last name *</Label>
+                <Input
+                  id="lastName"
                   type="text"
                   name="lastName"
                   value={formData.lastName}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="mt-1"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Username *
-                </label>
-                <input
+                <Label htmlFor="username">Username *</Label>
+                <Input
+                  id="username"
                   type="text"
                   name="username"
                   value={formData.username}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="mt-1"
                 />
               </div>
 
               <div>
-                <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                  <Mail className="w-4 h-4 mr-1" />
+                <Label htmlFor="email" className="flex items-center">
+                  <Mail className="w-3.5 h-3.5 mr-1" />
                   Email *
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="email"
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="mt-1"
                 />
               </div>
 
               <div>
-                <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                  <Phone className="w-4 h-4 mr-1" />
+                <Label htmlFor="phone" className="flex items-center">
+                  <Phone className="w-3.5 h-3.5 mr-1" />
                   Phone *
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="phone"
                   type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="mt-1"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Employee ID
-                </label>
-                <input
+                <Label htmlFor="employeeId">Employee ID</Label>
+                <Input
+                  id="employeeId"
                   type="text"
                   name="employeeId"
                   value={formData.employeeId}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="mt-1"
                 />
               </div>
             </div>
@@ -296,22 +298,21 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
 
           {/* Account Information */}
           <div>
-            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4 flex items-center">
-              <Shield className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" />
-              Account Information
+            <h3 className="text-sm font-medium text-foreground mb-3 sm:mb-4 flex items-center">
+              <Shield className="w-4 h-4 mr-2 text-muted-foreground" />
+              Account information
             </h3>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Role *
-                </label>
+                <Label htmlFor="role">Role *</Label>
                 <select
+                  id="role"
                   name="role"
                   value={formData.role}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className={`${SELECT_CLASSES} mt-1`}
                 >
                   {roleOptions.map(option => (
                     <option key={option.value} value={option.value}>
@@ -319,25 +320,26 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {roleOptions.find(option => option.value === formData.role)?.description}
                 </p>
               </div>
 
               <div>
-                <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                  <Building2 className="w-4 h-4 mr-1" />
+                <Label htmlFor="company" className="flex items-center">
+                  <Building2 className="w-3.5 h-3.5 mr-1" />
                   Company *
-                </label>
+                </Label>
                 <select
+                  id="company"
                   name="company"
                   value={formData.company}
                   onChange={handleChange}
                   required
                   disabled={currentUser?.role === 'employer_admin' || currentUser?.role === 'employer_hr'}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
+                  className={`${SELECT_CLASSES} mt-1 disabled:bg-muted disabled:cursor-not-allowed`}
                 >
-                  <option value="">Select Company</option>
+                  <option value="">Select company</option>
                   {companies.map(company => (
                     <option key={company._id} value={company._id}>
                       {company.name} ({company.type})
@@ -345,23 +347,22 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                   ))}
                 </select>
                 {(currentUser?.role === 'employer_admin' || currentUser?.role === 'employer_hr') && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     You can only edit users within your company
                   </p>
                 )}
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Department
-                </label>
-                <input
+                <Label htmlFor="department">Department</Label>
+                <Input
+                  id="department"
                   type="text"
                   name="department"
                   value={formData.department}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="e.g., Human Resources, Finance, IT"
+                  className="mt-1"
                 />
               </div>
 
@@ -372,11 +373,11 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                     name="isActive"
                     checked={formData.isActive}
                     onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 rounded border-input"
                   />
-                  <span className="ml-2 text-sm text-gray-700">Account is active</span>
+                  <span className="ml-2 text-sm text-foreground">Account is active</span>
                 </label>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   Inactive users cannot log in to the system
                 </p>
               </div>
@@ -386,40 +387,39 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
 
         {/* Password Reset Section */}
         {canResetPassword() && (
-          <div className="border-t pt-6">
-            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4 flex items-center">
-              <Key className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-red-600" />
-              Password Reset
+          <div className="border-t border-border pt-6">
+            <h3 className="text-sm font-medium text-foreground mb-3 sm:mb-4 flex items-center">
+              <Key className="w-4 h-4 mr-2 text-status-danger-fg" />
+              Password reset
             </h3>
-            
+
             {!showPasswordReset ? (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-sm text-yellow-800 mb-3">
+              <div className="bg-status-warning-bg rounded-2xl p-4">
+                <p className="text-sm text-status-warning-fg mb-3">
                   Reset this user's password. The user will need to use the new password to log in.
                 </p>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setShowPasswordReset(true)}
-                  className="flex items-center text-red-600 hover:text-red-700 border-red-300 hover:border-red-400"
+                  className="flex items-center text-status-danger-fg border-status-danger-fg/30 hover:bg-status-danger-bg"
                 >
                   <Key className="w-4 h-4 mr-2" />
-                  Reset Password
+                  Reset password
                 </Button>
               </div>
             ) : (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-4">
+              <div className="bg-status-danger-bg rounded-2xl p-4 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    New Password *
-                  </label>
-                  <div className="relative">
-                    <input
+                  <Label htmlFor="newPassword">New password *</Label>
+                  <div className="relative mt-1">
+                    <Input
+                      id="newPassword"
                       type={showPassword ? 'text' : 'password'}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="Enter new password (min 6 characters)"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 text-sm pr-10"
+                      className="pr-10"
                     />
                     <button
                       type="button"
@@ -427,23 +427,23 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
                       className="absolute inset-y-0 right-0 pr-3 flex items-center"
                     >
                       {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-gray-400" />
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
                       ) : (
-                        <Eye className="h-4 w-4 text-gray-400" />
+                        <Eye className="h-4 w-4 text-muted-foreground" />
                       )}
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     type="button"
                     onClick={handlePasswordReset}
                     disabled={passwordResetLoading || !newPassword.trim()}
-                    className="bg-red-600 hover:bg-red-700 text-white flex items-center justify-center"
+                    className="bg-status-danger-fg hover:bg-status-danger-fg/90 text-white flex items-center justify-center"
                   >
                     <Key className="w-4 h-4 mr-2" />
-                    {passwordResetLoading ? 'Resetting...' : 'Confirm Reset'}
+                    {passwordResetLoading ? 'Resetting...' : 'Confirm reset'}
                   </Button>
                   <Button
                     type="button"
@@ -463,7 +463,7 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
           </div>
         )}
 
-        <DialogFooter className="pt-4 border-t border-gray-200">
+        <DialogFooter className="pt-4 border-t border-border">
           <Button
             type="button"
             variant="outline"
@@ -477,9 +477,9 @@ export default function EditUserDialog({ user, onClose, onUserUpdated }) {
             type="submit"
             onClick={handleSubmit}
             disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2 mb-2 sm:mb-0"
+            className="w-full sm:w-auto order-1 sm:order-2 mb-2 sm:mb-0"
           >
-            {loading ? 'Updating...' : 'Update User'}
+            {loading ? 'Updating...' : 'Update user'}
           </Button>
         </DialogFooter>
       </DialogContent>

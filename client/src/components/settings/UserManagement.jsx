@@ -1,10 +1,25 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import api from '@/utils/api';
 import CreateUserDialog from './CreateUserDialog';
 import EditUserDialog from './EditUserDialog';
-import { Plus, Edit, Trash2, Search, Filter, Users, Shield, Mail, Phone } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Users, Mail, Phone } from 'lucide-react';
+
+// Canonical role -> pill tint mapping for this surface, UI_SPEC §17 Step 2. Reuse this map
+// wherever a role badge is needed on Settings/User Management surfaces.
+const ROLE_TINT_CLASSES = {
+  platform_admin: 'bg-status-info-bg text-status-info-fg',
+  lender_admin: 'bg-[#7E78D2]/15 text-[#3C3489]',
+  lender_officer: 'bg-[#7E78D2]/15 text-[#3C3489]',
+  employer_admin: 'bg-status-success-bg/70 text-status-success-fg',
+  employer_hr: 'bg-status-success-bg/70 text-status-success-fg',
+  borrower: 'bg-[#F0F0EE] text-[#5F5E5A]',
+};
+
+const SELECT_CLASSES =
+  'h-10 rounded-md border border-input bg-background px-3 py-2 text-sm';
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -57,9 +72,10 @@ export default function UserManagement() {
       const response = await api.delete(`/users/${userId}`);
       if (response.data.success) {
         setUsers(users.filter(user => user._id !== userId));
+        toast.success('User deleted');
       }
     } catch (err) {
-      setError('Failed to delete user');
+      toast.error(err.response?.data?.message || 'Failed to delete user');
       console.error('Delete user error:', err);
     }
   };
@@ -70,14 +86,15 @@ export default function UserManagement() {
         isActive: !currentStatus
       });
       if (response.data.success) {
-        setUsers(users.map(user => 
-          user._id === userId 
+        setUsers(users.map(user =>
+          user._id === userId
             ? { ...user, isActive: !currentStatus }
             : user
         ));
+        toast.success(`User ${!currentStatus ? 'activated' : 'deactivated'}`);
       }
     } catch (err) {
-      setError('Failed to update user status');
+      toast.error(err.response?.data?.message || 'Failed to update user status');
       console.error('Toggle user status error:', err);
     }
   };
@@ -94,18 +111,6 @@ export default function UserManagement() {
     return roleNames[role] || role;
   };
 
-  const getRoleColor = (role) => {
-    const colors = {
-      'platform_admin': 'bg-purple-100 text-purple-800',
-      'lender_admin': 'bg-blue-100 text-blue-800',
-      'lender_officer': 'bg-gray-100 text-gray-800',
-      'employer_admin': 'bg-green-100 text-green-800',
-      'employer_hr': 'bg-yellow-100 text-yellow-800',
-      'borrower': 'bg-orange-100 text-orange-800'
-    };
-    return colors[role] || 'bg-gray-100 text-gray-800';
-  };
-
   const canEditUser = (user) => {
     if (!currentUser) return false;
 
@@ -117,10 +122,10 @@ export default function UserManagement() {
       'employer_hr': 2,
       'borrower': 1
     };
-    
+
     // Can't edit yourself
     if (user._id === currentUser._id) return false;
-    
+
     // Can only edit users with lower role hierarchy
     return roleHierarchy[currentUser.role] > roleHierarchy[user.role];
   };
@@ -130,43 +135,47 @@ export default function UserManagement() {
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = 
+    const matchesSearch =
       user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.username.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    const matchesStatus = statusFilter === 'all' || 
+    const matchesStatus = statusFilter === 'all' ||
       (statusFilter === 'active' && user.isActive) ||
       (statusFilter === 'inactive' && !user.isActive);
-    
+
     return matchesSearch && matchesRole && matchesStatus;
   });
 
   if (loading) {
-    return <div className="p-6">Loading users...</div>;
+    return (
+      <div className="p-6 flex justify-center">
+        <div className="h-6 w-6 rounded-full border-2 border-border border-t-foreground animate-spin" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <Card className="p-6">
+      <Card className="p-6 rounded-2xl">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
-            <Users className="w-6 h-6 text-blue-600" />
-            <h3 className="text-lg font-semibold text-gray-900">User Management</h3>
+            <Users className="w-5 h-5 text-muted-foreground" />
+            <h3 className="text-base font-medium text-foreground">User Management</h3>
           </div>
-          <Button 
+          <Button
             onClick={() => setShowCreateDialog(true)}
             className="flex items-center"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Add User
+            Add user
           </Button>
         </div>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+          <div className="mb-4 p-4 bg-status-danger-bg text-status-danger-fg rounded-2xl text-sm">
             {error}
           </div>
         )}
@@ -175,181 +184,161 @@ export default function UserManagement() {
         <div className="flex flex-wrap gap-4 mb-6">
           <div className="flex-1 min-w-64">
             <div className="relative">
-              <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search users..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 h-10 rounded-md border border-input bg-background text-sm"
               />
             </div>
           </div>
-          
-          <div className="flex items-center space-x-2">
-            <Filter className="w-5 h-5 text-gray-400" />
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Roles</option>
-              <option value="platform_admin">Platform Admin</option>
-              <option value="lender_admin">Lender Admin</option>
-              <option value="lender_officer">Lender Officer</option>
-              <option value="employer_admin">Employer Admin</option>
-              <option value="employer_hr">Employer HR</option>
-              <option value="borrower">Borrower</option>
-            </select>
-          </div>
-          
-          <div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
+
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className={SELECT_CLASSES}
+          >
+            <option value="all">All roles</option>
+            <option value="platform_admin">Platform Admin</option>
+            <option value="lender_admin">Lender Admin</option>
+            <option value="lender_officer">Lender Officer</option>
+            <option value="employer_admin">Employer Admin</option>
+            <option value="employer_hr">Employer HR</option>
+            <option value="borrower">Borrower</option>
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className={SELECT_CLASSES}
+          >
+            <option value="all">All status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
         </div>
 
         {/* Users Table */}
         <div className="overflow-x-auto">
           <div className="inline-block min-w-full align-middle">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    User
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Contact
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Role
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Company
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Last Login
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">User</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">Contact</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">Role</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">Company</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">Last login</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.map((user) => (
-                <tr key={user._id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="text-blue-600 font-medium">
-                          {user.firstName.charAt(0)}{user.lastName.charAt(0)}
-                        </span>
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {user.firstName} {user.lastName}
+              <tbody>
+                {filteredUsers.map((user) => (
+                  <tr key={user._id} className="border-b border-border last:border-0">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-status-info-bg rounded-full flex items-center justify-center">
+                          <span className="text-status-info-fg font-medium text-sm">
+                            {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+                          </span>
                         </div>
-                        <div className="text-sm text-gray-500">@{user.username}</div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-foreground">
+                            {user.firstName} {user.lastName}
+                          </div>
+                          <div className="text-sm text-muted-foreground">@{user.username}</div>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex flex-col space-y-1">
-                      <div className="flex items-center text-sm text-gray-900">
-                        <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                        {user.email}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col space-y-1">
+                        <div className="flex items-center text-sm text-foreground">
+                          <Mail className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+                          {user.email}
+                        </div>
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <Phone className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+                          {user.phone}
+                        </div>
                       </div>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                        {user.phone}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2.5 py-0.5 text-xs font-medium rounded-full ${ROLE_TINT_CLASSES[user.role] || ROLE_TINT_CLASSES.borrower}`}>
+                        {getRoleDisplayName(user.role)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-foreground">
+                        {user.company?.name || 'No company'}
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(user.role)}`}>
-                      <Shield className="w-3 h-3 mr-1" />
-                      {getRoleDisplayName(user.role)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {user.company?.name || 'No Company'}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {user.department || 'No Department'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => handleToggleUserStatus(user._id, user.isActive)}
-                      disabled={!canEditUser(user)}
-                      className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        user.isActive
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      } ${canEditUser(user) ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-50'}`}
-                    >
-                      {user.isActive ? 'Active' : 'Inactive'}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {user.lastLogin 
-                      ? new Date(user.lastLogin).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })
-                      : 'Never'
-                    }
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      {canEditUser(user) && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEditingUser(user)}
-                          className="flex items-center"
-                        >
-                          <Edit className="w-4 h-4 mr-1" />
-                          Edit
-                        </Button>
-                      )}
-                      {canDeleteUser(user) && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteUser(user._id)}
-                          className="flex items-center text-red-600 hover:text-red-800"
-                        >
-                          <Trash2 className="w-4 h-4 mr-1" />
-                          Delete
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      <div className="text-sm text-muted-foreground">
+                        {user.department || 'No department'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => handleToggleUserStatus(user._id, user.isActive)}
+                        disabled={!canEditUser(user)}
+                        className={`inline-flex px-2.5 py-0.5 text-xs font-medium rounded-full ${
+                          user.isActive
+                            ? 'bg-status-success-bg text-status-success-fg'
+                            : 'bg-[#F0F0EE] text-[#5F5E5A]'
+                        } ${canEditUser(user) ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-50'}`}
+                      >
+                        {user.isActive ? 'Active' : 'Inactive'}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                      {user.lastLogin
+                        ? new Date(user.lastLogin).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })
+                        : 'Never'
+                      }
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end space-x-2">
+                        {canEditUser(user) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingUser(user)}
+                            className="flex items-center"
+                          >
+                            <Edit className="w-3.5 h-3.5 mr-1" />
+                            Edit
+                          </Button>
+                        )}
+                        {canDeleteUser(user) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteUser(user._id)}
+                            className="flex items-center text-status-danger-fg border-status-danger-fg/30 hover:bg-status-danger-bg"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-1" />
+                            Delete
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
         {filteredUsers.length === 0 && (
           <div className="text-center py-12">
-            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
-            <p className="text-gray-500">
+            <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-base font-medium text-foreground mb-2">No users found</h3>
+            <p className="text-sm text-muted-foreground">
               {searchTerm || roleFilter !== 'all' || statusFilter !== 'all'
                 ? 'Try adjusting your search criteria.'
                 : 'Get started by creating your first user.'
@@ -376,7 +365,7 @@ export default function UserManagement() {
           user={editingUser}
           onClose={() => setEditingUser(null)}
           onUserUpdated={(updatedUser) => {
-            setUsers(users.map(user => 
+            setUsers(users.map(user =>
               user._id === updatedUser._id ? updatedUser : user
             ));
             setEditingUser(null);

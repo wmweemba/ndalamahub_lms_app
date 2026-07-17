@@ -1,20 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import api from '@/utils/api';
-import { DollarSign, Calendar, TrendingUp, Shield, CheckCircle2, Info } from 'lucide-react';
+import { formatCurrency, formatTerm, formatRateBasis } from '@/lib/format';
+import { Shield, CheckCircle2 } from 'lucide-react';
 
-const categoryColors = {
-  personal: 'bg-blue-100 text-blue-800',
-  business: 'bg-purple-100 text-purple-800',
-  payday: 'bg-green-100 text-green-800',
-  bridge: 'bg-orange-100 text-orange-800',
-  microfinance: 'bg-pink-100 text-pink-800',
-  auto: 'bg-indigo-100 text-indigo-800',
-  education: 'bg-teal-100 text-teal-800',
-  mortgage: 'bg-red-100 text-red-800',
-  other: 'bg-gray-100 text-gray-800'
+const CATEGORY_LABEL = {
+  personal: 'Personal',
+  business: 'Business',
+  payday: 'Payday',
+  bridge: 'Bridge',
+  microfinance: 'Microfinance',
+  auto: 'Auto',
+  education: 'Education',
+  mortgage: 'Mortgage',
+  other: 'Other',
 };
 
 export default function ProductSelector({ onSelect, selectedProduct }) {
@@ -30,46 +29,33 @@ export default function ProductSelector({ onSelect, selectedProduct }) {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      // Use /available endpoint to get products from user's lender
       const response = await api.get('/products/available');
       if (response.data.success) {
         setProducts(response.data.data);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to load products');
-      console.error('Error fetching products:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const categories = ['all', ...new Set(products.map(p => p.category))];
+  const categories = ['all', ...new Set(products.map((p) => p.category))];
 
-  const filteredProducts = filter === 'all' 
-    ? products 
-    : products.filter(p => p.category === filter);
+  const filteredProducts = filter === 'all' ? products : products.filter((p) => p.category === filter);
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <div className="p-8 text-sm text-muted-foreground text-center">Loading products…</div>;
   }
 
   if (error) {
-    return (
-      <div className="p-4 bg-red-50 text-red-600 rounded-lg">
-        {error}
-      </div>
-    );
+    return <div className="p-4 bg-status-danger-bg text-status-danger-fg rounded-2xl text-sm">{error}</div>;
   }
 
   return (
     <div className="space-y-4">
-      {/* Category Filter */}
       <div className="flex flex-wrap gap-2">
-        {categories.map(cat => (
+        {categories.map((cat) => (
           <Button
             key={cat}
             variant={filter === cat ? 'default' : 'outline'}
@@ -77,122 +63,85 @@ export default function ProductSelector({ onSelect, selectedProduct }) {
             onClick={() => setFilter(cat)}
             className="capitalize"
           >
-            {cat}
+            {cat === 'all' ? 'All' : CATEGORY_LABEL[cat] || cat}
           </Button>
         ))}
       </div>
 
-      {/* Products Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredProducts.map(product => (
-          <Card 
-            key={product._id}
-            className={`cursor-pointer transition-all hover:shadow-lg ${
-              selectedProduct?._id === product._id ? 'ring-2 ring-blue-500 shadow-lg' : ''
-            }`}
-            onClick={() => onSelect(product)}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-lg">{product.name}</CardTitle>
-                  <CardDescription className="text-sm mt-1">
-                    {product.description}
-                  </CardDescription>
-                </div>
-                <Badge className={`${categoryColors[product.category]} capitalize ml-2`}>
-                  {product.category}
-                </Badge>
-              </div>
-            </CardHeader>
-
-            <CardContent className="space-y-3">
-              {/* Interest Rate */}
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <TrendingUp className="h-4 w-4" />
-                  <span>Interest Rate</span>
-                </div>
-                <span className="font-semibold text-blue-600">
-                  {product.interestRate.default}% APR
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {filteredProducts.map((product) => {
+          const isSelected = selectedProduct?._id === product._id;
+          return (
+            <button
+              key={product._id}
+              type="button"
+              onClick={() => onSelect(product)}
+              className={`text-left rounded-2xl border p-4 transition-colors ${
+                isSelected ? 'border-nh-sage bg-accent' : 'border-border bg-card hover:bg-muted'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <h3 className="text-[15px] font-medium text-foreground">{product.name}</h3>
+                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-status-info-bg text-status-info-fg capitalize">
+                  {CATEGORY_LABEL[product.category] || product.category}
                 </span>
               </div>
 
-              {/* Loan Amount */}
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <DollarSign className="h-4 w-4" />
-                  <span>Amount Range</span>
-                </div>
-                <span className="font-semibold">
-                  {product.amount.currency} {product.amount.min.toLocaleString()} - {product.amount.max.toLocaleString()}
-                </span>
-              </div>
+              <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{product.description}</p>
 
-              {/* Loan Term */}
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Calendar className="h-4 w-4" />
-                  <span>Term</span>
-                </div>
-                <span className="font-semibold">
-                  {product.term.min}-{product.term.max} months
-                </span>
-              </div>
-
-              {/* Collateral */}
-              {product.collateralRequired && (
-                <div className="flex items-center gap-2 text-sm text-orange-600">
-                  <Shield className="h-4 w-4" />
-                  <span>Collateral Required</span>
-                </div>
-              )}
-
-              {/* Processing Fee */}
-              {product.fees?.processingFee?.amount > 0 && (
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Info className="h-4 w-4" />
-                    <span>Processing Fee</span>
-                  </div>
-                  <span className="text-gray-700">
-                    {product.fees.processingFee.type === 'percentage' 
-                      ? `${product.fees.processingFee.amount}%`
-                      : `${product.amount.currency} ${product.fees.processingFee.amount}`
-                    }
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Rate</span>
+                  <span className="font-mono font-medium text-foreground">
+                    {formatRateBasis(
+                      product.interestRate.default,
+                      product.interestCalculation.method,
+                      product.interestCalculation.rateBasis
+                    )}
                   </span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount range</span>
+                  <span className="font-mono text-foreground">
+                    {formatCurrency(product.amount.min)} – {formatCurrency(product.amount.max)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Term range</span>
+                  <span className="font-mono text-foreground">
+                    {formatTerm(product.term.min, product.term.unit)} – {formatTerm(product.term.max, product.term.unit)}
+                  </span>
+                </div>
+              </div>
+
+              {product.collateralRequired && (
+                <div className="flex items-center gap-2 text-xs text-status-warning-fg mt-3">
+                  <Shield className="h-3.5 w-3.5" />
+                  Collateral required
+                </div>
               )}
 
-              {/* Highlights */}
-              {product.marketingInfo?.highlights && product.marketingInfo.highlights.length > 0 && (
-                <div className="pt-2 border-t space-y-1">
+              {product.marketingInfo?.highlights?.length > 0 && (
+                <div className="pt-3 mt-3 border-t border-border space-y-1">
                   {product.marketingInfo.highlights.slice(0, 3).map((highlight, idx) => (
-                    <div key={idx} className="flex items-start gap-2 text-xs text-gray-600">
-                      <CheckCircle2 className="h-3 w-3 mt-0.5 text-green-500 flex-shrink-0" />
+                    <div key={idx} className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <CheckCircle2 className="h-3 w-3 mt-0.5 text-status-success-fg flex-shrink-0" />
                       <span>{highlight}</span>
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Select Button */}
-              <Button 
-                className="w-full mt-3"
-                variant={selectedProduct?._id === product._id ? 'default' : 'outline'}
-                size="sm"
-              >
-                {selectedProduct?._id === product._id ? 'Selected' : 'Select Product'}
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+              {isSelected && (
+                <div className="mt-3 text-xs font-medium text-foreground">Selected</div>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {filteredProducts.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          No products available in this category
-        </div>
+        <div className="text-center py-8 text-sm text-muted-foreground">No products available in this category</div>
       )}
     </div>
   );

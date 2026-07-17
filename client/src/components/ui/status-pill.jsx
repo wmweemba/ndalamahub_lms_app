@@ -19,6 +19,10 @@ export const STATUS_PILL_MAP = {
   open: 'info',
   in_progress: 'warning',
   resolved: 'success',
+  // installment statuses (loan detail repayment schedule)
+  partial: 'warning',
+  overdue: 'danger',
+  paid: 'success',
 };
 
 const TINT_CLASSES = {

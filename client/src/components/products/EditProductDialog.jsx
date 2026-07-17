@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,8 +58,7 @@ export function EditProductDialog({ open, onOpenChange, onSuccess, product }) {
       onSuccess?.();
       onOpenChange(false);
     } catch (error) {
-      console.error('Error updating product:', error);
-      alert(error.response?.data?.message || 'Failed to update product');
+      toast.error(error.response?.data?.message || 'Failed to update product');
     } finally {
       setLoading(false);
     }
@@ -80,7 +80,7 @@ export function EditProductDialog({ open, onOpenChange, onSuccess, product }) {
           <div className="space-y-6 py-4">
             {/* Basic Information */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Basic Information</h3>
+              <h3 className="text-[15px] font-medium text-foreground">Basic Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Product Name *</Label>
@@ -141,7 +141,7 @@ export function EditProductDialog({ open, onOpenChange, onSuccess, product }) {
 
             {/* Interest Rate */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Interest Rate (%)</h3>
+              <h3 className="text-[15px] font-medium text-foreground">Interest Rate (%)</h3>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Minimum</Label>
@@ -187,7 +187,7 @@ export function EditProductDialog({ open, onOpenChange, onSuccess, product }) {
 
             {/* Loan Amount */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Loan Amount (K)</h3>
+              <h3 className="text-[15px] font-medium text-foreground">Loan Amount (K)</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Minimum</Label>
@@ -218,7 +218,7 @@ export function EditProductDialog({ open, onOpenChange, onSuccess, product }) {
 
             {/* Loan Term */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">
+              <h3 className="text-[15px] font-medium text-foreground">
                 Loan Term ({formData.term.unit === 'days' ? 'Days' : formData.term.unit === 'weeks' ? 'Weeks' : 'Months'})
               </h3>
               <div className="grid grid-cols-4 gap-4">
@@ -278,7 +278,7 @@ export function EditProductDialog({ open, onOpenChange, onSuccess, product }) {
 
             {/* Calculation Method */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Interest Calculation</h3>
+              <h3 className="text-[15px] font-medium text-foreground">Interest Calculation</h3>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Method</Label>
@@ -331,7 +331,7 @@ export function EditProductDialog({ open, onOpenChange, onSuccess, product }) {
 
             {/* Fees */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Processing Fee</h3>
+              <h3 className="text-[15px] font-medium text-foreground">Processing Fee</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Type</Label>

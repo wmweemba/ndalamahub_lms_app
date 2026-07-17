@@ -1,17 +1,27 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription } from '@/components/ui/card';
+import { toast } from 'sonner';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle 
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import ProductSelector from './ProductSelector';
 import api from '@/utils/api';
-import { DollarSign, FileText, ArrowLeft, Calculator, Info } from 'lucide-react';
+import { formatCurrency, formatTerm, formatRateBasis } from '@/lib/format';
+import { ArrowLeft } from 'lucide-react';
 
 export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
   const [step, setStep] = useState(1); // 1: Select Product, 2: Loan Details
@@ -88,8 +98,7 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
         if (response.data.success) {
           setPaymentSchedule(response.data.data);
         }
-      } catch (err) {
-        console.error('Error fetching payment schedule:', err);
+      } catch {
         setPaymentSchedule(null);
       }
     };
@@ -113,8 +122,8 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
       if (response.data.success) {
         setCurrentUser(response.data.data.user);
       }
-    } catch (err) {
-      console.error('Failed to fetch current user:', err);
+    } catch {
+      // best-effort; the "Full name" field just stays blank
     }
   };
 
@@ -129,7 +138,13 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
       monthlyIncome: '',
       collateralType: '',
       collateralValue: '',
-      collateralDescription: ''
+      collateralDescription: '',
+      gracePeriod: 0,
+      graceType: 'none',
+      moratoriumActive: false,
+      moratoriumStart: '',
+      moratoriumEnd: '',
+      moratoriumReason: ''
     });
     setFeeCalculation(null);
     setPaymentSchedule(null);
@@ -147,8 +162,8 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
       if (response.data.success) {
         setFeeCalculation(response.data.data);
       }
-    } catch (err) {
-      console.error('Failed to calculate fees:', err);
+    } catch {
+      // fee preview is best-effort; leave feeCalculation unset on failure
     }
   };
 
@@ -158,10 +173,10 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
   };
 
@@ -181,11 +196,11 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
 
       // Validate against product limits
       if (amount < selectedProduct.amount.min || amount > selectedProduct.amount.max) {
-        throw new Error(`Loan amount must be between ${selectedProduct.amount.currency} ${selectedProduct.amount.min.toLocaleString()} and ${selectedProduct.amount.currency} ${selectedProduct.amount.max.toLocaleString()}`);
+        throw new Error(`Loan amount must be between ${formatCurrency(selectedProduct.amount.min)} and ${formatCurrency(selectedProduct.amount.max)}`);
       }
 
       if (term < selectedProduct.term.min || term > selectedProduct.term.max) {
-        throw new Error(`Loan term must be between ${selectedProduct.term.min} and ${selectedProduct.term.max} months`);
+        throw new Error(`Loan term must be between ${formatTerm(selectedProduct.term.min, selectedProduct.term.unit)} and ${formatTerm(selectedProduct.term.max, selectedProduct.term.unit)}`);
       }
 
       // Prepare loan application data
@@ -212,14 +227,16 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
       };
 
       const response = await api.post('/loans', loanData);
-      
+
       if (response.data.success) {
+        toast.success('Application submitted');
         onSuccess();
         onClose();
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to submit loan application');
-      console.error('Loan application error:', err);
+      const message = err.response?.data?.message || err.message || 'Failed to submit loan application';
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -229,16 +246,15 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="w-full max-w-4xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center text-lg sm:text-xl">
-            <FileText className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" />
-            {step === 1 ? 'Select Loan Product' : 'Loan Application'}
+          <DialogTitle className="text-[22px] font-medium">
+            {step === 1 ? 'Select loan product' : 'Loan application'}
           </DialogTitle>
         </DialogHeader>
 
         {/* Step 1: Product Selection */}
         {step === 1 && (
           <div className="space-y-4">
-            <ProductSelector 
+            <ProductSelector
               onSelect={handleProductSelect}
               selectedProduct={selectedProduct}
             />
@@ -249,12 +265,11 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
         {step === 2 && (
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-3 sm:p-4 text-sm">
+              <div className="bg-status-danger-bg text-status-danger-fg rounded-2xl p-3 sm:p-4 text-sm">
                 {error}
               </div>
             )}
 
-            {/* Back Button */}
             <Button
               type="button"
               variant="ghost"
@@ -263,40 +278,43 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
               className="mb-2"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Change Product
+              Change product
             </Button>
 
             {/* Selected Product Summary */}
-            <Card className="bg-blue-50 border-blue-200">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="font-semibold text-blue-900">{selectedProduct?.name}</h4>
-                    <CardDescription className="text-sm text-blue-700 mt-1">
-                      {selectedProduct?.interestRate.default}% APR • {selectedProduct?.term.min}-{selectedProduct?.term.max} months • {selectedProduct?.amount.currency} {selectedProduct?.amount.min.toLocaleString()}-{selectedProduct?.amount.max.toLocaleString()}
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardContent>
+            <Card className="rounded-2xl border-border bg-status-info-bg p-4">
+              <h4 className="text-[15px] font-medium text-foreground">{selectedProduct?.name}</h4>
+              <p className="text-sm text-status-info-fg mt-1 font-mono">
+                {selectedProduct && formatRateBasis(
+                  selectedProduct.interestRate.default,
+                  selectedProduct.interestCalculation.method,
+                  selectedProduct.interestCalculation.rateBasis
+                )}
+                {' • '}
+                {selectedProduct && formatTerm(selectedProduct.term.min, selectedProduct.term.unit)}–
+                {selectedProduct && formatTerm(selectedProduct.term.max, selectedProduct.term.unit)}
+                {' • '}
+                {selectedProduct && formatCurrency(selectedProduct.amount.min)}–{selectedProduct && formatCurrency(selectedProduct.amount.max)}
+              </p>
             </Card>
 
             {/* Applicant Information */}
-            <Card className="p-3 sm:p-4">
-              <h3 className="text-base font-medium text-gray-900 mb-3">
-                Applicant Information
+            <Card className="rounded-2xl border-border p-3 sm:p-4">
+              <h3 className="text-[15px] font-medium text-foreground mb-3">
+                Applicant information
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-sm font-medium text-gray-700">Full Name</Label>
-                  <Input 
+                  <Label className="text-sm font-medium text-foreground">Full name</Label>
+                  <Input
                     value={currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : ''}
                     disabled
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="monthlyIncome" className="text-sm font-medium text-gray-700">
-                    Monthly Income ({selectedProduct?.amount.currency}) *
+                  <Label htmlFor="monthlyIncome" className="text-sm font-medium text-foreground">
+                    Monthly income ({selectedProduct?.amount.currency}) *
                   </Label>
                   <Input
                     id="monthlyIncome"
@@ -308,23 +326,22 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
                     onChange={handleChange}
                     placeholder="e.g., 15000"
                     required
-                    className="mt-1"
+                    className="mt-1 font-mono"
                   />
                 </div>
               </div>
             </Card>
 
             {/* Loan Details */}
-            <Card className="p-3 sm:p-4">
-              <h3 className="text-base font-medium text-gray-900 mb-3 flex items-center">
-                <DollarSign className="w-4 h-4 mr-2 text-blue-600" />
-                Loan Details
+            <Card className="rounded-2xl border-border p-3 sm:p-4">
+              <h3 className="text-[15px] font-medium text-foreground mb-3">
+                Loan details
               </h3>
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="amount" className="text-sm font-medium text-gray-700">
-                      Loan Amount ({selectedProduct?.amount.currency}) *
+                    <Label htmlFor="amount" className="text-sm font-medium text-foreground">
+                      Loan amount ({selectedProduct?.amount.currency}) *
                     </Label>
                     <Input
                       id="amount"
@@ -337,46 +354,44 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
                       onChange={handleChange}
                       placeholder={`${selectedProduct?.amount.min} - ${selectedProduct?.amount.max}`}
                       required
-                      className="mt-1"
+                      className="mt-1 font-mono"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Min: {selectedProduct?.amount.currency} {selectedProduct?.amount.min.toLocaleString()} • Max: {selectedProduct?.amount.currency} {selectedProduct?.amount.max.toLocaleString()}
+                    <p className="text-xs text-muted-foreground mt-1 font-mono">
+                      Min: {selectedProduct && formatCurrency(selectedProduct.amount.min)} • Max: {selectedProduct && formatCurrency(selectedProduct.amount.max)}
                     </p>
                   </div>
                   <div>
-                    <Label htmlFor="term" className="text-sm font-medium text-gray-700">
-                      Loan Term (months) *
+                    <Label htmlFor="term" className="text-sm font-medium text-foreground">
+                      Loan term ({selectedProduct?.term.unit || 'months'}) *
                     </Label>
-                    <select
-                      id="term"
-                      name="term"
+                    <Select
                       value={formData.term}
-                      onChange={handleChange}
-                      required
-                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      onValueChange={(value) => setFormData((prev) => ({ ...prev, term: value }))}
                     >
-                      <option value="">Select term</option>
-                      {Array.from(
-                        { length: selectedProduct?.term.max - selectedProduct?.term.min + 1 },
-                        (_, i) => selectedProduct?.term.min + i
-                      ).filter(n => {
-                        // For short-term loans (≤12 months), show all options
-                        if (selectedProduct?.term.max <= 12) return true;
-                        // For long-term loans, show multiples of 6 or default
-                        return n % 6 === 0 || n === selectedProduct?.term.default;
-                      }).map(months => (
-                        <option key={months} value={months}>
-                          {months} months
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger id="term" className="mt-1">
+                        <SelectValue placeholder="Select term" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from(
+                          { length: (selectedProduct?.term.max || 0) - (selectedProduct?.term.min || 0) + 1 },
+                          (_, i) => (selectedProduct?.term.min || 0) + i
+                        ).filter(n => {
+                          if ((selectedProduct?.term.max || 0) <= 12) return true;
+                          return n % 6 === 0 || n === selectedProduct?.term.default;
+                        }).map(term => (
+                          <SelectItem key={term} value={term.toString()}>
+                            {formatTerm(term, selectedProduct?.term.unit)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
                 {/* Grace Period & Moratorium Fields */}
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="gracePeriod" className="text-sm font-medium text-gray-700">Grace Period (months)</Label>
+                    <Label htmlFor="gracePeriod" className="text-sm font-medium text-foreground">Grace period (months)</Label>
                     <Input
                       id="gracePeriod"
                       name="gracePeriod"
@@ -385,22 +400,24 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
                       max="12"
                       value={formData.gracePeriod}
                       onChange={handleChange}
-                      className="mt-1"
+                      className="mt-1 font-mono"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="graceType" className="text-sm font-medium text-gray-700">Grace Type</Label>
-                    <select
-                      id="graceType"
-                      name="graceType"
+                    <Label htmlFor="graceType" className="text-sm font-medium text-foreground">Grace type</Label>
+                    <Select
                       value={formData.graceType}
-                      onChange={handleChange}
-                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      onValueChange={(value) => setFormData((prev) => ({ ...prev, graceType: value }))}
                     >
-                      <option value="none">None</option>
-                      <option value="principal_only">Principal Only</option>
-                      <option value="full_moratorium">Full Moratorium</option>
-                    </select>
+                      <SelectTrigger id="graceType" className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="principal_only">Principal only</SelectItem>
+                        <SelectItem value="full_moratorium">Full moratorium</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -411,14 +428,14 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
                         name="moratoriumActive"
                         checked={formData.moratoriumActive}
                         onChange={handleChange}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        className="h-4 w-4 rounded border-border"
                       />
-                      <span className="ml-2 text-sm text-gray-700">Apply Moratorium</span>
+                      <span className="ml-2 text-sm text-foreground">Apply moratorium</span>
                     </label>
                   </div>
                   {formData.moratoriumActive && (
                     <div className="grid grid-cols-1 gap-3">
-                      <Label htmlFor="moratoriumStart" className="text-sm font-medium text-gray-700">Moratorium Start Date</Label>
+                      <Label htmlFor="moratoriumStart" className="text-sm font-medium text-foreground">Moratorium start date</Label>
                       <Input
                         id="moratoriumStart"
                         name="moratoriumStart"
@@ -427,7 +444,7 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
                         onChange={handleChange}
                         className="mt-1"
                       />
-                      <Label htmlFor="moratoriumEnd" className="text-sm font-medium text-gray-700">Moratorium End Date</Label>
+                      <Label htmlFor="moratoriumEnd" className="text-sm font-medium text-foreground">Moratorium end date</Label>
                       <Input
                         id="moratoriumEnd"
                         name="moratoriumEnd"
@@ -436,7 +453,7 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
                         onChange={handleChange}
                         className="mt-1"
                       />
-                      <Label htmlFor="moratoriumReason" className="text-sm font-medium text-gray-700">Moratorium Reason</Label>
+                      <Label htmlFor="moratoriumReason" className="text-sm font-medium text-foreground">Moratorium reason</Label>
                       <Input
                         id="moratoriumReason"
                         name="moratoriumReason"
@@ -450,8 +467,8 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="purpose" className="text-sm font-medium text-gray-700">
-                    Loan Purpose *
+                  <Label htmlFor="purpose" className="text-sm font-medium text-foreground">
+                    Loan purpose *
                   </Label>
                   <Input
                     id="purpose"
@@ -466,16 +483,16 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="description" className="text-sm font-medium text-gray-700">
-                    Additional Details (Optional)
+                  <Label htmlFor="description" className="text-sm font-medium text-foreground">
+                    Additional details (optional)
                   </Label>
-                  <textarea
+                  <Textarea
                     id="description"
                     name="description"
                     value={formData.description}
                     onChange={handleChange}
                     placeholder="Provide any additional information about your loan request..."
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-h-[80px]"
+                    className="mt-1 min-h-[80px]"
                     maxLength="500"
                   />
                 </div>
@@ -484,37 +501,37 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
 
             {/* Collateral Information (optional for all products) */}
             {selectedProduct && (
-              <Card className="p-3 sm:p-4">
-                <h3 className="text-base font-medium text-gray-900 mb-3">
-                  Collateral Details {selectedProduct.collateralRequired && <span className="text-red-500">*</span>} {!selectedProduct.collateralRequired && <span className="text-xs text-gray-500">(Optional)</span>}
+              <Card className="rounded-2xl border-border p-3 sm:p-4">
+                <h3 className="text-[15px] font-medium text-foreground mb-3">
+                  Collateral details {selectedProduct.collateralRequired && <span className="text-destructive">*</span>} {!selectedProduct.collateralRequired && <span className="text-xs text-muted-foreground">(Optional)</span>}
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <Label htmlFor="collateralType" className="text-sm font-medium text-gray-700">
-                      Collateral Type {selectedProduct.collateralRequired && '*'}
+                    <Label htmlFor="collateralType" className="text-sm font-medium text-foreground">
+                      Collateral type {selectedProduct.collateralRequired && '*'}
                     </Label>
-                    <select
-                      id="collateralType"
-                      name="collateralType"
+                    <Select
                       value={formData.collateralType}
-                      onChange={handleChange}
-                      required={selectedProduct.collateralRequired}
-                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      onValueChange={(value) => setFormData((prev) => ({ ...prev, collateralType: value }))}
                     >
-                      <option value="">Select collateral type</option>
-                      <option value="property">Property</option>
-                      <option value="vehicle">Vehicle</option>
-                      <option value="equipment">Equipment</option>
-                      <option value="inventory">Inventory</option>
-                      <option value="securities">Securities</option>
-                      <option value="guarantor">Guarantor</option>
-                      <option value="other">Other</option>
-                    </select>
+                      <SelectTrigger id="collateralType" className="mt-1">
+                        <SelectValue placeholder="Select collateral type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="property">Property</SelectItem>
+                        <SelectItem value="vehicle">Vehicle</SelectItem>
+                        <SelectItem value="equipment">Equipment</SelectItem>
+                        <SelectItem value="inventory">Inventory</SelectItem>
+                        <SelectItem value="securities">Securities</SelectItem>
+                        <SelectItem value="guarantor">Guarantor</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <Label htmlFor="collateralValue" className="text-sm font-medium text-gray-700">
-                        Estimated Value ({selectedProduct?.amount.currency}) {selectedProduct.collateralRequired && '*'}
+                      <Label htmlFor="collateralValue" className="text-sm font-medium text-foreground">
+                        Estimated value ({selectedProduct?.amount.currency}) {selectedProduct.collateralRequired && '*'}
                       </Label>
                       <Input
                         id="collateralValue"
@@ -526,11 +543,11 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
                         onChange={handleChange}
                         placeholder="e.g., 50000"
                         required={selectedProduct.collateralRequired}
-                        className="mt-1"
+                        className="mt-1 font-mono"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="collateralDescription" className="text-sm font-medium text-gray-700">
+                      <Label htmlFor="collateralDescription" className="text-sm font-medium text-foreground">
                         Description {selectedProduct.collateralRequired && '*'}
                       </Label>
                       <Input
@@ -551,44 +568,42 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
 
             {/* Fee Calculation */}
             {feeCalculation && (
-              <Card className="p-3 sm:p-4 bg-gray-50">
-                <h3 className="text-base font-medium text-gray-900 mb-3 flex items-center">
-                  <Calculator className="w-4 h-4 mr-2 text-blue-600" />
-                  Fee Breakdown
+              <Card className="rounded-2xl border-border p-3 sm:p-4">
+                <h3 className="text-[15px] font-medium text-foreground mb-3">
+                  Fee breakdown
                 </h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Loan Amount:</span>
-                    <span className="font-medium">{feeCalculation.currency} {feeCalculation.loanAmount.toLocaleString()}</span>
+                    <span className="text-muted-foreground">Loan amount</span>
+                    <span className="font-mono font-medium text-foreground">{formatCurrency(feeCalculation.loanAmount)}</span>
                   </div>
                   {feeCalculation.fees.processingFee > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Processing Fee:</span>
-                      <span className="font-medium text-orange-600">
-                        {feeCalculation.currency} {feeCalculation.fees.processingFee.toLocaleString()}
+                      <span className="text-muted-foreground">Processing fee</span>
+                      <span className="font-mono font-medium text-status-warning-fg">
+                        {formatCurrency(feeCalculation.fees.processingFee)}
                       </span>
                     </div>
                   )}
                   {feeCalculation.fees.insuranceFee > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Insurance Fee:</span>
-                      <span className="font-medium text-orange-600">
-                        {feeCalculation.currency} {feeCalculation.fees.insuranceFee.toLocaleString()}
+                      <span className="text-muted-foreground">Insurance fee</span>
+                      <span className="font-mono font-medium text-status-warning-fg">
+                        {formatCurrency(feeCalculation.fees.insuranceFee)}
                       </span>
                     </div>
                   )}
                   {feeCalculation.fees.totalUpfrontFees > 0 && (
                     <>
-                      <div className="border-t pt-2 flex justify-between font-semibold">
-                        <span className="text-gray-900">Net Disbursement:</span>
-                        <span className="text-green-600">
-                          {feeCalculation.currency} {feeCalculation.netDisbursement.toLocaleString()}
+                      <div className="border-t border-border pt-2 flex justify-between">
+                        <span className="font-medium text-foreground">Net disbursement</span>
+                        <span className="font-mono font-medium text-status-success-fg">
+                          {formatCurrency(feeCalculation.netDisbursement)}
                         </span>
                       </div>
-                      <div className="flex items-start gap-2 text-xs text-gray-600 bg-blue-50 p-2 rounded">
-                        <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                        <span>Fees will be deducted from the loan amount upon disbursement</span>
-                      </div>
+                      <p className="text-xs text-muted-foreground bg-status-info-bg text-status-info-fg p-2 rounded-2xl">
+                        Fees will be deducted from the loan amount upon disbursement
+                      </p>
                     </>
                   )}
                 </div>
@@ -597,30 +612,28 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
 
             {/* Payment Schedule Preview */}
             {paymentSchedule && (
-              <Card className="p-3 sm:p-4 bg-green-50 border-green-200">
-                <h3 className="text-base font-medium text-gray-900 mb-3 flex items-center">
-                  <Info className="w-4 h-4 mr-2 text-green-600" />
-                  Repayment Preview
+              <Card className="rounded-2xl border-border p-3 sm:p-4">
+                <h3 className="text-[15px] font-medium text-foreground mb-3">
+                  Repayment preview
                 </h3>
                 <div className="space-y-3">
-                  {/* Summary */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                    <div className="bg-white p-3 rounded border border-green-200">
-                      <div className="text-gray-600 text-xs mb-1">Monthly Payment</div>
-                      <div className="font-bold text-green-700 text-lg">
-                        {feeCalculation?.currency || 'ZMW'} {paymentSchedule.monthlyPayment?.toLocaleString() || 'N/A'}
+                    <div className="bg-status-info-bg rounded-2xl p-3">
+                      <div className="text-status-info-fg text-xs mb-1">Payment</div>
+                      <div className="font-mono font-medium text-status-info-fg text-lg">
+                        {paymentSchedule.monthlyPayment !== undefined ? formatCurrency(paymentSchedule.monthlyPayment) : 'N/A'}
                       </div>
                     </div>
-                    <div className="bg-white p-3 rounded border border-green-200">
-                      <div className="text-gray-600 text-xs mb-1">Total Repayment</div>
-                      <div className="font-bold text-blue-700 text-lg">
-                        {feeCalculation?.currency || 'ZMW'} {paymentSchedule.totalRepayment?.toLocaleString() || 'N/A'}
+                    <div className="bg-status-info-bg rounded-2xl p-3">
+                      <div className="text-status-info-fg text-xs mb-1">Total repayment</div>
+                      <div className="font-mono font-medium text-status-info-fg text-lg">
+                        {paymentSchedule.totalRepayment !== undefined ? formatCurrency(paymentSchedule.totalRepayment) : 'N/A'}
                       </div>
                     </div>
-                    <div className="bg-white p-3 rounded border border-green-200">
-                      <div className="text-gray-600 text-xs mb-1">Total Interest</div>
-                      <div className="font-bold text-orange-700 text-lg">
-                        {feeCalculation?.currency || 'ZMW'} {paymentSchedule.totalInterest?.toLocaleString() || 'N/A'}
+                    <div className="bg-status-info-bg rounded-2xl p-3">
+                      <div className="text-status-info-fg text-xs mb-1">Total interest</div>
+                      <div className="font-mono font-medium text-status-info-fg text-lg">
+                        {paymentSchedule.totalInterest !== undefined ? formatCurrency(paymentSchedule.totalInterest) : 'N/A'}
                       </div>
                     </div>
                   </div>
@@ -628,33 +641,33 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
                   {/* First 3 Installments Preview */}
                   {paymentSchedule.schedule && paymentSchedule.schedule.length > 0 && (
                     <div className="mt-3">
-                      <div className="text-xs font-medium text-gray-700 mb-2">First 3 Installments:</div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs border border-gray-200 rounded">
-                          <thead className="bg-gray-100">
-                            <tr>
-                              <th className="px-2 py-1 text-left">#</th>
-                              <th className="px-2 py-1 text-right">Principal</th>
-                              <th className="px-2 py-1 text-right">Interest</th>
-                              <th className="px-2 py-1 text-right">Payment</th>
-                              <th className="px-2 py-1 text-right">Balance</th>
+                      <div className="text-xs font-medium text-muted-foreground mb-2">First 3 installments:</div>
+                      <div className="overflow-x-auto rounded-2xl border border-border">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-border">
+                              <th className="px-2 py-1 text-left text-muted-foreground">#</th>
+                              <th className="px-2 py-1 text-right text-muted-foreground">Principal</th>
+                              <th className="px-2 py-1 text-right text-muted-foreground">Interest</th>
+                              <th className="px-2 py-1 text-right text-muted-foreground">Payment</th>
+                              <th className="px-2 py-1 text-right text-muted-foreground">Balance</th>
                             </tr>
                           </thead>
-                          <tbody className="bg-white">
+                          <tbody>
                             {paymentSchedule.schedule.slice(0, 3).map((inst, idx) => (
-                              <tr key={idx} className="border-t border-gray-100">
+                              <tr key={idx} className="border-b border-border last:border-0">
                                 <td className="px-2 py-1">{inst.installmentNumber}</td>
-                                <td className="px-2 py-1 text-right">{inst.principalPayment?.toLocaleString()}</td>
-                                <td className="px-2 py-1 text-right">{inst.interestPayment?.toLocaleString()}</td>
-                                <td className="px-2 py-1 text-right font-medium">{inst.totalPayment?.toLocaleString()}</td>
-                                <td className="px-2 py-1 text-right text-gray-600">{inst.remainingBalance?.toLocaleString()}</td>
+                                <td className="px-2 py-1 text-right font-mono">{formatCurrency(inst.principalPayment)}</td>
+                                <td className="px-2 py-1 text-right font-mono">{formatCurrency(inst.interestPayment)}</td>
+                                <td className="px-2 py-1 text-right font-mono font-medium">{formatCurrency(inst.totalPayment)}</td>
+                                <td className="px-2 py-1 text-right font-mono text-muted-foreground">{formatCurrency(inst.remainingBalance)}</td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
                       {paymentSchedule.schedule.length > 3 && (
-                        <div className="text-xs text-gray-500 mt-1 text-center">
+                        <div className="text-xs text-muted-foreground mt-1 text-center">
                           ... and {paymentSchedule.schedule.length - 3} more installments
                         </div>
                       )}
@@ -665,7 +678,7 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
             )}
 
             {/* Submit Button */}
-            <div className="flex gap-3 pt-4 border-t">
+            <div className="flex gap-3 pt-4 border-t border-border">
               <Button
                 type="button"
                 variant="outline"
@@ -680,7 +693,7 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
                 disabled={loading}
                 className="flex-1"
               >
-                {loading ? 'Submitting...' : 'Submit Application'}
+                {loading ? 'Submitting…' : 'Submit application'}
               </Button>
             </div>
           </form>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,8 +85,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
         isActive: true
       });
     } catch (error) {
-      console.error('Error creating product:', error);
-      alert(error.response?.data?.message || 'Failed to create product');
+      toast.error(error.response?.data?.message || 'Failed to create product');
     } finally {
       setLoading(false);
     }
@@ -105,7 +105,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
           <div className="space-y-6 py-4">
             {/* Basic Information */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Basic Information</h3>
+              <h3 className="text-[15px] font-medium text-foreground">Basic Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Product Name *</Label>
@@ -155,7 +155,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
 
             {/* Interest Rate */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Interest Rate (%)</h3>
+              <h3 className="text-[15px] font-medium text-foreground">Interest Rate (%)</h3>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="interestMin">Minimum</Label>
@@ -204,7 +204,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
 
             {/* Loan Amount */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Loan Amount (K)</h3>
+              <h3 className="text-[15px] font-medium text-foreground">Loan Amount (K)</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="amountMin">Minimum</Label>
@@ -237,7 +237,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
 
             {/* Loan Term */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">
+              <h3 className="text-[15px] font-medium text-foreground">
                 Loan Term ({formData.term.unit === 'days' ? 'Days' : formData.term.unit === 'weeks' ? 'Weeks' : 'Months'})
               </h3>
               <div className="grid grid-cols-4 gap-4">
@@ -301,7 +301,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
 
             {/* Calculation Method */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Interest Calculation</h3>
+              <h3 className="text-[15px] font-medium text-foreground">Interest Calculation</h3>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="method">Calculation Method</Label>
@@ -357,7 +357,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
 
             {/* Fees Section */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Fees</h3>
+              <h3 className="text-[15px] font-medium text-foreground">Fees</h3>
               
               {/* Processing Fee */}
               <div className="grid grid-cols-2 gap-4">
@@ -437,9 +437,9 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
                           ...formData,
                           fees: { ...formData.fees, insuranceFee: { ...formData.fees.insuranceFee, required: e.target.checked } }
                         })}
-                        className="h-4 w-4 rounded border-gray-300"
+                        className="h-4 w-4 rounded border-border"
                       />
-                      <label htmlFor="insuranceRequired" className="ml-2 text-sm text-gray-600">
+                      <label htmlFor="insuranceRequired" className="ml-2 text-sm text-muted-foreground">
                         Mandatory
                       </label>
                     </div>
@@ -450,7 +450,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
 
             {/* Repayment Frequency */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Repayment Frequency</h3>
+              <h3 className="text-[15px] font-medium text-foreground">Repayment Frequency</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {['monthly', 'weekly', 'bi_weekly', 'quarterly', 'annually'].map(freq => (
                   <label key={freq} className="flex items-center space-x-2 cursor-pointer">
@@ -463,7 +463,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
                           : formData.repaymentFrequency.filter(f => f !== freq);
                         setFormData({ ...formData, repaymentFrequency: updated });
                       }}
-                      className="h-4 w-4 rounded border-gray-300"
+                      className="h-4 w-4 rounded border-border"
                     />
                     <span className="text-sm capitalize">{freq.replace('_', ' ')}</span>
                   </label>
@@ -473,14 +473,14 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
 
             {/* Collateral */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Collateral Requirements</h3>
+              <h3 className="text-[15px] font-medium text-foreground">Collateral Requirements</h3>
               <div className="flex items-center space-x-2 mb-3">
                 <input
                   type="checkbox"
                   id="collateralRequired"
                   checked={formData.collateralRequired}
                   onChange={(e) => setFormData({ ...formData, collateralRequired: e.target.checked })}
-                  className="h-4 w-4 rounded border-gray-300"
+                  className="h-4 w-4 rounded border-border"
                 />
                 <Label htmlFor="collateralRequired">Collateral Required</Label>
               </div>
@@ -497,7 +497,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
                             : (formData.collateralTypes || []).filter(t => t !== type);
                           setFormData({ ...formData, collateralTypes: updated });
                         }}
-                        className="h-4 w-4 rounded border-gray-300"
+                        className="h-4 w-4 rounded border-border"
                       />
                       <span className="text-sm capitalize">{type}</span>
                     </label>
@@ -508,7 +508,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
 
             {/* Grace Period */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Grace Period</h3>
+              <h3 className="text-[15px] font-medium text-foreground">Grace Period</h3>
               <div className="flex items-center space-x-2 mb-3">
                 <input
                   type="checkbox"
@@ -518,7 +518,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
                     ...formData,
                     gracePeriod: { ...formData.gracePeriod, allowed: e.target.checked }
                   })}
-                  className="h-4 w-4 rounded border-gray-300"
+                  className="h-4 w-4 rounded border-border"
                 />
                 <Label htmlFor="gracePeriodAllowed">Allow Grace Period</Label>
               </div>
@@ -559,7 +559,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
 
             {/* Prepayment */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Prepayment Settings</h3>
+              <h3 className="text-[15px] font-medium text-foreground">Prepayment Settings</h3>
               <div className="flex items-center space-x-2 mb-3">
                 <input
                   type="checkbox"
@@ -569,7 +569,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
                     ...formData,
                     prepayment: { ...formData.prepayment, allowed: e.target.checked }
                   })}
-                  className="h-4 w-4 rounded border-gray-300"
+                  className="h-4 w-4 rounded border-border"
                 />
                 <Label htmlFor="prepaymentAllowed">Allow Prepayment</Label>
               </div>
@@ -584,7 +584,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
                         ...formData,
                         prepayment: { ...formData.prepayment, penalty: e.target.checked }
                       })}
-                      className="h-4 w-4 rounded border-gray-300"
+                      className="h-4 w-4 rounded border-border"
                     />
                     <Label htmlFor="prepaymentPenalty">Prepayment Penalty</Label>
                   </div>
@@ -611,7 +611,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }) {
 
             {/* Eligibility */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Eligibility Criteria</h3>
+              <h3 className="text-[15px] font-medium text-foreground">Eligibility Criteria</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="minAge">Minimum Age</Label>

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AppLayout from './AppLayout';
@@ -55,5 +55,17 @@ describe('AppLayout', () => {
   it('redirects to /login when no user is seeded', () => {
     renderApp('/dashboard');
     expect(screen.getByText('Login Page')).toBeInTheDocument();
+  });
+
+  it('renders exactly Dashboard/Loans/Support in the borrower bottom nav, no Settings', () => {
+    seedUser({ _id: '3', username: 'borrower1', role: 'borrower', firstName: 'Bo' });
+    renderApp('/dashboard');
+
+    const nav = screen.getByRole('navigation', { name: 'Bottom navigation' });
+    expect(nav).toHaveTextContent('Dashboard');
+    expect(nav).toHaveTextContent('Loans');
+    expect(nav).toHaveTextContent('Support');
+    expect(nav).not.toHaveTextContent('Settings');
+    expect(within(nav).getAllByRole('link')).toHaveLength(3);
   });
 });

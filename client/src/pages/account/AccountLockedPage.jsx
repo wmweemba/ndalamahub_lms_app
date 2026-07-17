@@ -18,12 +18,13 @@ export default function AccountLockedPage() {
   const isLenderSide = currentUser && LENDER_SIDE_ROLES.includes(currentUser.role);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <Card className="max-w-md w-full">
-        <CardHeader>
-          <CardTitle className="text-xl">Account access locked</CardTitle>
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <Card className="max-w-md w-full rounded-2xl">
+        <CardHeader className="text-center">
+          <img src="/brand/svg/NdalamaHub-icon.svg" alt="" className="h-10 w-10 mx-auto mb-3" />
+          <CardTitle className="text-xl font-medium text-foreground">Account access locked</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-sm text-gray-600">
+        <CardContent className="space-y-4 text-sm text-muted-foreground">
           {isLenderSide ? (
             <p>
               Your organisation's NdalamaHub subscription is inactive

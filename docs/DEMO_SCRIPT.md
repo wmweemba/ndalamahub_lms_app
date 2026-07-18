@@ -10,10 +10,10 @@
 
 | Login | Role | Company | Used for |
 |---|---|---|---|
-| `manager` | lender_admin | FirstBank Lending (the demo lender tenant) | Main demo driver: dashboard, disburse, repayment, reports |
+| `manager` | lender_admin | Manifi Investments Demo (the demo lender tenant — renamed from "FirstBank Lending" for this demo, 2026-07-18) | Main demo driver: dashboard, disburse, repayment, reports |
 | `hr_sarah` | employer_hr | TechCorp Zambia (employer client) | Approving the loan application |
 | `john_employee` | borrower | TechCorp Zambia | The borrower experience (has loan history, so his dashboard renders fully) |
-| `loan_officer` | lender_officer | FirstBank Lending | Backup only — shows the officer view if asked |
+| `loan_officer` | lender_officer | Manifi Investments Demo | Backup only — shows the officer view if asked |
 | `superadmin` | platform_admin | — | **Backstage only** — Nexus's internal view; don't show unless it serves the conversation (see §6) |
 
 **The product:** "Manifi Payday Product" — 25% flat per term, 30-day term — already configured and verified rendering exactly as "25% flat per term" / "30 days". This is Clement's own confirmed product terms live in the system, which is itself a talking point: *his product was configured, not coded*.
@@ -24,8 +24,8 @@
 
 **A few days before (decisions + optional polish — see §5 for the quirk list):**
 
-- [ ] **Decide: rename the demo lender.** Clement will see "FirstBank Lending" as his company name on the dashboard subtitle and throughout. Renaming it to "Manifi Investments" via the Companies edit dialog (as `manager` or `superadmin`) takes one minute and makes the whole demo read as *his* tenant. Recommended. (Reversible the same way; it's dummy data.)
-- [ ] **Decide: pre-demo micro-hotfix or route around** the two cosmetic-but-visible quirks in §5 (the "Welcome, !" empty name on a fresh borrower's dashboard, and the payment-history "Total paid" header mismatch). Both have small client-only fixes; if you want them fixed, have the planning agent scope a one-commit hotfix doc for Sonnet — don't fix ad hoc.
+- [x] **Rename the demo lender** — decided 2026-07-18: "FirstBank Lending" → **"Manifi Investments Demo"** (data-only change on the Atlas dev DB, executed by Sonnet). Verify the dashboard subtitle shows the new name during the dry run.
+- [x] **Quirks decision** — decided 2026-07-18: no pre-demo hotfix; follow the route-arounds in §5 as written.
 - [ ] Do one full dry run of this script yourself against the Netlify environment (the rehearsal ran against localhost; the environment differs only in hosting, but verify once on the real URL end to end — especially login for all accounts and the Excel export download).
 
 **30 minutes before:**

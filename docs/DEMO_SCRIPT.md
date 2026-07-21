@@ -6,15 +6,17 @@
 
 ---
 
-## 1. Cast of accounts (all existing, all password `TestVerify@2026`)
+## 1. Cast of accounts
 
-| Login | Role | Company | Used for |
-|---|---|---|---|
-| `manager` | lender_admin | Manifi Investments Demo (the demo lender tenant — renamed from "FirstBank Lending" for this demo, 2026-07-18) | Main demo driver: dashboard, disburse, repayment, reports |
-| `hr_sarah` | employer_hr | TechCorp Zambia (employer client) | Approving the loan application |
-| `john_employee` | borrower | TechCorp Zambia | The borrower experience (has loan history, so his dashboard renders fully) |
-| `loan_officer` | lender_officer | Manifi Investments Demo | Backup only — shows the officer view if asked |
-| `superadmin` | platform_admin | — | **Backstage only** — Nexus's internal view; don't show unless it serves the conversation (see §6) |
+| Login | Password | Role | Company | Used for |
+|---|---|---|---|---|
+| `manager` | `TestVerify@2026` | lender_admin | Manifi Investments Demo (the demo lender tenant — renamed from "FirstBank Lending" for this demo, 2026-07-18) | Main demo driver: dashboard, disburse, repayment, reports |
+| `hr_sarah` | `TestVerify@2026` | employer_hr | TechCorp Zambia (employer client) | Approving the loan application |
+| `john_employee` | `TestVerify@2026` | borrower | TechCorp Zambia | The borrower experience (has loan history, so his dashboard renders fully) |
+| `loan_officer` | `TestVerify@2026` | lender_officer | Manifi Investments Demo | Backup only — shows the officer view if asked |
+| `superadmin` | `TestVerify@2026` | platform_admin | — | **Backstage only** — Nexus's internal view; don't show unless it serves the conversation (see §6) |
+
+All five passwords were set to this same value during build verification (Phase 12 close-out, 2026-07-17) and confirmed again working during the Phase 17 dress rehearsal (2026-07-17) — same convention throughout, non-production data. **Verify all five logins as your first checklist item below**, before anything else — if Clement's session starts and one doesn't work, you want to know now, not live.
 
 **The product:** "Manifi Payday Product" — 25% flat per term, 30-day term — already configured and verified rendering exactly as "25% flat per term" / "30 days". This is Clement's own confirmed product terms live in the system, which is itself a talking point: *his product was configured, not coded*.
 
@@ -30,6 +32,7 @@
 
 **30 minutes before:**
 
+- [ ] **Log in as all five accounts once** (`manager`, `hr_sarah`, `john_employee`, `loan_officer`, `superadmin` — passwords in §1) against `https://ndalamahublms.netlify.app/` to confirm none has been reset or lost since the last check. This also doubles as the Render warm-up below.
 - [ ] Warm up the Render API (log in once at `ndalamahublms.netlify.app`) so no cold-start delay lands mid-demo, and leave yourself logged in as `manager` in the main window.
 - [ ] Second browser window (or profile) ready at 375×812 (DevTools device toolbar) for the borrower — mobile is the borrower's register and demos dramatically better than desktop.
 - [ ] Third window/profile for `hr_sarah` (avoids logging in and out mid-flow; three separate browser profiles or one normal + one incognito + one different browser all work).

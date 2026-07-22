@@ -24,6 +24,24 @@ const {
 const ExcelJS = require('exceljs');
 const { sendEmail } = require('../utils/email');
 const emailTemplates = require('../utils/emailTemplates');
+
+/**
+ * Approval authority for /approve and /reject (Phase 19). A loan is "direct"
+ * when its company and lenderCompany are the same document (the borrower
+ * attaches straight to the lender, no employer in between). lender_officer
+ * gains approve/reject authority *only* over direct loans — employer-model
+ * loans keep the pre-Phase-19 rule untouched (employer-side of the loan's
+ * company, or the loan's lender_admin). Fails closed.
+ */
+function canActOnLoanApproval(user, loan) {
+  if (isPlatformAdmin(user)) return true;
+  const isDirect = idsEqual(loan.company, loan.lenderCompany);
+  if (isDirect) {
+    return isLenderSide(user) && idsEqual(loan.lenderCompany, user.company);
+  }
+  return (isEmployerSide(user) && idsEqual(loan.company, user.company)) ||
+    (user.role === 'lender_admin' && idsEqual(loan.lenderCompany, user.company));
+}
 // @route   GET /api/loans/:id/repayment-schedule/export/excel
 // @desc    Export detailed repayment schedule for a loan as Excel
 // @access  Private (same as loan details)
@@ -315,12 +333,15 @@ router.post('/', authenticateToken, authorize('borrower'), async (req, res) => {
     }
     const company = user.company;
 
-    // Find lender company
+    // Find lender company. Direct-model lenders: the borrower's own company
+    // *is* the lender company, so lenderCompany === company, explicitly (not
+    // incidentally) — see Phase 19.
     let lenderCompany;
-    if (company.type === 'corporate') {
-      lenderCompany = await Company.findById(company.lenderCompany);
-    } else {
+    const isDirectBorrower = company.type === 'lender';
+    if (isDirectBorrower) {
       lenderCompany = company;
+    } else {
+      lenderCompany = await Company.findById(company.lenderCompany);
     }
 
     if (!lenderCompany) {
@@ -507,8 +528,8 @@ router.post('/', authenticateToken, authorize('borrower'), async (req, res) => {
 
 // @route   PUT /api/loans/:id/approve
 // @desc    Approve loan application
-// @access  Private (HR and Admin roles)
-router.put('/:id/approve', authenticateToken, authorize('employer_hr', 'employer_admin', 'lender_admin'), async (req, res) => {
+// @access  Private (HR and Admin roles; lender_officer over direct loans only)
+router.put('/:id/approve', authenticateToken, authorize('employer_hr', 'employer_admin', 'lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const { id } = req.params;
     const { approvalNotes } = req.body;
@@ -533,9 +554,7 @@ router.put('/:id/approve', authenticateToken, authorize('employer_hr', 'employer
     }
 
     // Check access permissions
-    const ok = isPlatformAdmin(req.user) ||
-      (isEmployerSide(req.user) && idsEqual(loan.company, req.user.company)) ||
-      (isLenderSide(req.user) && idsEqual(loan.lenderCompany, req.user.company));
+    const ok = canActOnLoanApproval(req.user, loan);
     if (!ok) {
       return res.status(403).json({
         success: false,
@@ -582,8 +601,8 @@ router.put('/:id/approve', authenticateToken, authorize('employer_hr', 'employer
 
 // @route   PUT /api/loans/:id/reject
 // @desc    Reject loan application
-// @access  Private (HR and Admin roles)
-router.put('/:id/reject', authenticateToken, authorize('employer_hr', 'employer_admin', 'lender_admin'), async (req, res) => {
+// @access  Private (HR and Admin roles; lender_officer over direct loans only)
+router.put('/:id/reject', authenticateToken, authorize('employer_hr', 'employer_admin', 'lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const { id } = req.params;
     const { approvalNotes } = req.body;
@@ -615,9 +634,7 @@ router.put('/:id/reject', authenticateToken, authorize('employer_hr', 'employer_
     }
 
     // Check access permissions
-    const ok = isPlatformAdmin(req.user) ||
-      (isEmployerSide(req.user) && idsEqual(loan.company, req.user.company)) ||
-      (isLenderSide(req.user) && idsEqual(loan.lenderCompany, req.user.company));
+    const ok = canActOnLoanApproval(req.user, loan);
     if (!ok) {
       return res.status(403).json({
         success: false,

@@ -60,7 +60,8 @@ async function makeApplicant() {
     password: 'password123',
     role: 'borrower',
     company,
-    department: 'Test Dept'
+    department: 'Test Dept',
+    nrc: `${100000 + applicantCounter}/10/1`
   });
 }
 

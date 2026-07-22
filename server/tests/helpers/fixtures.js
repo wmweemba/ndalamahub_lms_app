@@ -10,6 +10,12 @@ const nextRegNumber = (prefix) => {
   return `${prefix}-${regCounter}`;
 };
 
+let nrcCounter = 0;
+const nextNrc = () => {
+  nrcCounter += 1;
+  return `${100000 + nrcCounter}/10/1`;
+};
+
 const createCompany = async (overrides = {}) => {
   return Company.create({
     name: overrides.name,
@@ -24,7 +30,9 @@ const createCompany = async (overrides = {}) => {
       phone: '+260970000000',
       email: `${overrides.name.toLowerCase().replace(/\s+/g, '')}@example.com`
     },
-    ...(overrides.lenderCompany ? { lenderCompany: overrides.lenderCompany } : {})
+    ...(overrides.lenderCompany ? { lenderCompany: overrides.lenderCompany } : {}),
+    ...(overrides.lendingModel ? { lendingModel: overrides.lendingModel } : {}),
+    ...(overrides.subscription ? { subscription: overrides.subscription } : {})
   });
 };
 
@@ -38,7 +46,8 @@ const createUser = async (overrides = {}) => {
     password: PASSWORD,
     role: overrides.role,
     company: overrides.company,
-    department: overrides.department
+    department: overrides.department,
+    nrc: overrides.role === 'borrower' ? (overrides.nrc || nextNrc()) : overrides.nrc
   });
 };
 

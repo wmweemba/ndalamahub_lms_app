@@ -183,11 +183,12 @@ router.post('/', authenticateToken, authorizeMinRole('employer_hr'), async (req,
             role,
             company,
             department,
-            employeeId
+            employeeId,
+            nrc
         } = req.body;
 
-        // Validate required fields
-        if (!firstName || !lastName || !username || !email || !phone || !password || !role || !company) {
+        // Validate required fields (email/nrc are role-conditional — see below)
+        if (!firstName || !lastName || !username || !phone || !password || !role || !company) {
             return res.status(400).json({
                 success: false,
                 message: 'All required fields must be provided'
@@ -261,6 +262,16 @@ router.post('/', authenticateToken, authorizeMinRole('employer_hr'), async (req,
                     message: 'You can only create users within your own company or your corporate clients'
                 });
             }
+
+            // Direct-model lenders may onboard borrowers straight onto the lender
+            // company (officers onboard walk-ins); employer-model lenders keep
+            // borrowers under client companies, as before.
+            if (role === 'borrower' && isOwnCompany && companyDoc.lendingModel !== 'direct') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'This lender uses the employer-based model; borrowers must belong to a client company'
+                });
+            }
         }
 
         // No caller may create a user with a role above their own level
@@ -268,6 +279,22 @@ router.post('/', authenticateToken, authorizeMinRole('employer_hr'), async (req,
             return res.status(403).json({
                 success: false,
                 message: 'You cannot create users with a role senior to your own'
+            });
+        }
+
+        // Email required for all staff roles; optional for borrowers (NRC-first identity)
+        if (role !== 'borrower' && !email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required for this role'
+            });
+        }
+
+        // NRC required for borrowers
+        if (role === 'borrower' && !nrc) {
+            return res.status(400).json({
+                success: false,
+                message: 'NRC is required for borrowers'
             });
         }
 
@@ -280,13 +307,27 @@ router.post('/', authenticateToken, authorizeMinRole('employer_hr'), async (req,
             });
         }
 
-        // Check if email already exists
-        const existingEmail = await User.findOne({ email: email.toLowerCase() });
-        if (existingEmail) {
-            return res.status(400).json({
-                success: false,
-                message: 'Email already exists'
-            });
+        // Check if email already exists (borrowers may have no email at all)
+        if (email) {
+            const existingEmail = await User.findOne({ email: email.toLowerCase() });
+            if (existingEmail) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Email already exists'
+                });
+            }
+        }
+
+        // Check NRC uniqueness within the company (the partial unique index
+        // enforces this atomically too; this is just the friendly 400)
+        if (nrc) {
+            const existingNrc = await User.findOne({ company, nrc: nrc.trim().toUpperCase() });
+            if (existingNrc) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'A user with this NRC already exists for this company'
+                });
+            }
         }
 
         // Validate password strength
@@ -302,12 +343,13 @@ router.post('/', authenticateToken, authorizeMinRole('employer_hr'), async (req,
             firstName,
             lastName,
             username: username.toLowerCase(),
-            email: email.toLowerCase(),
+            email: email ? email.toLowerCase() : undefined,
             phone,
             password,
             role,
             company,
-            department: department || undefined
+            department: department || undefined,
+            nrc: nrc || undefined
         };
 
         // Auto-generate employeeId for corporate users if not provided

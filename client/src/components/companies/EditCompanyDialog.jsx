@@ -11,14 +11,18 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import api from '@/utils/api';
+import { getCurrentUser, ROLES } from '@/utils/roleUtils';
 
 const SELECT_CLASSES =
     'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
 
 export function EditCompanyDialog({ company, open, onClose, onSuccess }) {
+    const currentUser = getCurrentUser();
+    const isPlatformAdmin = currentUser?.role === ROLES.PLATFORM_ADMIN;
     const [formData, setFormData] = useState({
         name: '',
         type: 'corporate',
+        lendingModel: 'employer',
         lenderCompany: '',
         registrationNumber: '',
         taxNumber: '',
@@ -46,6 +50,7 @@ export function EditCompanyDialog({ company, open, onClose, onSuccess }) {
             setFormData({
                 name: company.name || '',
                 type: company.type || 'corporate',
+                lendingModel: company.lendingModel || 'employer',
                 lenderCompany: company.lenderCompany?._id || company.lenderCompany || '',
                 registrationNumber: company.registrationNumber || '',
                 taxNumber: company.taxNumber || '',
@@ -108,6 +113,13 @@ export function EditCompanyDialog({ company, open, onClose, onSuccess }) {
                 delete submitData.lenderCompany;
             }
 
+            // lendingModel: only meaningful for lender companies, and only
+            // platform_admin may change it (server-enforced; also stripped
+            // here so a non-platform-admin's PUT doesn't even try)
+            if (formData.type !== 'lender' || !isPlatformAdmin) {
+                delete submitData.lendingModel;
+            }
+
             await api.put(`/companies/${company._id}`, submitData);
             toast.success('Company updated');
             onSuccess();
@@ -158,6 +170,23 @@ export function EditCompanyDialog({ company, open, onClose, onSuccess }) {
                                         <option value="lender">Lender</option>
                                     </select>
                                 </div>
+
+                                {/* Lending model - platform_admin only, lender companies only */}
+                                {formData.type === 'lender' && isPlatformAdmin && (
+                                    <div>
+                                        <Label htmlFor="lendingModel">Lending model *</Label>
+                                        <select
+                                            id="lendingModel"
+                                            value={formData.lendingModel}
+                                            onChange={(e) => setFormData({ ...formData, lendingModel: e.target.value })}
+                                            className={`${SELECT_CLASSES} mt-1`}
+                                            required
+                                        >
+                                            <option value="employer">Employer-based</option>
+                                            <option value="direct">Direct-to-customer</option>
+                                        </select>
+                                    </div>
+                                )}
 
                                 {/* Lender Selection - Only show for corporate companies */}
                                 {formData.type === 'corporate' && (

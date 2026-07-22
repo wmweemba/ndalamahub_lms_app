@@ -32,6 +32,12 @@ const makeCompany = (overrides = {}) => Company.create({
   ...overrides
 });
 
+let nrcCounter = 0;
+const nextNrc = () => {
+  nrcCounter += 1;
+  return `${100000 + nrcCounter}/10/1`;
+};
+
 const makeUser = (company, overrides = {}) => User.create({
   firstName: 'Test',
   lastName: 'User',
@@ -42,6 +48,7 @@ const makeUser = (company, overrides = {}) => User.create({
   role: 'borrower',
   company: company._id,
   department: 'Operations',
+  nrc: nextNrc(),
   ...overrides
 });
 

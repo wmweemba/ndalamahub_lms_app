@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   Banknote,
   Building2,
+  Users,
   Package,
   BarChart3,
   Settings,
@@ -14,6 +16,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { authService } from '@/services/authService';
+import api from '@/utils/api';
 import {
   getCurrentUser,
   canAccessCompanies,
@@ -26,6 +29,8 @@ import {
 import { SubscriptionBanner } from '@/components/layout/SubscriptionBanner';
 import { Toaster } from '@/components/ui/sonner';
 
+const LENDER_STAFF_ROLES = [ROLES.LENDER_ADMIN, ROLES.LENDER_OFFICER];
+
 const ROLE_LABELS = {
   [ROLES.PLATFORM_ADMIN]: 'Platform Admin',
   [ROLES.LENDER_ADMIN]: 'Lender Admin',
@@ -35,7 +40,7 @@ const ROLE_LABELS = {
   [ROLES.BORROWER]: 'Borrower',
 };
 
-function getNavItems(role) {
+function getNavItems(role, isDirectModel) {
   const isBorrower = role === ROLES.BORROWER;
 
   if (isBorrower) {
@@ -50,7 +55,14 @@ function getNavItems(role) {
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/loans', label: 'Loans', icon: Banknote },
   ];
-  if (canAccessCompanies(role)) items.push({ to: '/companies', label: 'Companies', icon: Building2 });
+  // Direct-model lender staff get a Customers surface instead of Companies
+  // (there are no employer clients to manage under the direct model);
+  // employer-model lenders and platform_admin see Companies exactly as before.
+  if (LENDER_STAFF_ROLES.includes(role) && isDirectModel) {
+    items.push({ to: '/customers', label: 'Customers', icon: Users });
+  } else if (canAccessCompanies(role)) {
+    items.push({ to: '/companies', label: 'Companies', icon: Building2 });
+  }
   if (canAccessProductsNav(role)) items.push({ to: '/products', label: 'Products', icon: Package });
   if (canAccessCollateralNav(role)) items.push({ to: '/collateral', label: 'Collateral', icon: Shield });
   if (canAccessReports(role)) items.push({ to: '/reports', label: 'Reports', icon: BarChart3 });
@@ -186,7 +198,19 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
   const isBorrower = currentUser?.role === ROLES.BORROWER;
-  const navItems = getNavItems(currentUser?.role);
+  const isLenderStaff = LENDER_STAFF_ROLES.includes(currentUser?.role);
+
+  // Cached (not refetched per render/route) — only lender staff need this,
+  // since only they can be on the direct model and see the Customers nav item.
+  const { data: profile } = useQuery({
+    queryKey: ['current-user-profile'],
+    queryFn: () => api.get('/auth/me').then((res) => res.data.data.user),
+    staleTime: 60 * 60 * 1000,
+    enabled: !!currentUser && isLenderStaff,
+  });
+
+  const isDirectModel = profile?.company?.lendingModel === 'direct';
+  const navItems = getNavItems(currentUser?.role, isDirectModel);
 
   const handleLogout = () => {
     authService.logout();

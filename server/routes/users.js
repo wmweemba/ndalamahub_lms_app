@@ -15,8 +15,11 @@ const {
   validatePassword,
   validateEmail,
   validatePhoneNumber,
-  formatPhoneNumber
+  formatPhoneNumber,
+  generatePasswordResetToken
 } = require('../utils/auth');
+const { sendEmail } = require('../utils/email');
+const emailTemplates = require('../utils/emailTemplates');
 const {
   isPlatformAdmin,
   isLenderSide,
@@ -630,6 +633,61 @@ router.put('/:id', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to update user',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// @route   POST /api/users/:id/invite
+// @desc    Send an account-setup email invite (reuses the forgot-password
+//          token infrastructure — same fields, a longer 7-day expiry).
+//          Never returns the token in the response, same contract as
+//          forgot-password.
+// @access  Private (lender-side only)
+router.post('/:id/invite', authenticateToken, authorize(['lender_admin', 'lender_officer']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (!(await canTouchUser(req.user, user))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this user'
+      });
+    }
+
+    if (!user.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'This user has no email on file'
+      });
+    }
+
+    const { resetToken, hashedToken } = generatePasswordResetToken();
+    user.passwordResetToken = hashedToken;
+    user.passwordResetExpires = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+    await user.save();
+
+    const inviteUrl = `${process.env.APP_URL}/reset-password?token=${resetToken}`;
+    void sendEmail({ to: user.email, ...emailTemplates.accountInvite(user, inviteUrl) });
+
+    res.json({
+      success: true,
+      message: 'Invite sent successfully'
+    });
+
+  } catch (error) {
+    console.error('Send invite error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send invite',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }

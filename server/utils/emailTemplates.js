@@ -53,6 +53,18 @@ function passwordReset(user, resetUrl) {
   };
 }
 
+function accountInvite(user, inviteUrl) {
+  return {
+    subject: 'Set up your NdalamaHub account',
+    html: layout('Set up your account', `
+      <p>Hi ${user.firstName},</p>
+      <p>An account has been created for you on NdalamaHub. Set your password to get started — this link is valid for 7 days.</p>
+      <p><a href="${inviteUrl}" style="display:inline-block;background-color:#111827;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;">Set your password</a></p>
+      <p>If you weren't expecting this, you can safely ignore this email.</p>
+    `)
+  };
+}
+
 function loanApproved(user, loan) {
   return {
     subject: `Loan ${loan.loanNumber} approved`,
@@ -193,6 +205,7 @@ function subscriptionNotice(adminUser, company, kind) {
 
 module.exports = {
   passwordReset,
+  accountInvite,
   loanApproved,
   loanRejected,
   loanDisbursed,

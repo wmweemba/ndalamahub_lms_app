@@ -4,6 +4,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import { LoginPage } from './pages/auth/LoginPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import { CompaniesPage } from './pages/companies/CompaniesPage';
+import CustomersPage from './pages/customers/CustomersPage';
 import LoansPage from './pages/loans/LoansPage';
 import ProductsPage from './pages/products/ProductsPage';
 import CollateralRegisterPage from './pages/collateral/CollateralRegisterPage';
@@ -21,6 +22,7 @@ export function App() {
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/loans" element={<LoansPage />} />
                 <Route path="/companies" element={<CompaniesPage />} />
+                <Route path="/customers" element={<CustomersPage />} />
                 <Route path="/products" element={<ProductsPage />} />
                 <Route path="/collateral" element={<CollateralRegisterPage />} />
                 <Route path="/reports" element={<ReportsPage />} />

@@ -4,6 +4,7 @@ const Loan = require('../models/Loan');
 const User = require('../models/User');
 const Company = require('../models/Company');
 const LoanProduct = require('../models/LoanProduct');
+const Collateral = require('../models/Collateral');
 const {
   authenticateToken,
   authorize,
@@ -41,6 +42,40 @@ function canActOnLoanApproval(user, loan) {
   }
   return (isEmployerSide(user) && idsEqual(loan.company, user.company)) ||
     (user.role === 'lender_admin' && idsEqual(loan.lenderCompany, user.company));
+}
+
+/**
+ * Collateral gate for approve (Phase 21). If the loan's product doesn't
+ * require collateral, this is a no-op. Otherwise at least one non-rejected
+ * collateral record must exist and every non-rejected record must be
+ * 'verified'. Returns the verified records so checkCollateralForDisbursement
+ * can reuse them without a second query.
+ */
+async function checkCollateralForApproval(loan) {
+  const product = await LoanProduct.findById(loan.product).select('collateralRequired');
+  if (!product || !product.collateralRequired) return { ok: true };
+
+  const records = await Collateral.find({ loan: loan._id });
+  const nonRejected = records.filter((r) => r.status !== 'rejected');
+  if (nonRejected.length === 0 || !nonRejected.every((r) => r.status === 'verified')) {
+    return { ok: false, message: 'Collateral pending verification' };
+  }
+  return { ok: true, required: true, verifiedRecords: nonRejected };
+}
+
+/**
+ * Collateral gate for disburse (Phase 21). Requires the approval gate to
+ * pass, plus every verified collateral record must have its letter-of-sale
+ * on file (paper process — no file uploads, locked decision).
+ */
+async function checkCollateralForDisbursement(loan) {
+  const approvalCheck = await checkCollateralForApproval(loan);
+  if (!approvalCheck.ok) return approvalCheck;
+  if (!approvalCheck.required) return { ok: true };
+
+  const allLettered = approvalCheck.verifiedRecords.every((r) => r.letterOfSale && r.letterOfSale.onFile);
+  if (!allLettered) return { ok: false, message: 'Letter of sale not on file' };
+  return { ok: true };
 }
 // @route   GET /api/loans/:id/repayment-schedule/export/excel
 // @desc    Export detailed repayment schedule for a loan as Excel
@@ -273,7 +308,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
       .populate('company', 'name type')
       .populate('lenderCompany', 'name type')
       .populate('approvedBy', 'firstName lastName')
-      .populate('disbursedBy', 'firstName lastName');
+      .populate('disbursedBy', 'firstName lastName')
+      .populate('product', 'name category interestRate term amount collateralRequired');
 
     if (!loan) {
       return res.status(404).json({
@@ -290,9 +326,11 @@ router.get('/:id', authenticateToken, async (req, res) => {
       });
     }
 
+    const collateral = await Collateral.find({ loan: loan._id }).sort({ createdAt: 1 });
+
     res.json({
       success: true,
-      data: { loan }
+      data: { loan, collateral }
     });
 
   } catch (error) {
@@ -562,6 +600,15 @@ router.put('/:id/approve', authenticateToken, authorize('employer_hr', 'employer
       });
     }
 
+    // Collateral gate (Phase 21) — no-op if the product doesn't require it
+    const collateralCheck = await checkCollateralForApproval(loan);
+    if (!collateralCheck.ok) {
+      return res.status(422).json({
+        success: false,
+        message: collateralCheck.message
+      });
+    }
+
     // Update loan status
     loan.status = 'approved';
     loan.approvedBy = req.user.id;
@@ -712,6 +759,15 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
       return res.status(403).json({
         success: false,
         message: 'Access denied: You can only disburse loans for your lender company'
+      });
+    }
+
+    // Collateral gate (Phase 21) — no-op if the product doesn't require it
+    const collateralCheck = await checkCollateralForDisbursement(loan);
+    if (!collateralCheck.ok) {
+      return res.status(422).json({
+        success: false,
+        message: collateralCheck.message
       });
     }
 

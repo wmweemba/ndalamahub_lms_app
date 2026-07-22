@@ -131,3 +131,12 @@ export const canAccessProductsNav = (role) => {
         ROLES.LENDER_OFFICER
     ].includes(role);
 };
+
+// Check if user sees the Collateral Register nav entry (lender-side staff only)
+export const canAccessCollateralNav = (role) => {
+    return [
+        ROLES.PLATFORM_ADMIN,
+        ROLES.LENDER_ADMIN,
+        ROLES.LENDER_OFFICER
+    ].includes(role);
+};

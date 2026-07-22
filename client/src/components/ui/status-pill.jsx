@@ -23,6 +23,9 @@ export const STATUS_PILL_MAP = {
   partial: 'warning',
   overdue: 'danger',
   paid: 'success',
+  // collateral record statuses (Phase 21)
+  declared: 'warning',
+  verified: 'success',
 };
 
 const TINT_CLASSES = {

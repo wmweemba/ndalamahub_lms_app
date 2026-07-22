@@ -8,6 +8,7 @@ import {
   BarChart3,
   Settings,
   LifeBuoy,
+  Shield,
   Menu,
   X,
   LogOut,
@@ -19,6 +20,7 @@ import {
   canAccessReports,
   canAccessSettings,
   canAccessProductsNav,
+  canAccessCollateralNav,
   ROLES,
 } from '@/utils/roleUtils';
 import { SubscriptionBanner } from '@/components/layout/SubscriptionBanner';
@@ -50,6 +52,7 @@ function getNavItems(role) {
   ];
   if (canAccessCompanies(role)) items.push({ to: '/companies', label: 'Companies', icon: Building2 });
   if (canAccessProductsNav(role)) items.push({ to: '/products', label: 'Products', icon: Package });
+  if (canAccessCollateralNav(role)) items.push({ to: '/collateral', label: 'Collateral', icon: Shield });
   if (canAccessReports(role)) items.push({ to: '/reports', label: 'Reports', icon: BarChart3 });
   if (canAccessSettings(role)) items.push({ to: '/settings', label: 'Settings', icon: Settings });
   items.push({ to: '/support', label: 'Support', icon: LifeBuoy });

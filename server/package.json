@@ -12,7 +12,8 @@
     "seed": "node utils/seeder.js",
     "job:overdue": "node jobs/runMarkOverdue.js",
     "job:reminders": "node jobs/runSendReminders.js",
-    "job:subscriptions": "node jobs/runExpireSubscriptions.js"
+    "job:subscriptions": "node jobs/runExpireSubscriptions.js",
+    "job:rollover": "node jobs/runRollover.js"
   },
   "keywords": [],
   "author": "",

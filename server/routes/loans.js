@@ -758,6 +758,68 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
   }
 });
 
+// @route   PUT /api/loans/:id/default
+// @desc    Manually mark a loan defaulted — the rollover kill-switch. A defaulted
+//          loan never auto-recovers (Phase 07) and never rolls over again (Phase 20);
+//          hands the loan to the collateral-recovery path.
+// @access  Private (Lender Admin only, own-tenant only)
+router.put('/:id/default', authenticateToken, authorize('lender_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!reason) {
+      return res.status(400).json({
+        success: false,
+        message: 'A reason is required to mark a loan defaulted'
+      });
+    }
+
+    const loan = await Loan.findById(id);
+
+    if (!loan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Loan not found'
+      });
+    }
+
+    if (!canWriteRepayment(req.user, loan)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: You can only default loans for your lender company'
+      });
+    }
+
+    if (loan.status === 'defaulted') {
+      return res.status(400).json({
+        success: false,
+        message: 'Loan is already defaulted'
+      });
+    }
+
+    loan.status = 'defaulted';
+    loan.notes = loan.notes || [];
+    loan.notes.push({ user: req.user.id, message: `Manually marked defaulted: ${reason}` });
+
+    await loan.save();
+
+    res.json({
+      success: true,
+      message: 'Loan marked defaulted',
+      data: { loan: loan.toJSON() }
+    });
+
+  } catch (error) {
+    console.error('Default loan error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to mark loan defaulted',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
 // @route   PUT /api/loans/:id/repayment
 // @desc    Record loan repayment with payment details
 // @access  Private (Lender Admin only)

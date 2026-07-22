@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const markOverdueInstallments = require('./markOverdueInstallments');
 const sendPaymentReminders = require('./sendPaymentReminders');
 const expireSubscriptions = require('./expireSubscriptions');
+const rolloverLoans = require('./rolloverLoans');
 
 function startScheduler() {
   // Daily at 01:00 Zambia time
@@ -34,7 +35,18 @@ function startScheduler() {
     }
   }, { timezone: 'Africa/Lusaka' });
 
-  console.log('[cron] scheduler started (markOverdueInstallments daily @ 01:00, expireSubscriptions daily @ 02:00, sendPaymentReminders daily @ 08:00, Africa/Lusaka)');
+  // Daily at 01:30 Zambia time — after markOverdueInstallments (01:00), which
+  // provides the in-grace visibility this depends on
+  cron.schedule('30 1 * * *', async () => {
+    try {
+      const result = await rolloverLoans();
+      console.log('[cron] rolloverLoans:', result);
+    } catch (error) {
+      console.error('[cron] rolloverLoans failed:', error);
+    }
+  }, { timezone: 'Africa/Lusaka' });
+
+  console.log('[cron] scheduler started (markOverdueInstallments daily @ 01:00, rolloverLoans daily @ 01:30, expireSubscriptions daily @ 02:00, sendPaymentReminders daily @ 08:00, Africa/Lusaka)');
 }
 
 module.exports = startScheduler;

@@ -247,6 +247,12 @@ const loanProductSchema = new mongoose.Schema({
   },
   
   // Grace Period Settings
+  // NOTE (Phase 20): `interestDuring` and `prepayment.penalty`/`penaltyRate` below
+  // are dormant — grepped as unreferenced outside server/utils/seedProducts.js
+  // seed data, no route or model logic ever reads them. They predate and are
+  // unrelated to the Phase 20 rollover mechanic (grace here is a moratorium
+  // concept, not the rollover's 14-day no-charge window); left intact, not
+  // repurposed or removed.
   gracePeriod: {
     allowed: {
       type: Boolean,
@@ -263,7 +269,7 @@ const loanProductSchema = new mongoose.Schema({
       default: 'accrued'
     }
   },
-  
+
   // Prepayment Settings
   prepayment: {
     allowed: {
@@ -279,6 +285,24 @@ const loanProductSchema = new mongoose.Schema({
       min: 0,
       max: 100,
       default: 0
+    }
+  },
+
+  // Rollover Settings (Phase 20) — capitalization of the outstanding balance
+  // after a grace window past due, repeating until paid or manually defaulted.
+  // Rate is deliberately not duplicated here: rollover always recapitalizes at
+  // this product's own interestRate/rateBasis (the locked mechanic is "fresh
+  // interest at the same rate"), so a second rate field would just be a second
+  // source of truth for the same number.
+  rollover: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    graceDays: {
+      type: Number,
+      min: 0,
+      default: 14
     }
   },
   

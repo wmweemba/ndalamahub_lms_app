@@ -88,6 +88,18 @@ function loanDisbursed(user, loan) {
   };
 }
 
+function loanRolledOver(user, loan, rolloverEntry) {
+  return {
+    subject: `Loan ${loan.loanNumber} balance rolled over`,
+    html: layout('Loan rolled over', `
+      <p>Hi ${user.firstName},</p>
+      <p>Your loan <strong>${loan.loanNumber}</strong> was not fully paid by its due date, so the outstanding balance of ${formatMoney(rolloverEntry.outstandingBefore)} has been rolled over into a new term.</p>
+      <p>New amount due: <strong>${formatMoney(rolloverEntry.newTotalDue)}</strong>, due on <strong>${formatDate(rolloverEntry.newDueDate)}</strong>.</p>
+      <p>Please contact us if you'd like to make a payment before then.</p>
+    `)
+  };
+}
+
 function paymentReminder(user, loan, installment) {
   return {
     subject: `Upcoming payment due for loan ${loan.loanNumber}`,
@@ -171,6 +183,7 @@ module.exports = {
   loanApproved,
   loanRejected,
   loanDisbursed,
+  loanRolledOver,
   paymentReminder,
   paymentOverdue,
   ticketUpdate,

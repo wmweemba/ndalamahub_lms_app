@@ -35,6 +35,7 @@ export function EditProductDialog({ open, onOpenChange, onSuccess, product }) {
         collateralTypes: product.collateralTypes || [],
         gracePeriod: product.gracePeriod || { allowed: false, maxMonths: 0, interestDuring: 'accrued' },
         prepayment: product.prepayment || { allowed: true, penalty: false, penaltyRate: 0 },
+        rollover: product.rollover || { enabled: false, graceDays: 14 },
         eligibilityCriteria: product.eligibilityCriteria || {
           minAge: 18,
           maxAge: 65,
@@ -362,6 +363,39 @@ export function EditProductDialog({ open, onOpenChange, onSuccess, product }) {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Rollover */}
+            <div className="space-y-4">
+              <h3 className="text-[15px] font-medium text-foreground">Rollover</h3>
+              <div className="flex items-center space-x-2 mb-3">
+                <input
+                  type="checkbox"
+                  id="rolloverEnabled"
+                  checked={formData.rollover?.enabled || false}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    rollover: { ...formData.rollover, enabled: e.target.checked }
+                  })}
+                  className="h-4 w-4 rounded border-border"
+                />
+                <Label htmlFor="rolloverEnabled">Enable automatic rollover</Label>
+              </div>
+              {formData.rollover?.enabled && (
+                <div className="space-y-2 pl-6">
+                  <Label htmlFor="rolloverGraceDays">Grace period before rollover (days)</Label>
+                  <Input
+                    id="rolloverGraceDays"
+                    type="number"
+                    min="0"
+                    value={formData.rollover?.graceDays ?? 14}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      rollover: { ...formData.rollover, graceDays: parseInt(e.target.value) }
+                    })}
+                  />
+                </div>
+              )}
             </div>
           </div>
 

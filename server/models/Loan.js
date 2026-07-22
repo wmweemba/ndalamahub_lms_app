@@ -258,7 +258,7 @@ const loanSchema = new mongoose.Schema({
     },
     status: {
       type: String,
-      enum: ['pending', 'paid', 'overdue', 'partial', 'waived'],
+      enum: ['pending', 'paid', 'overdue', 'partial', 'waived', 'rolled'],
       default: 'pending'
     },
     paidAt: {
@@ -393,6 +393,41 @@ const loanSchema = new mongoose.Schema({
     }
   },
   
+  // Rollover history (Phase 20) — one entry per capitalization cycle. `rolloverCount`
+  // is a virtual off this array's length rather than a stored counter, so it can
+  // never drift out of sync with the history it's counting.
+  rollovers: [{
+    date: {
+      type: Date,
+      default: Date.now,
+      required: true
+    },
+    outstandingBefore: {
+      type: Number,
+      required: true
+    },
+    capitalizedPrincipal: {
+      type: Number,
+      required: true
+    },
+    newInterest: {
+      type: Number,
+      required: true
+    },
+    newTotalDue: {
+      type: Number,
+      required: true
+    },
+    previousDueDate: {
+      type: Date,
+      required: true
+    },
+    newDueDate: {
+      type: Date,
+      required: true
+    }
+  }],
+
   // Guarantor information (if required)
   guarantor: {
     name: {
@@ -583,6 +618,10 @@ loanSchema.virtual('totalUpfrontFees').get(function() {
 
 loanSchema.virtual('netDisbursement').get(function() {
   return this.amount - this.totalUpfrontFees;
+});
+
+loanSchema.virtual('rolloverCount').get(function() {
+  return (this.rollovers || []).length;
 });
 
 // Ensure virtuals are included in JSON/Object output
@@ -1056,10 +1095,23 @@ loanSchema.methods.getSummary = function() {
     i.status === 'overdue' && new Date() > i.dueDate
   );
 
+  // Once a loan has rolled over, `this.totalAmount` (fixed at original
+  // creation/disbursement) no longer reflects what's actually owed — current
+  // exposure has to come from whatever's still outstanding on the schedule
+  // (mirrors 'waived' exclusion; 'rolled' installments are superseded, not owed).
+  const hasRolled = this.rolloverCount > 0;
+  const remainingBalance = this.earlySettlement?.settled
+    ? 0
+    : hasRolled
+      ? Math.max(0, this.repaymentSchedule
+          .filter(i => !['paid', 'waived', 'rolled'].includes(i.status))
+          .reduce((sum, i) => sum + (i.amount - (i.paidAmount || 0)), 0))
+      : Math.max(0, this.totalAmount - totalPaid);
+
   return {
     totalAmount: this.totalAmount,
     totalPaid,
-    remainingBalance: this.earlySettlement?.settled ? 0 : Math.max(0, this.totalAmount - totalPaid),
+    remainingBalance,
     overdueAmount: overdueInstallments.reduce((sum, i) => sum + (i.amount - i.paidAmount), 0),
     nextPayment: this.repaymentSchedule.find(i => i.status === 'pending')
   };
@@ -1118,6 +1170,94 @@ loanSchema.methods.checkArrearsStatus = function() {
 };
 
 // ============================================================
+// ROLLOVER (Phase 20)
+// ============================================================
+
+/**
+ * Capitalize the outstanding balance as a new principal, apply fresh interest
+ * at this loan's own rate, and anchor a new term to the previous due date.
+ * Called by the daily rollover job once a loan is past due + product grace
+ * days; also directly unit-testable. Never call on a defaulted or terminal
+ * (completed/cancelled/rejected) loan — those never roll, by locked decision.
+ * @returns {Object} the rollover history entry just appended
+ */
+loanSchema.methods.rollover = function() {
+  if (this.status === 'defaulted') {
+    throw new Error('Loan is defaulted and cannot roll over');
+  }
+  if (['completed', 'cancelled', 'rejected', 'pending_approval', 'pending_documents', 'under_review', 'approved', 'pending_disbursement'].includes(this.status)) {
+    throw new Error(`Loan cannot roll over in status: ${this.status}`);
+  }
+
+  // Outstanding balance across every obligation not yet paid/waived/rolled —
+  // consistent with getSummary's definition of what's still owed. Partial
+  // payments reduce this exactly as they reduce paidAmount.
+  const outstandingInstallments = this.repaymentSchedule.filter(
+    i => !['paid', 'waived', 'rolled'].includes(i.status)
+  );
+  const outstandingBefore = outstandingInstallments.reduce(
+    (sum, i) => sum + (i.amount - (i.paidAmount || 0)), 0
+  );
+
+  if (outstandingBefore <= 0) {
+    throw new Error('Loan has no outstanding balance to roll over');
+  }
+
+  // Anchor to the previous due date, not "today" — the locked mechanic (1 Aug
+  // → 31 Aug due → unpaid at 14 Sep → new due date 30 Sep, not 14 Sep + term).
+  const previousDueDate = outstandingInstallments.reduce(
+    (latest, i) => (!latest || i.dueDate > latest ? i.dueDate : latest), null
+  );
+
+  const rate = this.interestRate;
+  const capitalizedPrincipal = parseFloat(outstandingBefore.toFixed(2));
+  const newInterest = parseFloat((capitalizedPrincipal * (rate / 100)).toFixed(2));
+  const newTotalDue = parseFloat((capitalizedPrincipal + newInterest).toFixed(2));
+
+  const newDueDate = (this.termUnit || 'months') === 'months'
+    ? addMonths(previousDueDate, this.term)
+    : addDays(previousDueDate, termToDays(this.term, this.termUnit));
+
+  // Supersede the outstanding installment(s) — excluded from paid/outstanding
+  // math exactly like 'waived' (see getSummary, calculateAccruedInterest,
+  // calculateRemainingBalance, calculateEarlySettlementAmount).
+  outstandingInstallments.forEach(i => { i.status = 'rolled'; });
+
+  const nextInstallmentNumber = this.repaymentSchedule.length
+    ? Math.max(...this.repaymentSchedule.map(i => i.installmentNumber)) + 1
+    : 1;
+
+  this.repaymentSchedule.push({
+    installmentNumber: nextInstallmentNumber,
+    dueDate: newDueDate,
+    amount: newTotalDue,
+    principal: capitalizedPrincipal,
+    interest: newInterest,
+    status: 'pending',
+    paidAmount: 0
+  });
+
+  const entry = {
+    date: new Date(),
+    outstandingBefore: capitalizedPrincipal,
+    capitalizedPrincipal,
+    newInterest,
+    newTotalDue,
+    previousDueDate,
+    newDueDate
+  };
+  this.rollovers.push(entry);
+
+  // Back to active with a future due date — checkArrearsStatus (run by the
+  // pre-save hook on repaymentSchedule modification) will not immediately
+  // re-flag it, since the only overdue-eligible installment is now 'rolled'.
+  this.status = 'active';
+  this.endDate = newDueDate;
+
+  return this.rollovers[this.rollovers.length - 1];
+};
+
+// ============================================================
 // PREPAYMENT & EARLY SETTLEMENT METHODS
 // ============================================================
 
@@ -1142,23 +1282,50 @@ loanSchema.methods.canAcceptPrepayment = function() {
  * @returns {number} Remaining principal balance in ZMW
  */
 loanSchema.methods.calculateRemainingBalance = function() {
+  // Post-rollover, the original `amount` is no longer the outstanding
+  // principal basis — it's deliberately never mutated (reporting must always
+  // show what was actually disbursed), but the capitalized principal replaces
+  // it as what's actually owed. Base off the current (non-paid/waived/rolled)
+  // schedule entries' principal instead, then subtract only prepayments made
+  // since the last rollover (earlier prepayments are already reflected in
+  // that rollover's outstandingBefore).
+  if (this.rolloverCount > 0) {
+    let remaining = 0;
+    this.repaymentSchedule.forEach(installment => {
+      if (!['paid', 'waived', 'rolled'].includes(installment.status)) {
+        remaining += installment.principal;
+      }
+    });
+
+    const lastRolloverDate = this.rollovers[this.rollovers.length - 1].date;
+    if (this.prepayments && this.prepayments.length > 0) {
+      this.prepayments.forEach(prepayment => {
+        if (prepayment.date > lastRolloverDate) {
+          remaining -= prepayment.principalPortion;
+        }
+      });
+    }
+
+    return Math.max(0, remaining);
+  }
+
   // Start with original principal
   let remainingBalance = this.amount;
-  
+
   // Subtract principal portions from regular payments
   this.repaymentSchedule.forEach(installment => {
     if (installment.status === 'paid') {
       remainingBalance -= installment.principal;
     }
   });
-  
+
   // Subtract principal portions from prepayments
   if (this.prepayments && this.prepayments.length > 0) {
     this.prepayments.forEach(prepayment => {
       remainingBalance -= prepayment.principalPortion;
     });
   }
-  
+
   // Ensure we don't return negative balance
   return Math.max(0, remainingBalance);
 };
@@ -1172,12 +1339,14 @@ loanSchema.methods.calculateAccruedInterest = function(asOfDate = new Date()) {
   let accruedInterest = 0;
 
   // Interest already paid is not owed again — only count interest on
-  // obligations still outstanding (not paid, not waived) whose due date has
-  // passed as of asOfDate. Including paid installments here previously
+  // obligations still outstanding (not paid, not waived, not rolled) whose due
+  // date has passed as of asOfDate. Including paid installments here previously
   // inflated settlement/prepayment quotes with interest the borrower had
-  // already paid.
+  // already paid; 'rolled' installments' interest was already folded into the
+  // capitalized principal of the installment that superseded them, so counting
+  // it again here would double-charge it.
   this.repaymentSchedule.forEach(installment => {
-    if (installment.status !== 'paid' && installment.status !== 'waived' && installment.dueDate <= asOfDate) {
+    if (!['paid', 'waived', 'rolled'].includes(installment.status) && installment.dueDate <= asOfDate) {
       accruedInterest += installment.interest;
     }
   });
@@ -1221,10 +1390,12 @@ loanSchema.methods.calculateEarlySettlementAmount = function(settlementDate = ne
   const totalPayoff = remainingPrincipal + accruedInterest + earlySettlementFee;
   
   // Interest the borrower would pay by continuing the schedule: every
-  // installment not yet paid, regardless of whether its due date has passed
+  // installment not yet paid, regardless of whether its due date has passed.
+  // 'rolled' installments are excluded — their interest was already folded
+  // into the capitalized principal of the installment that superseded them.
   let remainingScheduledInterest = 0;
   this.repaymentSchedule.forEach(installment => {
-    if (installment.status !== 'paid') {
+    if (installment.status !== 'paid' && installment.status !== 'rolled') {
       remainingScheduledInterest += installment.interest;
     }
   });

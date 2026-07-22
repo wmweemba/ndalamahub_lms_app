@@ -30,6 +30,14 @@ Phases must be executed in order. Each phase leaves the app in a working, testab
 | 16 | `16-ui-borrower-mobile.md` | Consumer register: borrower hero dashboard, mobile loans/apply QA at 375px, bottom-nav polish, banner/lock-page token alignment. | 1 |
 | 17 | `17-ui-admin-surfaces-demo-polish.md` | Companies, Settings, Reports, Support restyle; `/users` removal; consistency sweep; scripted demo dress rehearsal. | 1 |
 | 18 | `18-post-demo-ui-punchlist.md` | Backlog, not a session — deliberate demo-runway scope cuts, to be prioritized post-demo. | — |
+| 19 | `19-direct-lending-and-borrower-identity.md` | Direct-lending tenant config (`lendingModel`), approval matrix, `companyLenderId` fail-open fix, NRC-first/email-optional borrower identity. **Full-stack phases resume here** — the zero-server rule was UI-runway-specific. | 1 |
+| 20 | `20-rollover-engine.md` | Manifi's rollover mechanic: 14-day grace, outstanding-balance capitalization, term anchored to prior due date, daily job, manual-default kill-switch. Riskiest phase — test-first. | 1 |
+| 21 | `21-collateral.md` | Collateral records + register; verification blocks approval; letter-of-sale flag blocks disbursement; text-only v1. | 1 |
+| 22 | `22-public-intake-api.md` | Public website-application intake (prospect records, hardened endpoint), review/conversion routes, `INTEGRATION_CONTRACT_MANIFIPAY.md`. | 1 |
+| 23 | `23-customers-surface.md` | Customers tab for direct lenders (replaces Companies), NRC-first create, invite + walk-in credential flows. | 1 |
+| 24 | `24-application-review-queue.md` | Website-application review UI with dedupe, one-click conversion; completes the full Manifi operating loop. | 1 |
+| 25 | `25-auth-sessions-migration.md` | Auth migration to server-side sessions (Option A, locked 2026-07-22); instant revocation; API test suite migrates to session agents. | 2 |
+| 26 | `26-coolify-production-launch.md` | Coolify production stand-up, fresh-DB Manifi seeding, website cutover, launch smoke, runbook. Infra-heavy, William present. | 2 |
 
 ## Live legacy docs
 

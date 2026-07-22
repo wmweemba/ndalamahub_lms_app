@@ -74,6 +74,19 @@ describe('Phase 22 — public intake API', () => {
       term: { min: 7, max: 60, unit: 'days', default: 30 },
       amount: { min: 500, max: 10000 }
     });
+
+    // A month-unit product in the same amount range — must never be matched
+    // against a website submission's termDays (see findMatchingProduct's
+    // comment; this pins the live-Atlas bug found during Phase 22 verification).
+    await LoanProduct.create({
+      name: 'Monthly Business Loan',
+      description: 'Month-term product, same amount range as the payday product',
+      category: 'business',
+      company: lenderDirect._id,
+      interestRate: { min: 20, max: 30, default: 25 },
+      term: { min: 1, max: 12, unit: 'months', default: 3 },
+      amount: { min: 500, max: 10000 }
+    });
   });
 
   afterAll(async () => {
@@ -260,6 +273,8 @@ describe('Phase 22 — public intake API', () => {
 
       const loan = await Loan.findById(res.body.data.loan._id);
       expect(loan.product.toString()).toBe(product._id.toString());
+      expect(loan.termUnit).toBe('days');
+      expect(loan.term).toBe(30);
     });
 
     it('rejects re-approving an already-approved application', async () => {

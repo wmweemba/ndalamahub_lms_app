@@ -64,14 +64,19 @@ async function generateUsername(applicant) {
   }
 }
 
-/** The lender's active product matching the requested amount (and term, when the product's unit is days). */
+/**
+ * The lender's active product matching the requested amount and term.
+ * `application.loanRequest.termDays` is unambiguously a day count (the
+ * website contract only ever sends days), so only day-unit products are
+ * eligible — a month/week-unit product can't be validly matched against a
+ * raw day count without silently mislabeling the resulting loan's term
+ * (found live, on dev Atlas, during Phase 22 verification: an earlier
+ * version matched on amount alone and stamped every converted loan
+ * `termUnit: 'days'` regardless of the matched product's real unit).
+ */
 async function findMatchingProduct(lenderCompanyId, amount, termDays) {
-  const products = await LoanProduct.find({ company: lenderCompanyId, isActive: true });
-  return products.find((p) => {
-    if (!p.isAmountValid(amount)) return false;
-    if (p.term.unit === 'days') return p.isTermValid(termDays);
-    return true;
-  }) || null;
+  const products = await LoanProduct.find({ company: lenderCompanyId, isActive: true, 'term.unit': 'days' });
+  return products.find((p) => p.isAmountValid(amount) && p.isTermValid(termDays)) || null;
 }
 
 // @route   GET /api/customer-applications

@@ -29,6 +29,8 @@ const productRoutes = require('./routes/products');
 const ticketRoutes = require('./routes/tickets');
 const subscriptionRoutes = require('./routes/subscriptions');
 const collateralRoutes = require('./routes/collateral');
+const publicIntakeRoutes = require('./routes/publicIntake');
+const customerApplicationRoutes = require('./routes/customerApplications');
 
 // Subscription/trial gate — applied to every /api/* route before the route
 // mounts below, except the exempt prefixes it defines itself (auth, tickets,
@@ -48,6 +50,8 @@ app.use('/api/products', productRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/collateral', collateralRoutes);
+app.use('/api/public', publicIntakeRoutes);
+app.use('/api/customer-applications', customerApplicationRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

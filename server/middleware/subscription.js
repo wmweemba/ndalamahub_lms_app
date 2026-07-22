@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const Company = require('../models/Company');
 const { isPlatformAdmin, isLenderSide, companyLenderId } = require('../utils/tenantScope');
 
-const EXEMPT_PREFIXES = ['/api/auth', '/api/tickets', '/api/health', '/api/subscriptions/status'];
+const EXEMPT_PREFIXES = ['/api/auth', '/api/tickets', '/api/health', '/api/subscriptions/status', '/api/public'];
 const LOCKED_STATUSES = ['suspended', 'cancelled'];
 
 const TRIAL_GRACE_DAYS = 7;   // past_due window after trialEndsAt/currentPeriodEnd

@@ -166,6 +166,19 @@ const SUBSCRIPTION_NOTICE_COPY = {
   }
 };
 
+function applicationReceived(adminUser, application, company) {
+  return {
+    subject: `New website application ${application.reference}`,
+    html: layout('New website application', `
+      <p>Hi ${adminUser.firstName},</p>
+      <p>A new loan application was submitted through ${company.name}'s public intake form.</p>
+      <p><strong>${application.reference}</strong> — ${application.applicant.fullName} (${application.applicant.nrc})</p>
+      <p>Requested: ${formatMoney(application.loanRequest.amount)} — ${application.loanRequest.purpose}</p>
+      <p>Log in to NdalamaHub to review this application.</p>
+    `)
+  };
+}
+
 function subscriptionNotice(adminUser, company, kind) {
   const copy = SUBSCRIPTION_NOTICE_COPY[kind];
   return {
@@ -188,5 +201,6 @@ module.exports = {
   paymentOverdue,
   ticketUpdate,
   ticketCreated,
+  applicationReceived,
   subscriptionNotice
 };

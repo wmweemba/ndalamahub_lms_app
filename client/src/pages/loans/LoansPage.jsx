@@ -68,7 +68,7 @@ export default function LoansPage() {
     queryKey: ['loans', selectedLoanId],
     queryFn: async () => {
       const res = await api.get(`/loans/${selectedLoanId}`);
-      return res.data.data.loan;
+      return { ...res.data.data.loan, collateral: res.data.data.collateral || [] };
     },
     enabled: !!selectedLoanId,
   });

@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { StatusPill } from '@/components/ui/status-pill';
@@ -16,6 +17,211 @@ import { formatCurrency, formatDate, formatTerm } from '@/lib/format';
 import { PrepaymentDialog } from './PrepaymentDialog';
 import PaymentHistoryDialog from './PaymentHistoryDialog';
 import { RecordPaymentDialog } from './RecordPaymentDialog';
+
+const COLLATERAL_TYPE_LABELS = {
+  vehicle: 'Vehicle',
+  business_equipment: 'Business equipment',
+  title_deed: 'Title deed',
+  other: 'Other',
+};
+
+function CollateralSection({ loan, isLenderStaff, onUpdate }) {
+  const [busyId, setBusyId] = useState(null);
+  const [notesById, setNotesById] = useState({});
+  const [referenceById, setReferenceById] = useState({});
+  const [addOpen, setAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState({ type: '', otherDescription: '', description: '', estimatedValue: '' });
+  const [addLoading, setAddLoading] = useState(false);
+
+  const records = loan.collateral || [];
+
+  const runAction = async (fn, id) => {
+    setBusyId(id);
+    try {
+      await fn();
+      onUpdate();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Action failed');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleVerify = (id) => runAction(
+    () => api.put(`/collateral/${id}/verify`, { vettingNotes: notesById[id] }).then(() => toast.success('Collateral verified')),
+    id
+  );
+  const handleReject = (id) => runAction(
+    () => api.put(`/collateral/${id}/reject`, { vettingNotes: notesById[id] }).then(() => toast.success('Collateral rejected')),
+    id
+  );
+  const handleLetterOfSale = (id) => runAction(
+    () => api.put(`/collateral/${id}/letter-of-sale`, { onFile: true, reference: referenceById[id] }).then(() => toast.success('Letter of sale recorded')),
+    id
+  );
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    setAddLoading(true);
+    try {
+      await api.post(`/collateral/loans/${loan._id}`, {
+        type: addForm.type,
+        otherDescription: addForm.type === 'other' ? addForm.otherDescription : undefined,
+        description: addForm.description,
+        estimatedValue: parseFloat(addForm.estimatedValue) || 0,
+      });
+      toast.success('Collateral added');
+      setAddOpen(false);
+      setAddForm({ type: '', otherDescription: '', description: '', estimatedValue: '' });
+      onUpdate();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to add collateral');
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
+  if (records.length === 0 && !isLenderStaff) return null;
+
+  return (
+    <Section title="Collateral">
+      {records.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No collateral declared.</p>
+      ) : (
+        <div className="space-y-3">
+          {records.map((c) => (
+            <div key={c._id} className="rounded-2xl border border-border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {c.type === 'other' ? c.otherDescription : COLLATERAL_TYPE_LABELS[c.type]}
+                  </p>
+                  <p className="text-sm text-muted-foreground">{c.description}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm">{formatCurrency(c.estimatedValue)}</span>
+                  <StatusPill status={c.status} />
+                </div>
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground">
+                Letter of sale: {c.letterOfSale?.onFile ? `on file${c.letterOfSale.reference ? ` (${c.letterOfSale.reference})` : ''}` : 'not on file'}
+              </div>
+
+              {isLenderStaff && (
+                <div className="mt-3 space-y-2">
+                  {c.status === 'declared' && (
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Input
+                        placeholder="Vetting notes (optional)"
+                        value={notesById[c._id] || ''}
+                        onChange={(e) => setNotesById((prev) => ({ ...prev, [c._id]: e.target.value }))}
+                        className="text-sm"
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" disabled={busyId === c._id} onClick={() => handleVerify(c._id)}>
+                          Verify
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-destructive text-destructive hover:bg-status-danger-bg"
+                          disabled={busyId === c._id}
+                          onClick={() => handleReject(c._id)}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {c.status === 'verified' && !c.letterOfSale?.onFile && (
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Input
+                        placeholder="Letter of sale reference (optional)"
+                        value={referenceById[c._id] || ''}
+                        onChange={(e) => setReferenceById((prev) => ({ ...prev, [c._id]: e.target.value }))}
+                        className="text-sm"
+                      />
+                      <Button size="sm" variant="outline" disabled={busyId === c._id} onClick={() => handleLetterOfSale(c._id)}>
+                        Record letter of sale
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {isLenderStaff && !addOpen && (
+        <Button variant="outline" size="sm" className="mt-3" onClick={() => setAddOpen(true)}>
+          Add collateral
+        </Button>
+      )}
+
+      {isLenderStaff && addOpen && (
+        <form onSubmit={handleAdd} className="mt-3 rounded-2xl border border-border bg-muted p-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <Label className="text-sm font-medium">Type</Label>
+              <select
+                value={addForm.type}
+                onChange={(e) => setAddForm((prev) => ({ ...prev, type: e.target.value }))}
+                required
+                className="mt-1 w-full h-9 rounded-md border border-border bg-card px-2 text-sm"
+              >
+                <option value="" disabled>Select type</option>
+                <option value="vehicle">Vehicle</option>
+                <option value="business_equipment">Business equipment</option>
+                <option value="title_deed">Title deed</option>
+                <option value="other">Other — specify</option>
+              </select>
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Estimated value</Label>
+              <Input
+                type="number"
+                min="0"
+                required
+                value={addForm.estimatedValue}
+                onChange={(e) => setAddForm((prev) => ({ ...prev, estimatedValue: e.target.value }))}
+                className="mt-1 font-mono"
+              />
+            </div>
+          </div>
+          {addForm.type === 'other' && (
+            <div>
+              <Label className="text-sm font-medium">Specify type</Label>
+              <Input
+                required
+                value={addForm.otherDescription}
+                onChange={(e) => setAddForm((prev) => ({ ...prev, otherDescription: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+          )}
+          <div>
+            <Label className="text-sm font-medium">Description</Label>
+            <Input
+              required
+              value={addForm.description}
+              onChange={(e) => setAddForm((prev) => ({ ...prev, description: e.target.value }))}
+              className="mt-1"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button type="submit" size="sm" disabled={addLoading}>
+              {addLoading ? 'Saving...' : 'Save'}
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => setAddOpen(false)} disabled={addLoading}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      )}
+    </Section>
+  );
+}
 
 function Field({ label, children }) {
   return (
@@ -54,6 +260,19 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
   const currentUser = getCurrentUser();
   const userCanApprove = currentUser && canApproveLoan(currentUser.role);
   const userCanDisburse = currentUser && canDisburseLoan(currentUser.role);
+  const isLenderStaff = currentUser && ['platform_admin', 'lender_admin', 'lender_officer'].includes(currentUser.role);
+
+  const collateralRecords = loan.collateral || [];
+  const nonRejectedCollateral = collateralRecords.filter((c) => c.status !== 'rejected');
+  const collateralRequired = !!loan.product?.collateralRequired;
+  const collateralAllVerified = nonRejectedCollateral.length > 0 && nonRejectedCollateral.every((c) => c.status === 'verified');
+  const collateralApprovalBlocker = collateralRequired && !collateralAllVerified
+    ? 'Collateral pending verification'
+    : null;
+  const collateralDisbursementBlocker = collateralRequired && collateralAllVerified &&
+    !nonRejectedCollateral.every((c) => c.letterOfSale?.onFile)
+    ? 'Letter of sale not on file'
+    : collateralApprovalBlocker;
 
   const handleApprove = async () => {
     if (!approvalComment.trim()) {
@@ -243,6 +462,8 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
               </Section>
             )}
 
+            <CollateralSection loan={loan} isLenderStaff={isLenderStaff} onUpdate={onUpdate} />
+
             {loan.repaymentSchedule && loan.repaymentSchedule.length > 0 && (
               <Section title={`Repayment schedule (${loan.repaymentSchedule.length} installments)`}>
                 <Button variant="outline" size="sm" className="mb-3" onClick={handleExportRepaymentSchedule} disabled={loading}>
@@ -287,6 +508,18 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
             {actionError && (
               <div className="w-full bg-status-danger-bg text-status-danger-fg rounded-2xl p-3 text-sm">
                 {actionError}
+              </div>
+            )}
+
+            {!actionError && canApprove && collateralApprovalBlocker && (
+              <div className="w-full bg-status-warning-bg text-status-warning-fg rounded-2xl p-3 text-sm">
+                {collateralApprovalBlocker}
+              </div>
+            )}
+
+            {!actionError && !collateralApprovalBlocker && canDisburse && collateralDisbursementBlocker && (
+              <div className="w-full bg-status-warning-bg text-status-warning-fg rounded-2xl p-3 text-sm">
+                {collateralDisbursementBlocker}
               </div>
             )}
 

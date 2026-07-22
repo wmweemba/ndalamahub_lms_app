@@ -77,4 +77,35 @@ describe('LoanDetailsDialog', () => {
     }));
     await waitFor(() => expect(onUpdate).toHaveBeenCalled());
   });
+
+  describe('collateral section (Phase 21)', () => {
+    const loanWithCollateral = {
+      ...pendingLoan,
+      collateral: [
+        {
+          _id: 'col-1',
+          type: 'vehicle',
+          description: 'Toyota Hilux',
+          estimatedValue: 50000,
+          status: 'declared',
+          letterOfSale: { onFile: false },
+        },
+      ],
+    };
+
+    it('shows the Verify action for lender staff', () => {
+      seedUser({ _id: 'u3', username: 'lenderadmin', role: 'lender_admin', firstName: 'Lena' });
+      render(<LoanDetailsDialog loan={loanWithCollateral} open={true} onClose={vi.fn()} onUpdate={vi.fn()} />);
+
+      expect(screen.getByText('Verify')).toBeInTheDocument();
+    });
+
+    it('hides the Verify action for a borrower', () => {
+      seedUser({ _id: 'u4', username: 'borrower1', role: 'borrower', firstName: 'Ben' });
+      render(<LoanDetailsDialog loan={loanWithCollateral} open={true} onClose={vi.fn()} onUpdate={vi.fn()} />);
+
+      expect(screen.queryByText('Verify')).not.toBeInTheDocument();
+      expect(screen.getByText('Toyota Hilux')).toBeInTheDocument();
+    });
+  });
 });

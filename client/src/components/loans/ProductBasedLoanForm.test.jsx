@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { seedUser, renderWithProviders } from '@/test/utils';
 import ProductBasedLoanForm from './ProductBasedLoanForm';
 
-const { productFixture, postMock } = vi.hoisted(() => ({
+const { productFixture, requiringProductFixture, postMock } = vi.hoisted(() => ({
   productFixture: {
     _id: 'product-1',
     name: 'Payday Advance',
@@ -16,6 +16,18 @@ const { productFixture, postMock } = vi.hoisted(() => ({
     interestCalculation: { method: 'flat_rate', rateBasis: 'per_term' },
     repaymentFrequency: ['monthly'],
     collateralRequired: false,
+  },
+  requiringProductFixture: {
+    _id: 'product-2',
+    name: 'Secured Loan',
+    description: 'Collateral-backed loan',
+    category: 'business',
+    interestRate: { min: 20, max: 25, default: 25 },
+    term: { min: 30, max: 30, default: 30, unit: 'days' },
+    amount: { min: 500, max: 5000, currency: 'ZMW' },
+    interestCalculation: { method: 'flat_rate', rateBasis: 'per_term' },
+    repaymentFrequency: ['monthly'],
+    collateralRequired: true,
   },
   postMock: vi.fn((url) => {
     if (url === '/loans') {
@@ -42,7 +54,7 @@ vi.mock('@/utils/api', () => ({
   default: {
     get: vi.fn((url) => {
       if (url === '/products/available') {
-        return Promise.resolve({ data: { success: true, data: [productFixture] } });
+        return Promise.resolve({ data: { success: true, data: [productFixture, requiringProductFixture] } });
       }
       return Promise.resolve({ data: { success: true, data: {} } });
     }),
@@ -106,12 +118,27 @@ describe('ProductBasedLoanForm', () => {
         purpose: 'Payday Advance Application',
         description: '',
         monthlyIncome: 5000,
-        collateral: undefined,
         gracePeriod: 0,
         graceType: 'none',
         moratorium: undefined,
       })
     );
     await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+  });
+
+  it('renders a collateral step for a product that requires collateral', async () => {
+    seedUser({ _id: 'u1', username: 'borrower1', role: 'borrower', firstName: 'Ben', lastName: 'Phiri' });
+    const user = userEvent.setup();
+
+    const { ui } = renderWithProviders(
+      <ProductBasedLoanForm open={true} onClose={vi.fn()} onSuccess={vi.fn()} />
+    );
+    render(ui);
+
+    await waitFor(() => expect(screen.getByText('Secured Loan')).toBeInTheDocument());
+    await user.click(screen.getByText('Secured Loan'));
+
+    await waitFor(() => expect(screen.getByText(/Collateral details/)).toBeInTheDocument());
+    expect(screen.getByLabelText(/Collateral type/)).toBeInTheDocument();
   });
 });

@@ -33,6 +33,7 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
     description: '',
     monthlyIncome: '',
     collateralType: '',
+    collateralOtherDescription: '',
     collateralValue: '',
     collateralDescription: '',
     gracePeriod: 0,
@@ -137,6 +138,7 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
       description: '',
       monthlyIncome: '',
       collateralType: '',
+      collateralOtherDescription: '',
       collateralValue: '',
       collateralDescription: '',
       gracePeriod: 0,
@@ -203,6 +205,13 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
         throw new Error(`Loan term must be between ${formatTerm(selectedProduct.term.min, selectedProduct.term.unit)} and ${formatTerm(selectedProduct.term.max, selectedProduct.term.unit)}`);
       }
 
+      if (selectedProduct.collateralRequired && !formData.collateralType) {
+        throw new Error('This product requires collateral — please select a collateral type');
+      }
+      if (formData.collateralType === 'other' && !formData.collateralOtherDescription) {
+        throw new Error('Please specify the "Other" collateral type');
+      }
+
       // Prepare loan application data
       const loanData = {
         productId: selectedProduct._id,
@@ -211,11 +220,6 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
         purpose: formData.purpose,
         description: formData.description,
         monthlyIncome: parseFloat(formData.monthlyIncome),
-        collateral: formData.collateralType ? {
-          type: formData.collateralType,
-          value: parseFloat(formData.collateralValue) || 0,
-          description: formData.collateralDescription
-        } : undefined,
         gracePeriod: parseInt(formData.gracePeriod) || 0,
         graceType: formData.graceType,
         moratorium: formData.moratoriumActive ? {
@@ -229,6 +233,15 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
       const response = await api.post('/loans', loanData);
 
       if (response.data.success) {
+        if (formData.collateralType) {
+          const loanId = response.data.data.loan._id;
+          await api.post(`/collateral/loans/${loanId}`, {
+            type: formData.collateralType,
+            otherDescription: formData.collateralType === 'other' ? formData.collateralOtherDescription : undefined,
+            description: formData.collateralDescription,
+            estimatedValue: parseFloat(formData.collateralValue) || 0
+          });
+        }
         toast.success('Application submitted');
         onSuccess();
         onClose();
@@ -518,16 +531,30 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
                         <SelectValue placeholder="Select collateral type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="property">Property</SelectItem>
                         <SelectItem value="vehicle">Vehicle</SelectItem>
-                        <SelectItem value="equipment">Equipment</SelectItem>
-                        <SelectItem value="inventory">Inventory</SelectItem>
-                        <SelectItem value="securities">Securities</SelectItem>
-                        <SelectItem value="guarantor">Guarantor</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="business_equipment">Business equipment</SelectItem>
+                        <SelectItem value="title_deed">Title deed</SelectItem>
+                        <SelectItem value="other">Other — specify</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                  {formData.collateralType === 'other' && (
+                    <div>
+                      <Label htmlFor="collateralOtherDescription" className="text-sm font-medium text-foreground">
+                        Specify collateral type *
+                      </Label>
+                      <Input
+                        id="collateralOtherDescription"
+                        name="collateralOtherDescription"
+                        type="text"
+                        value={formData.collateralOtherDescription}
+                        onChange={handleChange}
+                        placeholder="e.g., Livestock"
+                        required
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <Label htmlFor="collateralValue" className="text-sm font-medium text-foreground">

@@ -6,6 +6,7 @@ import DashboardPage from './pages/dashboard/DashboardPage';
 import { CompaniesPage } from './pages/companies/CompaniesPage';
 import LoansPage from './pages/loans/LoansPage';
 import ProductsPage from './pages/products/ProductsPage';
+import CollateralRegisterPage from './pages/collateral/CollateralRegisterPage';
 import ReportsPage from './pages/reports/ReportsPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import SupportPage from './pages/support/SupportPage';
@@ -21,6 +22,7 @@ export function App() {
                 <Route path="/loans" element={<LoansPage />} />
                 <Route path="/companies" element={<CompaniesPage />} />
                 <Route path="/products" element={<ProductsPage />} />
+                <Route path="/collateral" element={<CollateralRegisterPage />} />
                 <Route path="/reports" element={<ReportsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/support" element={<SupportPage />} />

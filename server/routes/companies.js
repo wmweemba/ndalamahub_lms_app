@@ -128,6 +128,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
             delete updateData.lenderCompany;
             delete updateData.corporateClients;
             delete updateData.lendingModel;
+            delete updateData.publicIntake;
 
             const updatedCompany = await Company.findByIdAndUpdate(
                 companyId,

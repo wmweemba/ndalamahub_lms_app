@@ -140,6 +140,20 @@ const companySchema = new mongoose.Schema({
     suspendedAt: Date,
     notes: String // manual-billing bookkeeping, platform admin only
   },
+  // Public website intake config (Phase 22) — lender companies only.
+  // platform_admin-managed; the slug is how the public endpoint resolves a
+  // tenant with no client-supplied id ever trusted.
+  publicIntake: {
+    enabled: { type: Boolean, default: false },
+    slug: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      unique: true,
+      sparse: true
+    },
+    allowedOrigin: { type: String, trim: true }
+  },
   logo: {
     type: String, // URL to logo image
     trim: true

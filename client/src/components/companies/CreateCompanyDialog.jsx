@@ -22,6 +22,7 @@ export function CreateCompanyDialog({ open, onClose, onSuccess }) {
     const [formData, setFormData] = useState({
         name: '',
         type: isLenderAdmin ? 'corporate' : 'corporate', // Force corporate for lender admins
+        lendingModel: 'employer',
         lenderCompany: isLenderAdmin ? currentUser?.company : '',
         registrationNumber: '',
         taxNumber: '',
@@ -68,6 +69,7 @@ export function CreateCompanyDialog({ open, onClose, onSuccess }) {
         setFormData({
             name: '',
             type: isLenderAdmin ? 'corporate' : 'corporate',
+            lendingModel: 'employer',
             lenderCompany: isLenderAdmin ? currentUser?.company : '',
             registrationNumber: '',
             taxNumber: '',
@@ -110,6 +112,11 @@ export function CreateCompanyDialog({ open, onClose, onSuccess }) {
             // Only include lenderCompany for corporate companies
             if (formData.type !== 'corporate') {
                 delete submitData.lenderCompany;
+            }
+
+            // lendingModel is only meaningful on lender companies
+            if (formData.type !== 'lender') {
+                delete submitData.lendingModel;
             }
 
             await api.post('/companies', submitData);
@@ -177,6 +184,23 @@ export function CreateCompanyDialog({ open, onClose, onSuccess }) {
                                         <p className="text-sm text-muted-foreground mt-1">
                                             As a lender admin, you can only create employer client companies.
                                         </p>
+                                    </div>
+                                )}
+
+                                {/* Lending model - only meaningful for lender companies */}
+                                {!isLenderAdmin && formData.type === 'lender' && (
+                                    <div>
+                                        <Label htmlFor="lendingModel">Lending model *</Label>
+                                        <select
+                                            id="lendingModel"
+                                            value={formData.lendingModel}
+                                            onChange={(e) => setFormData({ ...formData, lendingModel: e.target.value })}
+                                            className={`${SELECT_CLASSES} mt-1`}
+                                            required
+                                        >
+                                            <option value="employer">Employer-based</option>
+                                            <option value="direct">Direct-to-customer</option>
+                                        </select>
                                     </div>
                                 )}
 

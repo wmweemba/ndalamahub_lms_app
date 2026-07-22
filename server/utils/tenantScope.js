@@ -91,10 +91,18 @@ function canReadProduct(user, product) {
   return null; // caller must use canAccessLenderProduct
 }
 
-/** Resolve the lender company id of an employer company (or null). */
+/**
+ * Resolve the paying/lender company id for a company: its own id if it's a
+ * lender company (direct-model borrowers pay their own lender), otherwise
+ * its lenderCompany (employer-model), or null if neither resolves.
+ * Fixed 2026-07-22 (Phase 19): previously returned null for lender-type
+ * companies, which fail-opened the subscription gate for direct borrowers.
+ */
 async function companyLenderId(companyId) {
-  const company = await Company.findById(companyId).select('lenderCompany');
-  return company && company.lenderCompany ? company.lenderCompany : null;
+  const company = await Company.findById(companyId).select('lenderCompany type');
+  if (!company) return null;
+  if (company.type === 'lender') return company._id;
+  return company.lenderCompany || null;
 }
 
 module.exports = {

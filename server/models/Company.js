@@ -12,6 +12,26 @@ const companySchema = new mongoose.Schema({
     enum: ['lender', 'corporate'],
     required: [true, 'Company type is required']
   },
+  // Meaningful only when type === 'lender': 'employer' (borrowers belong to a
+  // client/employer company) or 'direct' (borrowers attach to the lender
+  // company itself, no employer in between).
+  // The `this.type` check below only sees the full document on `.save()`
+  // (document creation/validation) — on a partial findByIdAndUpdate, `this`
+  // isn't bound to the full document, so the same rule is also enforced
+  // explicitly in the PUT /api/companies/:id route handler, which has the
+  // fetched document to check against.
+  lendingModel: {
+    type: String,
+    enum: ['employer', 'direct'],
+    default: 'employer',
+    validate: {
+      validator: function(value) {
+        if (value !== 'direct') return true;
+        return this.type === undefined || this.type === 'lender';
+      },
+      message: 'lendingModel: direct is only valid for lender companies'
+    }
+  },
   registrationNumber: {
     type: String,
     required: [true, 'Registration number is required'],

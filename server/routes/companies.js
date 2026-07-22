@@ -98,6 +98,15 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
         // Super user can update any company
         if (isPlatformAdmin(req.user)) {
+            // Checked explicitly here (rather than relying solely on the schema
+            // validator) because Mongoose update validators don't see the rest
+            // of the document — `this.type` inside the schema validator isn't
+            // reliably populated on a partial findByIdAndUpdate.
+            const effectiveType = req.body.type || company.type;
+            if (req.body.lendingModel === 'direct' && effectiveType !== 'lender') {
+                return res.status(400).json({ message: 'lendingModel: direct is only valid for lender companies' });
+            }
+
             const updatedCompany = await Company.findByIdAndUpdate(
                 companyId,
                 req.body,
@@ -111,11 +120,14 @@ router.put('/:id', authenticateToken, async (req, res) => {
                 return res.status(403).json({ message: 'Access denied: Cannot update this company' });
             }
 
-            // Don't allow changing company type or lender relationships
+            // Don't allow changing company type, lender relationships, or the
+            // lending model (a lender flipping its operating model is a
+            // platform-level act, per the Manifi launch decisions)
             const updateData = { ...req.body };
             delete updateData.type;
             delete updateData.lenderCompany;
             delete updateData.corporateClients;
+            delete updateData.lendingModel;
 
             const updatedCompany = await Company.findByIdAndUpdate(
                 companyId,

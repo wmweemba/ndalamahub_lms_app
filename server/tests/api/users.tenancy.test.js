@@ -20,7 +20,7 @@ describe('Users tenancy', () => {
   });
 
   it('GET /api/users as employerAdminA -> only employerA users', async () => {
-    const res = await request(app).get('/api/users').set(authHeader(fx.employerAdminA));
+    const res = await request(app).get('/api/users').set(await authHeader(fx.employerAdminA));
     expect(res.status).toBe(200);
     const ids = idsOf(res.body.data);
     expect(ids).not.toContain(fx.employerAdminB._id.toString());
@@ -29,7 +29,7 @@ describe('Users tenancy', () => {
   });
 
   it('GET /api/users as lenderAdminA -> lenderA + employerA users only, none from tenant B', async () => {
-    const res = await request(app).get('/api/users').set(authHeader(fx.lenderAdminA));
+    const res = await request(app).get('/api/users').set(await authHeader(fx.lenderAdminA));
     expect(res.status).toBe(200);
     const ids = idsOf(res.body.data);
     expect(ids).toContain(fx.lenderAdminA._id.toString());
@@ -42,7 +42,7 @@ describe('Users tenancy', () => {
   it('GET /api/users/:id as employerAdminA on borrowerB -> 403', async () => {
     const res = await request(app)
       .get(`/api/users/${fx.borrowerB._id}`)
-      .set(authHeader(fx.employerAdminA));
+      .set(await authHeader(fx.employerAdminA));
     expect(res.status).toBe(403);
   });
 
@@ -52,14 +52,14 @@ describe('Users tenancy', () => {
   it('GET /api/users/:id as lenderAdminA on borrowerA (own client employee) -> 200', async () => {
     const res = await request(app)
       .get(`/api/users/${fx.borrowerA._id}`)
-      .set(authHeader(fx.lenderAdminA));
+      .set(await authHeader(fx.lenderAdminA));
     expect(res.status).toBe(200);
   });
 
   it('POST /api/users as employerAdminA with company: employerB._id -> 403', async () => {
     const res = await request(app)
       .post('/api/users')
-      .set(authHeader(fx.employerAdminA))
+      .set(await authHeader(fx.employerAdminA))
       .send({
         firstName: 'Cross',
         lastName: 'Tenant',
@@ -77,7 +77,7 @@ describe('Users tenancy', () => {
   it('POST /api/users as lenderAdminA creating a borrower in employerB -> 403 (not own company, not their client)', async () => {
     const res = await request(app)
       .post('/api/users')
-      .set(authHeader(fx.lenderAdminA))
+      .set(await authHeader(fx.lenderAdminA))
       .send({
         firstName: 'Cross',
         lastName: 'Tenant',
@@ -95,7 +95,7 @@ describe('Users tenancy', () => {
   it('PATCH /api/users/:id/status as employerAdminA on borrowerB -> 403', async () => {
     const res = await request(app)
       .patch(`/api/users/${fx.borrowerB._id}/status`)
-      .set(authHeader(fx.employerAdminA))
+      .set(await authHeader(fx.employerAdminA))
       .send({ isActive: false });
     expect(res.status).toBe(403);
   });
@@ -103,7 +103,7 @@ describe('Users tenancy', () => {
   it('DELETE /api/users/:id as employerAdminA on borrowerB -> 403 and the user still exists', async () => {
     const res = await request(app)
       .delete(`/api/users/${fx.borrowerB._id}`)
-      .set(authHeader(fx.employerAdminA));
+      .set(await authHeader(fx.employerAdminA));
     expect(res.status).toBe(403);
 
     const stillExists = await User.findById(fx.borrowerB._id);
@@ -113,7 +113,7 @@ describe('Users tenancy', () => {
   it('PATCH /api/users/:id/reset-password as lenderAdminA on borrowerB (not their client) -> 403', async () => {
     const res = await request(app)
       .patch(`/api/users/${fx.borrowerB._id}/reset-password`)
-      .set(authHeader(fx.lenderAdminA))
+      .set(await authHeader(fx.lenderAdminA))
       .send({ newPassword: 'NewPass123!' });
     expect(res.status).toBe(403);
   });
@@ -121,7 +121,7 @@ describe('Users tenancy', () => {
   it('PATCH /api/users/:id/reset-password as lenderAdminA on borrowerA (own client employee) -> 200', async () => {
     const res = await request(app)
       .patch(`/api/users/${fx.borrowerA._id}/reset-password`)
-      .set(authHeader(fx.lenderAdminA))
+      .set(await authHeader(fx.lenderAdminA))
       .send({ newPassword: 'NewPass123!' });
     expect(res.status).toBe(200);
   });

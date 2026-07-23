@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Company = require('../models/Company');
 const LoanProduct = require('../models/LoanProduct');
-const { generateToken } = require('./auth');
 
 // Sample data for seeding - matches FRONTEND_TEST_PLAN.md
 const sampleData = {

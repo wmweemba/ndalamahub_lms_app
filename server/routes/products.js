@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const LoanProduct = require('../models/LoanProduct');
 const Company = require('../models/Company');
-const { authenticateToken, authorize } = require('../middleware/auth');
+const { requireAuth, authorize } = require('../middleware/auth');
 const {
   isPlatformAdmin,
   idsEqual,
@@ -20,7 +20,7 @@ async function canAccessLenderProduct(user, product) {
 }
 
 // Get products available for loan application (for corporate users, returns lender's products)
-router.get('/available', authenticateToken, async (req, res) => {
+router.get('/available', requireAuth, async (req, res) => {
   try {
     const { category, isActive, search } = req.query;
     
@@ -101,7 +101,7 @@ router.get('/available', authenticateToken, async (req, res) => {
 });
 
 // Get all products (filtered by company for non-super users)
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
     const { category, isActive, search } = req.query;
     
@@ -151,7 +151,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Get single product by ID
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', requireAuth, async (req, res) => {
   try {
     const product = await LoanProduct.findById(req.params.id)
       .populate('company', 'name type')
@@ -188,7 +188,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // Get products by category
-router.get('/category/:category', authenticateToken, async (req, res) => {
+router.get('/category/:category', requireAuth, async (req, res) => {
   try {
     const companyId = isPlatformAdmin(req.user) ? null : req.user.company;
     const products = await LoanProduct.findByCategory(req.params.category, companyId);
@@ -208,7 +208,7 @@ router.get('/category/:category', authenticateToken, async (req, res) => {
 });
 
 // Create new product (admin only)
-router.post('/', authenticateToken, authorize(['platform_admin', 'lender_admin']), async (req, res) => {
+router.post('/', requireAuth, authorize(['platform_admin', 'lender_admin']), async (req, res) => {
   try {
     // Set company from authenticated user (unless platform_admin specifies one)
     const productData = {
@@ -251,7 +251,7 @@ router.post('/', authenticateToken, authorize(['platform_admin', 'lender_admin']
 });
 
 // Update product (admin only)
-router.put('/:id', authenticateToken, authorize(['platform_admin', 'lender_admin']), async (req, res) => {
+router.put('/:id', requireAuth, authorize(['platform_admin', 'lender_admin']), async (req, res) => {
   try {
     const product = await LoanProduct.findById(req.params.id);
     
@@ -308,7 +308,7 @@ router.put('/:id', authenticateToken, authorize(['platform_admin', 'lender_admin
 });
 
 // Delete product (admin only)
-router.delete('/:id', authenticateToken, authorize(['platform_admin', 'lender_admin']), async (req, res) => {
+router.delete('/:id', requireAuth, authorize(['platform_admin', 'lender_admin']), async (req, res) => {
   try {
     const product = await LoanProduct.findById(req.params.id);
     
@@ -347,7 +347,7 @@ router.delete('/:id', authenticateToken, authorize(['platform_admin', 'lender_ad
 });
 
 // Check eligibility for a product
-router.post('/:id/check-eligibility', authenticateToken, async (req, res) => {
+router.post('/:id/check-eligibility', requireAuth, async (req, res) => {
   try {
     const product = await LoanProduct.findById(req.params.id);
     
@@ -398,7 +398,7 @@ router.post('/:id/check-eligibility', authenticateToken, async (req, res) => {
 });
 
 // Calculate fees for a loan amount
-router.post('/:id/calculate-fees', authenticateToken, async (req, res) => {
+router.post('/:id/calculate-fees', requireAuth, async (req, res) => {
   try {
     const product = await LoanProduct.findById(req.params.id);
     
@@ -460,7 +460,7 @@ router.post('/:id/calculate-fees', authenticateToken, async (req, res) => {
 });
 
 // Get product statistics (admin only)
-router.get('/stats/overview', authenticateToken, authorize(['platform_admin', 'lender_admin']), async (req, res) => {
+router.get('/stats/overview', requireAuth, authorize(['platform_admin', 'lender_admin']), async (req, res) => {
   try {
     const companyFilter = isPlatformAdmin(req.user) ? {} : { company: req.user.company };
     
@@ -504,7 +504,7 @@ router.get('/stats/overview', authenticateToken, authorize(['platform_admin', 'l
 });
 
 // Calculate repayment schedule preview for a loan
-router.post('/:id/calculate-schedule', authenticateToken, async (req, res) => {
+router.post('/:id/calculate-schedule', requireAuth, async (req, res) => {
   try {
     const product = await LoanProduct.findById(req.params.id);
     

@@ -40,7 +40,7 @@ describe('Phase 23 — invite & change-password', () => {
     it('lender_admin invites a borrower in their tenant -> 200, email sent, no token leaked', async () => {
       const res = await request(app)
         .post(`/api/users/${fx.borrowerA._id}/invite`)
-        .set(authHeader(fx.lenderAdminA));
+        .set(await authHeader(fx.lenderAdminA));
 
       expect(res.status).toBe(200);
       expect(JSON.stringify(res.body)).not.toMatch(/resetToken/i);
@@ -54,7 +54,7 @@ describe('Phase 23 — invite & change-password', () => {
     it('lender_officer invites a borrower in their tenant -> 200', async () => {
       const res = await request(app)
         .post(`/api/users/${fx.borrowerA._id}/invite`)
-        .set(authHeader(fx.lenderOfficerA));
+        .set(await authHeader(fx.lenderOfficerA));
 
       expect(res.status).toBe(200);
     });
@@ -62,7 +62,7 @@ describe('Phase 23 — invite & change-password', () => {
     it('employer_admin (not lender-side) -> 403', async () => {
       const res = await request(app)
         .post(`/api/users/${fx.borrowerA._id}/invite`)
-        .set(authHeader(fx.employerAdminA));
+        .set(await authHeader(fx.employerAdminA));
 
       expect(res.status).toBe(403);
     });
@@ -70,7 +70,7 @@ describe('Phase 23 — invite & change-password', () => {
     it('lender_admin of tenant B inviting borrowerA (cross-tenant) -> 403', async () => {
       const res = await request(app)
         .post(`/api/users/${fx.borrowerA._id}/invite`)
-        .set(authHeader(fx.lenderAdminB));
+        .set(await authHeader(fx.lenderAdminB));
 
       expect(res.status).toBe(403);
     });
@@ -78,7 +78,7 @@ describe('Phase 23 — invite & change-password', () => {
     it('inviting a borrower with no email on file -> 400', async () => {
       const res = await request(app)
         .post(`/api/users/${borrowerNoEmail._id}/invite`)
-        .set(authHeader(fx.lenderAdminA));
+        .set(await authHeader(fx.lenderAdminA));
 
       expect(res.status).toBe(400);
       expect(sendEmail).not.toHaveBeenCalled();
@@ -87,7 +87,7 @@ describe('Phase 23 — invite & change-password', () => {
     it('the invited token round-trips through /api/auth/reset-password and sets a working password', async () => {
       await request(app)
         .post(`/api/users/${fx.borrowerA._id}/invite`)
-        .set(authHeader(fx.lenderAdminA));
+        .set(await authHeader(fx.lenderAdminA));
 
       const lastCall = sendEmail.mock.calls[sendEmail.mock.calls.length - 1][0];
       const token = lastCall.html.match(/token=([a-f0-9]+)/)[1];
@@ -110,7 +110,7 @@ describe('Phase 23 — invite & change-password', () => {
     it('requires the correct current password', async () => {
       const res = await request(app)
         .post('/api/auth/change-password')
-        .set(authHeader(fx.borrowerB))
+        .set(await authHeader(fx.borrowerB))
         .send({ currentPassword: 'WrongPass1!', newPassword: 'AnotherPass1!' });
 
       expect(res.status).toBe(400);
@@ -119,7 +119,7 @@ describe('Phase 23 — invite & change-password', () => {
     it('changes the password and the new password logs in', async () => {
       const res = await request(app)
         .post('/api/auth/change-password')
-        .set(authHeader(fx.borrowerB))
+        .set(await authHeader(fx.borrowerB))
         .send({ currentPassword: PASSWORD, newPassword: 'FreshPass1!' });
 
       expect(res.status).toBe(200);

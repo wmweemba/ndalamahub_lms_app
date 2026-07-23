@@ -41,7 +41,7 @@ describe('Phase 19 — borrower identity (NRC-first, email-optional)', () => {
     const admin = await directAdmin();
     const res = await request(app)
       .post('/api/users')
-      .set(authHeader(admin))
+      .set(await authHeader(admin))
       .send({
         firstName: 'No', lastName: 'Nrc', username: `nonrc${Date.now()}`,
         phone: '+260970000030', password: PASSWORD,
@@ -54,7 +54,7 @@ describe('Phase 19 — borrower identity (NRC-first, email-optional)', () => {
     const admin = await directAdmin();
     const res = await request(app)
       .post('/api/users')
-      .set(authHeader(admin))
+      .set(await authHeader(admin))
       .send({
         firstName: 'No', lastName: 'Email', username: `noemail${Date.now()}`,
         phone: '+260970000031', password: PASSWORD,
@@ -70,7 +70,7 @@ describe('Phase 19 — borrower identity (NRC-first, email-optional)', () => {
     const nrc = '333333/10/1';
     const first = await request(app)
       .post('/api/users')
-      .set(authHeader(admin))
+      .set(await authHeader(admin))
       .send({
         firstName: 'First', lastName: 'Nrc', username: `dupnrc1${Date.now()}`,
         phone: '+260970000032', password: PASSWORD,
@@ -80,7 +80,7 @@ describe('Phase 19 — borrower identity (NRC-first, email-optional)', () => {
 
     const second = await request(app)
       .post('/api/users')
-      .set(authHeader(admin))
+      .set(await authHeader(admin))
       .send({
         firstName: 'Second', lastName: 'Nrc', username: `dupnrc2${Date.now()}`,
         phone: '+260970000033', password: PASSWORD,
@@ -94,7 +94,7 @@ describe('Phase 19 — borrower identity (NRC-first, email-optional)', () => {
     const admin1 = await directAdmin();
     const res1 = await request(app)
       .post('/api/users')
-      .set(authHeader(admin1))
+      .set(await authHeader(admin1))
       .send({
         firstName: 'Same', lastName: 'NrcA', username: `samenrca${Date.now()}`,
         phone: '+260970000034', password: PASSWORD,
@@ -104,7 +104,7 @@ describe('Phase 19 — borrower identity (NRC-first, email-optional)', () => {
 
     const res2 = await request(app)
       .post('/api/users')
-      .set(authHeader(fx.employerAdminA))
+      .set(await authHeader(fx.employerAdminA))
       .send({
         firstName: 'Same', lastName: 'NrcB', username: `samenrcb${Date.now()}`,
         email: `samenrcb${Date.now()}@example.com`, phone: '+260970000035', password: PASSWORD,
@@ -116,7 +116,7 @@ describe('Phase 19 — borrower identity (NRC-first, email-optional)', () => {
   it('email is still required for staff (non-borrower) roles', async () => {
     const res = await request(app)
       .post('/api/users')
-      .set(authHeader(fx.employerAdminA))
+      .set(await authHeader(fx.employerAdminA))
       .send({
         firstName: 'No', lastName: 'Email', username: `staffnoemail${Date.now()}`,
         phone: '+260970000036', password: PASSWORD,
@@ -130,7 +130,7 @@ describe('Phase 19 — borrower identity (NRC-first, email-optional)', () => {
     const username = `loginnoemail${Date.now()}`;
     const createRes = await request(app)
       .post('/api/users')
-      .set(authHeader(admin))
+      .set(await authHeader(admin))
       .send({
         firstName: 'Login', lastName: 'NoEmail', username,
         phone: '+260970000037', password: PASSWORD,
@@ -149,7 +149,7 @@ describe('Phase 19 — borrower identity (NRC-first, email-optional)', () => {
       const admin = await directAdmin();
       const res = await request(app)
         .post('/api/users')
-        .set(authHeader(admin))
+        .set(await authHeader(admin))
         .send({
           firstName: 'Direct', lastName: 'Walkin', username: `walkin${Date.now()}`,
           phone: '+260970000038', password: PASSWORD,
@@ -166,7 +166,7 @@ describe('Phase 19 — borrower identity (NRC-first, email-optional)', () => {
       });
       const res = await request(app)
         .post('/api/users')
-        .set(authHeader(officer))
+        .set(await authHeader(officer))
         .send({
           firstName: 'Walkin', lastName: 'ByOfficer', username: `walkinofficer${Date.now()}`,
           phone: '+260970000040', password: PASSWORD,
@@ -178,7 +178,7 @@ describe('Phase 19 — borrower identity (NRC-first, email-optional)', () => {
     it('lender staff of an employer-model lender cannot attach a borrower to their own (lender) company', async () => {
       const res = await request(app)
         .post('/api/users')
-        .set(authHeader(fx.lenderAdminA))
+        .set(await authHeader(fx.lenderAdminA))
         .send({
           firstName: 'Bad', lastName: 'Direct', username: `baddirect${Date.now()}`,
           phone: '+260970000041', password: PASSWORD,

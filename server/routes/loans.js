@@ -6,7 +6,7 @@ const Company = require('../models/Company');
 const LoanProduct = require('../models/LoanProduct');
 const Collateral = require('../models/Collateral');
 const {
-  authenticateToken,
+  requireAuth,
   authorize,
   authorizeMinRole,
   authorizeCompany
@@ -80,7 +80,7 @@ async function checkCollateralForDisbursement(loan) {
 // @route   GET /api/loans/:id/repayment-schedule/export/excel
 // @desc    Export detailed repayment schedule for a loan as Excel
 // @access  Private (same as loan details)
-router.get('/:id/repayment-schedule/export/excel', authenticateToken, async (req, res) => {
+router.get('/:id/repayment-schedule/export/excel', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const loan = await Loan.findById(id)
@@ -165,7 +165,7 @@ router.get('/:id/repayment-schedule/export/excel', authenticateToken, async (req
 // @route   GET /api/loans
 // @desc    Get all loans (with filters)
 // @access  Private
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
     const {
       page = 1,
@@ -257,7 +257,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // @route   GET /api/loans/:id/summary
 // @desc    Get loan summary
 // @access  Private
-router.get('/:id/summary', authenticateToken, async (req, res) => {
+router.get('/:id/summary', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -299,7 +299,7 @@ router.get('/:id/summary', authenticateToken, async (req, res) => {
 // @route   GET /api/loans/:id
 // @desc    Get loan by ID
 // @access  Private
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -346,7 +346,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // @route   POST /api/loans
 // @desc    Create new loan application
 // @access  Private (Staff only)
-router.post('/', authenticateToken, authorize('borrower'), async (req, res) => {
+router.post('/', requireAuth, authorize('borrower'), async (req, res) => {
   try {
     const {
       productId,
@@ -567,7 +567,7 @@ router.post('/', authenticateToken, authorize('borrower'), async (req, res) => {
 // @route   PUT /api/loans/:id/approve
 // @desc    Approve loan application
 // @access  Private (HR and Admin roles; lender_officer over direct loans only)
-router.put('/:id/approve', authenticateToken, authorize('employer_hr', 'employer_admin', 'lender_admin', 'lender_officer'), async (req, res) => {
+router.put('/:id/approve', requireAuth, authorize('employer_hr', 'employer_admin', 'lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const { id } = req.params;
     const { approvalNotes } = req.body;
@@ -649,7 +649,7 @@ router.put('/:id/approve', authenticateToken, authorize('employer_hr', 'employer
 // @route   PUT /api/loans/:id/reject
 // @desc    Reject loan application
 // @access  Private (HR and Admin roles; lender_officer over direct loans only)
-router.put('/:id/reject', authenticateToken, authorize('employer_hr', 'employer_admin', 'lender_admin', 'lender_officer'), async (req, res) => {
+router.put('/:id/reject', requireAuth, authorize('employer_hr', 'employer_admin', 'lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const { id } = req.params;
     const { approvalNotes } = req.body;
@@ -729,7 +729,7 @@ router.put('/:id/reject', authenticateToken, authorize('employer_hr', 'employer_
 // @route   PUT /api/loans/:id/disburse
 // @desc    Disburse approved loan
 // @access  Private (Lender Admin only)
-router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async (req, res) => {
+router.put('/:id/disburse', requireAuth, authorize('lender_admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const { disbursementMethod } = req.body;
@@ -819,7 +819,7 @@ router.put('/:id/disburse', authenticateToken, authorize('lender_admin'), async 
 //          loan never auto-recovers (Phase 07) and never rolls over again (Phase 20);
 //          hands the loan to the collateral-recovery path.
 // @access  Private (Lender Admin only, own-tenant only)
-router.put('/:id/default', authenticateToken, authorize('lender_admin'), async (req, res) => {
+router.put('/:id/default', requireAuth, authorize('lender_admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
@@ -879,7 +879,7 @@ router.put('/:id/default', authenticateToken, authorize('lender_admin'), async (
 // @route   PUT /api/loans/:id/repayment
 // @desc    Record loan repayment with payment details
 // @access  Private (Lender Admin only)
-router.put('/:id/repayment', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
+router.put('/:id/repayment', requireAuth, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -1018,7 +1018,7 @@ router.put('/:id/repayment', authenticateToken, authorize('lender_admin', 'lende
 // @route   GET /api/loans/:id/settlement-quote
 // @desc    Get early settlement quote (read-only, no state change)
 // @access  Private - Lender admin only
-router.get('/:id/settlement-quote', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
+router.get('/:id/settlement-quote', requireAuth, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const { id } = req.params;
     const { settlementDate } = req.query;
@@ -1078,7 +1078,7 @@ router.get('/:id/settlement-quote', authenticateToken, authorize('lender_admin',
 // @route   POST /api/loans/:id/prepayment
 // @desc    Record a prepayment (extra payment beyond schedule)
 // @access  Private - Lender admin only
-router.post('/:id/prepayment', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
+router.post('/:id/prepayment', requireAuth, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const { id } = req.params;
     const { amount, allocationStrategy, notes } = req.body;
@@ -1194,7 +1194,7 @@ router.post('/:id/prepayment', authenticateToken, authorize('lender_admin', 'len
 // @route   POST /api/loans/:id/early-settlement
 // @desc    Settle loan completely (pay off entire remaining balance)
 // @access  Private - Lender admin only
-router.post('/:id/early-settlement', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
+router.post('/:id/early-settlement', requireAuth, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const { id } = req.params;
     const { settlementDate, paymentReference } = req.body;
@@ -1306,7 +1306,7 @@ router.post('/:id/early-settlement', authenticateToken, authorize('lender_admin'
 // @route   GET /api/loans/:id/prepayment-history
 // @desc    Get all prepayments for a loan
 // @access  Private
-router.get('/:id/prepayment-history', authenticateToken, async (req, res) => {
+router.get('/:id/prepayment-history', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 

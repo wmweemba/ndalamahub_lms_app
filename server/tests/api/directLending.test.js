@@ -49,14 +49,14 @@ describe('Phase 19 — direct lending & the companyLenderId fix', () => {
   describe('companyLenderId lender-self fix', () => {
     it('a direct borrower under a suspended lender gets 402', async () => {
       await Company.findByIdAndUpdate(directLender._id, { subscription: { status: 'suspended', suspendedAt: new Date() } });
-      const res = await request(app).get('/api/loans').set(authHeader(directBorrower));
+      const res = await request(app).get('/api/loans').set(await authHeader(directBorrower));
       expect(res.status).toBe(402);
       expect(res.body.code).toBe('SUBSCRIPTION_LOCKED');
     });
 
     it('under an active lender, product listing resolves (no fail-open, no fail-closed)', async () => {
       await Company.findByIdAndUpdate(directLender._id, { subscription: { status: 'active', currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) } });
-      const res = await request(app).get('/api/products/available').set(authHeader(directBorrower));
+      const res = await request(app).get('/api/products/available').set(await authHeader(directBorrower));
       expect(res.status).toBe(200);
     });
   });
@@ -84,7 +84,7 @@ describe('Phase 19 — direct lending & the companyLenderId fix', () => {
       const officer = await createUser({ username: 'directofficer1', role: 'lender_officer', company: directLender._id });
       const res = await request(app)
         .put(`/api/loans/${freshDirectPending._id}/approve`)
-        .set(authHeader(officer))
+        .set(await authHeader(officer))
         .send({});
       expect(res.status).toBe(200);
     });
@@ -92,7 +92,7 @@ describe('Phase 19 — direct lending & the companyLenderId fix', () => {
     it('direct loan: employer_hr of any company gets 403', async () => {
       const res = await request(app)
         .put(`/api/loans/${freshDirectPending._id}/approve`)
-        .set(authHeader(fx.employerHrA))
+        .set(await authHeader(fx.employerHrA))
         .send({});
       expect(res.status).toBe(403);
     });
@@ -100,7 +100,7 @@ describe('Phase 19 — direct lending & the companyLenderId fix', () => {
     it('direct loan: a lender_officer of a different lender gets 403 (cross-tenant)', async () => {
       const res = await request(app)
         .put(`/api/loans/${freshDirectPending._id}/approve`)
-        .set(authHeader(fx.lenderOfficerA))
+        .set(await authHeader(fx.lenderOfficerA))
         .send({});
       expect(res.status).toBe(403);
     });
@@ -109,13 +109,13 @@ describe('Phase 19 — direct lending & the companyLenderId fix', () => {
       const admin = await createUser({ username: 'directadmin1', role: 'lender_admin', company: directLender._id });
       const approveRes = await request(app)
         .put(`/api/loans/${freshDirectPending._id}/approve`)
-        .set(authHeader(admin))
+        .set(await authHeader(admin))
         .send({});
       expect(approveRes.status).toBe(200);
 
       const disburseRes = await request(app)
         .put(`/api/loans/${freshDirectPending._id}/disburse`)
-        .set(authHeader(admin))
+        .set(await authHeader(admin))
         .send({ disbursementMethod: 'mobile_money' });
       expect(disburseRes.status).toBe(200);
     });
@@ -123,7 +123,7 @@ describe('Phase 19 — direct lending & the companyLenderId fix', () => {
     it('employer loan: lender_officer still gets 403 (matrix unchanged for employer-model loans)', async () => {
       const res = await request(app)
         .put(`/api/loans/${freshEmployerPending._id}/approve`)
-        .set(authHeader(fx.lenderOfficerA))
+        .set(await authHeader(fx.lenderOfficerA))
         .send({});
       expect(res.status).toBe(403);
     });
@@ -131,7 +131,7 @@ describe('Phase 19 — direct lending & the companyLenderId fix', () => {
     it('employer loan: employerHrA of the loan\'s own company still approves -> 200', async () => {
       const res = await request(app)
         .put(`/api/loans/${freshEmployerPending._id}/approve`)
-        .set(authHeader(fx.employerHrA))
+        .set(await authHeader(fx.employerHrA))
         .send({});
       expect(res.status).toBe(200);
     });
@@ -151,7 +151,7 @@ describe('Phase 19 — direct lending & the companyLenderId fix', () => {
 
       const res = await request(app)
         .post('/api/loans')
-        .set(authHeader(freshDirectBorrower))
+        .set(await authHeader(freshDirectBorrower))
         .send({ amount: 5000, term: 3, purpose: 'Test direct application' });
 
       expect(res.status).toBe(201);

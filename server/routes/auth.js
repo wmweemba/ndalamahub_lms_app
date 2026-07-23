@@ -1,11 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { authenticateToken, authorize } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 const {
-  generateToken,
-  generateRefreshToken,
   validatePassword,
   generatePasswordResetToken,
   hashPasswordResetToken,
@@ -17,8 +14,17 @@ const emailTemplates = require('../utils/emailTemplates');
 // Rate limiter for login attempts
 const loginRateLimiter = createRateLimiter(5, 15 * 60 * 1000); // 5 attempts per 15 minutes
 
+// Regenerate the session (mitigates session fixation) and return a promise
+const regenerateSession = (req) => new Promise((resolve, reject) => {
+  req.session.regenerate((err) => (err ? reject(err) : resolve()));
+});
+
+const destroySession = (req) => new Promise((resolve, reject) => {
+  req.session.destroy((err) => (err ? reject(err) : resolve()));
+});
+
 // @route   POST /api/auth/login
-// @desc    Login user
+// @desc    Login user, starting a server-side session
 // @access  Public
 router.post('/login', async (req, res) => {
     try {
@@ -45,82 +51,25 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ message: 'Invalid username or password' });
         }
 
-        const token = generateToken(user);
-        const refreshToken = generateRefreshToken(user);
+        await regenerateSession(req);
+        req.session.userId = user._id;
+        req.session.createdAt = Date.now();
 
         res.json({
-            token,
-            refreshToken,
             user: {
                 id: user._id,
                 username: user.username,
                 role: user.role,
-                name: user.name
+                company: user.company,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email
             }
         });
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ message: 'Server error during login' });
     }
-});
-
-// @route   POST /api/auth/refresh
-// @desc    Refresh access token
-// @access  Public
-router.post('/refresh', async (req, res) => {
-  try {
-    const { refreshToken } = req.body;
-
-    if (!refreshToken) {
-      return res.status(400).json({
-        success: false,
-        message: 'Refresh token is required'
-      });
-    }
-
-    // Verify refresh token
-    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
-
-    if (decoded.type !== 'refresh') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid refresh token'
-      });
-    }
-
-    // Check if user exists and is active
-    const user = await User.findById(decoded.id)
-      .populate('company')
-      .select('-password');
-
-    if (!user || !user.isActive) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not found or inactive'
-      });
-    }
-
-    // Generate new tokens
-    const newToken = generateToken(user);
-    const newRefreshToken = generateRefreshToken(user);
-
-    res.json({
-      success: true,
-      message: 'Token refreshed successfully',
-      data: {
-        user: user.toJSON(),
-        token: newToken,
-        refreshToken: newRefreshToken
-      }
-    });
-
-  } catch (error) {
-    console.error('Token refresh error:', error);
-    res.status(401).json({
-      success: false,
-      message: 'Invalid refresh token'
-    });
-  }
 });
 
 // @route   POST /api/auth/forgot-password
@@ -138,7 +87,7 @@ router.post('/forgot-password', async (req, res) => {
     }
 
     const user = await User.findOne({ email: email.toLowerCase() });
-    
+
     if (!user) {
       // Don't reveal if user exists or not for security
       return res.json({
@@ -149,7 +98,7 @@ router.post('/forgot-password', async (req, res) => {
 
     // Generate password reset token
     const { resetToken, hashedToken } = generatePasswordResetToken();
-    
+
     // Save hashed token to user
     user.passwordResetToken = hashedToken;
     user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
@@ -235,7 +184,7 @@ router.post('/reset-password', async (req, res) => {
 // @route   POST /api/auth/change-password
 // @desc    Self-service password change (current password required)
 // @access  Private
-router.post('/change-password', authenticateToken, async (req, res) => {
+router.post('/change-password', requireAuth, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
@@ -288,12 +237,12 @@ router.post('/change-password', authenticateToken, async (req, res) => {
 });
 
 // @route   POST /api/auth/logout
-// @desc    Logout user (client should discard tokens)
+// @desc    Destroy the current session
 // @access  Private
-router.post('/logout', authenticateToken, async (req, res) => {
+router.post('/logout', requireAuth, async (req, res) => {
   try {
-    // In a more sophisticated setup, you might want to blacklist the token
-    // For now, just return success (client should discard tokens)
+    await destroySession(req);
+    res.clearCookie('ndalamahub.sid');
     res.json({
       success: true,
       message: 'Logged out successfully'
@@ -310,7 +259,7 @@ router.post('/logout', authenticateToken, async (req, res) => {
 // @route   GET /api/auth/me
 // @desc    Get current user profile
 // @access  Private
-router.get('/me', authenticateToken, async (req, res) => {
+router.get('/me', requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
       .populate('company')

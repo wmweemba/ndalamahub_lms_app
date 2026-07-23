@@ -158,7 +158,7 @@ describe('Phase 20 — rollover engine', () => {
 
       const res = await request(app)
         .put(`/api/loans/${loan._id}/default`)
-        .set(authHeader(fx.lenderAdminA))
+        .set(await authHeader(fx.lenderAdminA))
         .send({ reason: 'Borrower unreachable, moving to collateral recovery' });
 
       expect(res.status).toBe(200);
@@ -175,7 +175,7 @@ describe('Phase 20 — rollover engine', () => {
 
       const res = await request(app)
         .put(`/api/loans/${loan._id}/default`)
-        .set(authHeader(fx.lenderAdminA))
+        .set(await authHeader(fx.lenderAdminA))
         .send({});
 
       expect(res.status).toBe(400);
@@ -191,7 +191,7 @@ describe('Phase 20 — rollover engine', () => {
 
       const res = await request(app)
         .put(`/api/loans/${loan._id}/default`)
-        .set(authHeader(fx.lenderOfficerA))
+        .set(await authHeader(fx.lenderOfficerA))
         .send({ reason: 'attempted' });
 
       expect(res.status).toBe(403);
@@ -207,7 +207,7 @@ describe('Phase 20 — rollover engine', () => {
 
       const res = await request(app)
         .put(`/api/loans/${loan._id}/default`)
-        .set(authHeader(fx.lenderAdminB))
+        .set(await authHeader(fx.lenderAdminB))
         .send({ reason: 'attempted cross-tenant default' });
 
       expect(res.status).toBe(403);
@@ -227,7 +227,7 @@ describe('Phase 20 — rollover engine', () => {
 
       await request(app)
         .put(`/api/loans/${loan._id}/default`)
-        .set(authHeader(fx.lenderAdminA))
+        .set(await authHeader(fx.lenderAdminA))
         .send({ reason: 'defaulting before rollover would otherwise fire' });
 
       const result = await rolloverLoans();

@@ -221,7 +221,7 @@ describe('Phase 22 — public intake API', () => {
     it('lists pending applications with a dedupe flag for the owning tenant', async () => {
       const res = await request(app)
         .get('/api/customer-applications')
-        .set(authHeader(lenderOfficer));
+        .set(await authHeader(lenderOfficer));
       expect(res.status).toBe(200);
       const found = res.body.data.applications.find((a) => a._id === applicationId);
       expect(found).toBeDefined();
@@ -231,14 +231,14 @@ describe('Phase 22 — public intake API', () => {
     it('denies GET/:id to a different lender\'s staff', async () => {
       const res = await request(app)
         .get(`/api/customer-applications/${applicationId}`)
-        .set(authHeader(otherLenderOfficer));
+        .set(await authHeader(otherLenderOfficer));
       expect(res.status).toBe(403);
     });
 
     it('denies reject to a different lender\'s staff', async () => {
       const res = await request(app)
         .put(`/api/customer-applications/${applicationId}/reject`)
-        .set(authHeader(otherLenderOfficer))
+        .set(await authHeader(otherLenderOfficer))
         .send({ reason: 'not mine' });
       expect(res.status).toBe(403);
     });
@@ -246,7 +246,7 @@ describe('Phase 22 — public intake API', () => {
     it('requires a reason to reject', async () => {
       const res = await request(app)
         .put(`/api/customer-applications/${applicationId}/reject`)
-        .set(authHeader(lenderOfficer))
+        .set(await authHeader(lenderOfficer))
         .send({});
       expect(res.status).toBe(400);
     });
@@ -254,7 +254,7 @@ describe('Phase 22 — public intake API', () => {
     it('approve creates a borrower, a pending loan, and declared collateral, correctly linked', async () => {
       const res = await request(app)
         .put(`/api/customer-applications/${applicationId}/approve`)
-        .set(authHeader(lenderAdmin))
+        .set(await authHeader(lenderAdmin))
         .send({});
 
       expect(res.status).toBe(200);
@@ -280,7 +280,7 @@ describe('Phase 22 — public intake API', () => {
     it('rejects re-approving an already-approved application', async () => {
       const res = await request(app)
         .put(`/api/customer-applications/${applicationId}/approve`)
-        .set(authHeader(lenderAdmin))
+        .set(await authHeader(lenderAdmin))
         .send({});
       expect(res.status).toBe(400);
     });
@@ -296,7 +296,7 @@ describe('Phase 22 — public intake API', () => {
 
       const res = await request(app)
         .put(`/api/customer-applications/${stored._id}/approve`)
-        .set(authHeader(lenderAdmin))
+        .set(await authHeader(lenderAdmin))
         .send({});
 
       expect(res.status).toBe(409);
@@ -319,7 +319,7 @@ describe('Phase 22 — public intake API', () => {
 
       const res = await request(app)
         .put(`/api/customer-applications/${stored._id}/approve`)
-        .set(authHeader(lenderAdmin))
+        .set(await authHeader(lenderAdmin))
         .send({ attachToUserId: existing._id.toString() });
 
       expect(res.status).toBe(200);
@@ -338,7 +338,7 @@ describe('Phase 22 — public intake API', () => {
 
       const res = await request(app)
         .put(`/api/customer-applications/${stored._id}/approve`)
-        .set(authHeader(otherLenderOfficer))
+        .set(await authHeader(otherLenderOfficer))
         .send({});
 
       expect(res.status).toBe(400);

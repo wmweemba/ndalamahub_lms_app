@@ -7,7 +7,7 @@ const User = require('../models/User');
 const Loan = require('../models/Loan');
 const Collateral = require('../models/Collateral');
 const LoanProduct = require('../models/LoanProduct');
-const { authenticateToken, authorize } = require('../middleware/auth');
+const { requireAuth, authorize } = require('../middleware/auth');
 const { isPlatformAdmin, idsEqual, clientCompanyIds } = require('../utils/tenantScope');
 const { generatePasswordResetToken } = require('../utils/auth');
 
@@ -82,7 +82,7 @@ async function findMatchingProduct(lenderCompanyId, amount, termDays) {
 // @route   GET /api/customer-applications
 // @desc    List intake applications for the caller's lender tenant, with dedupe flags
 // @access  Private (lender_officer+, own tenant only)
-router.get('/', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
+router.get('/', requireAuth, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const { status = 'pending' } = req.query;
     const filter = { status };
@@ -111,7 +111,7 @@ router.get('/', authenticateToken, authorize('lender_admin', 'lender_officer'), 
 // @route   GET /api/customer-applications/:id
 // @desc    Single application with dedupe flag
 // @access  Private (lender_officer+, own tenant only)
-router.get('/:id', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
+router.get('/:id', requireAuth, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const application = await CustomerApplication.findById(req.params.id);
     if (!application) {
@@ -139,7 +139,7 @@ router.get('/:id', authenticateToken, authorize('lender_admin', 'lender_officer'
 // @route   PUT /api/customer-applications/:id/reject
 // @desc    Reject an intake application
 // @access  Private (lender_officer+, own tenant only)
-router.put('/:id/reject', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
+router.put('/:id/reject', requireAuth, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const { reason } = req.body;
     if (!reason || !reason.trim()) {
@@ -176,7 +176,7 @@ router.put('/:id/reject', authenticateToken, authorize('lender_admin', 'lender_o
 //          a real multi-document transaction (flagged deviation from the
 //          phase doc's "use a transaction if available" instruction).
 // @access  Private (lender_officer+, own tenant only)
-router.put('/:id/approve', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
+router.put('/:id/approve', requireAuth, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   const created = { user: null, loan: null, collateral: null };
   try {
     const application = await CustomerApplication.findById(req.params.id);

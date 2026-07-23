@@ -3,13 +3,13 @@ const router = express.Router();
 const User = require('../models/User');
 const Company = require('../models/Company');
 const Loan = require('../models/Loan');
-const { authenticateToken, authorizeMinRole } = require('../middleware/auth');
+const { requireAuth, authorizeMinRole } = require('../middleware/auth');
 const { loanScopeFilter, userScopeFilter, companyScopeFilter, mergeFilters } = require('../utils/tenantScope');
 
 // @route   GET /api/dashboard/stats
 // @desc    Get dashboard statistics
 // @access  Private (Corporate Admin and above)
-router.get('/stats', authenticateToken, authorizeMinRole('employer_admin'), async (req, res) => {
+router.get('/stats', requireAuth, authorizeMinRole('employer_admin'), async (req, res) => {
     try {
         const companyFilter = await companyScopeFilter(req.user);
         const userFilter = await userScopeFilter(req.user);
@@ -62,7 +62,7 @@ router.get('/stats', authenticateToken, authorizeMinRole('employer_admin'), asyn
 // @route   GET /api/dashboard/lender-stats
 // @desc    Get lender-specific dashboard statistics
 // @access  Private (Lender Officer and above)
-router.get('/lender-stats', authenticateToken, authorizeMinRole('lender_officer'), async (req, res) => {
+router.get('/lender-stats', requireAuth, authorizeMinRole('lender_officer'), async (req, res) => {
     try {
         // Get lender company information
         const lenderCompany = await Company.findById(req.user.company);
@@ -224,7 +224,7 @@ router.get('/lender-stats', authenticateToken, authorizeMinRole('lender_officer'
 // @route   GET /api/dashboard/hr-stats
 // @desc    Get HR-specific dashboard statistics
 // @access  Private (Corporate HR and above)
-router.get('/hr-stats', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
+router.get('/hr-stats', requireAuth, authorizeMinRole('employer_hr'), async (req, res) => {
     try {
         // Get company information
         const company = await Company.findById(req.user.company);
@@ -392,7 +392,7 @@ router.get('/hr-stats', authenticateToken, authorizeMinRole('employer_hr'), asyn
 // @route   GET /api/dashboard/user-stats
 // @desc    Get user-specific dashboard statistics
 // @access  Private (All authenticated users)
-router.get('/user-stats', authenticateToken, async (req, res) => {
+router.get('/user-stats', requireAuth, async (req, res) => {
     try {
         // Get user's loans
         const userLoans = await Loan.find({

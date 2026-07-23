@@ -20,7 +20,7 @@ describe('GET /api/loans status filter validation', () => {
     const res = await request(app)
       .get('/api/loans')
       .query('status[$ne]=x')
-      .set(authHeader(fx.platformAdmin));
+      .set(await authHeader(fx.platformAdmin));
     expect(res.status).toBe(400);
   });
 
@@ -28,7 +28,7 @@ describe('GET /api/loans status filter validation', () => {
     const res = await request(app)
       .get('/api/loans')
       .query({ status: 'active' })
-      .set(authHeader(fx.platformAdmin));
+      .set(await authHeader(fx.platformAdmin));
     expect(res.status).toBe(200);
     expect(res.body.data.loans.every((l) => l.status === 'active')).toBe(true);
   });
@@ -37,7 +37,7 @@ describe('GET /api/loans status filter validation', () => {
     const res = await request(app)
       .get('/api/loans')
       .query({ status: 'nonsense' })
-      .set(authHeader(fx.platformAdmin));
+      .set(await authHeader(fx.platformAdmin));
     expect(res.status).toBe(400);
   });
 });

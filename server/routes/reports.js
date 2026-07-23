@@ -6,7 +6,7 @@ const Loan = require('../models/Loan');
 const User = require('../models/User');
 const Company = require('../models/Company');
 const {
-  authenticateToken,
+  requireAuth,
   authorize,
   authorizeMinRole
 } = require('../middleware/auth');
@@ -44,7 +44,7 @@ const getDateRange = (period) => {
 // @route   GET /api/reports/overview
 // @desc    Get overview statistics for reports dashboard
 // @access  Private (HR and Admin roles)
-router.get('/overview', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
+router.get('/overview', requireAuth, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     // Build company filter based on user role
     const companyFilter = await loanScopeFilter(req.user);
@@ -143,7 +143,7 @@ router.get('/overview', authenticateToken, authorizeMinRole('employer_hr'), asyn
 // @route   GET /api/reports/active-loans
 // @desc    Get active loans report
 // @access  Private (Admin roles)
-router.get('/active-loans', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
+router.get('/active-loans', requireAuth, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     const companyFilter = await loanScopeFilter(req.user);
 
@@ -182,7 +182,7 @@ router.get('/active-loans', authenticateToken, authorizeMinRole('employer_hr'), 
 // @route   GET /api/reports/overdue-loans
 // @desc    Get overdue loans report
 // @access  Private (Admin roles)
-router.get('/overdue-loans', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
+router.get('/overdue-loans', requireAuth, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     const companyFilter = await loanScopeFilter(req.user);
 
@@ -233,7 +233,7 @@ router.get('/overdue-loans', authenticateToken, authorizeMinRole('employer_hr'),
 // @route   GET /api/reports/upcoming-payments
 // @desc    Get upcoming payments report
 // @access  Private (Admin roles)
-router.get('/upcoming-payments', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
+router.get('/upcoming-payments', requireAuth, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     const companyFilter = await loanScopeFilter(req.user);
 
@@ -295,7 +295,7 @@ router.get('/upcoming-payments', authenticateToken, authorizeMinRole('employer_h
 // @route   GET /api/reports/:type/export/:format
 // @desc    Export reports in PDF or Excel format
 // @access  Private (Admin roles)
-router.get('/:type/export/:format', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
+router.get('/:type/export/:format', requireAuth, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     const { type, format } = req.params;
     
@@ -648,7 +648,7 @@ router.get('/:type/export/:format', authenticateToken, authorizeMinRole('employe
 // @route   GET /api/reports/loans
 // @desc    Get detailed loan report
 // @access  Private (Admin roles)
-router.get('/loans', authenticateToken, authorizeMinRole('employer_admin'), async (req, res) => {
+router.get('/loans', requireAuth, authorizeMinRole('employer_admin'), async (req, res) => {
   try {
     const { 
       period, 
@@ -724,7 +724,7 @@ router.get('/loans', authenticateToken, authorizeMinRole('employer_admin'), asyn
 // @route   GET /api/reports/companies
 // @desc    Get company-wise loan statistics
 // @access  Private (Admin roles)
-router.get('/companies', authenticateToken, authorizeMinRole('lender_admin'), async (req, res) => {
+router.get('/companies', requireAuth, authorizeMinRole('lender_admin'), async (req, res) => {
   try {
     const { period, startDate, endDate } = req.query;
 
@@ -826,7 +826,7 @@ router.get('/companies', authenticateToken, authorizeMinRole('lender_admin'), as
 // @route   GET /api/reports/users
 // @desc    Get user-wise loan statistics
 // @access  Private (Admin roles)
-router.get('/users', authenticateToken, authorizeMinRole('employer_admin'), async (req, res) => {
+router.get('/users', requireAuth, authorizeMinRole('employer_admin'), async (req, res) => {
   try {
     const { period, startDate, endDate, companyId } = req.query;
 
@@ -931,7 +931,7 @@ router.get('/users', authenticateToken, authorizeMinRole('employer_admin'), asyn
 // @route   GET /api/reports/export
 // @desc    Export loan data to CSV/Excel
 // @access  Private (Admin roles)
-router.get('/export', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
+router.get('/export', requireAuth, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     const { 
       period, 

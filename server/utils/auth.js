@@ -1,36 +1,4 @@
-const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-
-// Canonical access-token payload — all route code reads id/username/role/company
-const generateToken = (user) => {
-  return jwt.sign(
-    {
-      id: user._id,
-      username: user.username,
-      role: user.role,
-      company: user.company && user.company._id ? user.company._id : user.company
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: '7d' }
-  );
-};
-
-const generateRefreshToken = (user) => {
-  return jwt.sign(
-    { id: user._id, type: 'refresh' },
-    process.env.JWT_SECRET,
-    { expiresIn: '30d' }
-  );
-};
-
-// Verify JWT token
-const verifyToken = (token) => {
-  try {
-    return jwt.verify(token, process.env.JWT_SECRET);
-  } catch (error) {
-    throw error;
-  }
-};
 
 // Generate password reset token
 const generatePasswordResetToken = () => {
@@ -166,9 +134,6 @@ const createRateLimiter = (maxAttempts = 5, windowMs = 15 * 60 * 1000) => {
 };
 
 module.exports = {
-  generateToken,
-  generateRefreshToken,
-  verifyToken,
   generatePasswordResetToken,
   generateEmailVerificationToken,
   hashPasswordResetToken,

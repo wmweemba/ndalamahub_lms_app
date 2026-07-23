@@ -39,7 +39,7 @@ describe('Support tickets (Phase 08)', () => {
 
       const res = await request(app)
         .post('/api/tickets')
-        .set(authHeader(fx.borrowerA))
+        .set(await authHeader(fx.borrowerA))
         .send({ subject: 'Alert test', category: 'technical', message: 'Please help' });
 
       expect(res.status).toBe(201);
@@ -58,7 +58,7 @@ describe('Support tickets (Phase 08)', () => {
 
       const res = await request(app)
         .post('/api/tickets')
-        .set(authHeader(fx.borrowerA))
+        .set(await authHeader(fx.borrowerA))
         .send({ subject: 'No alert test', category: 'technical', message: 'Please help' });
 
       expect(res.status).toBe(201);
@@ -70,7 +70,7 @@ describe('Support tickets (Phase 08)', () => {
     it('borrower-created ticket routes to their lender as handlerCompany', async () => {
       const res = await request(app)
         .post('/api/tickets')
-        .set(authHeader(fx.borrowerA))
+        .set(await authHeader(fx.borrowerA))
         .send({ subject: 'Cannot see my schedule', category: 'technical', message: 'Help please' });
 
       expect(res.status).toBe(201);
@@ -84,7 +84,7 @@ describe('Support tickets (Phase 08)', () => {
     it('lender_admin-created ticket has null handlerCompany (platform-level)', async () => {
       const res = await request(app)
         .post('/api/tickets')
-        .set(authHeader(fx.lenderAdminA))
+        .set(await authHeader(fx.lenderAdminA))
         .send({ subject: 'Need a platform feature', category: 'other', message: 'Please add X' });
 
       expect(res.status).toBe(201);
@@ -96,8 +96,8 @@ describe('Support tickets (Phase 08)', () => {
 
     it('generates unique ticketNumbers across two rapid creates', async () => {
       const [r1, r2] = await Promise.all([
-        request(app).post('/api/tickets').set(authHeader(fx.borrowerA)).send({ subject: 'A', message: 'msg a' }),
-        request(app).post('/api/tickets').set(authHeader(fx.borrowerB)).send({ subject: 'B', message: 'msg b' })
+        request(app).post('/api/tickets').set(await authHeader(fx.borrowerA)).send({ subject: 'A', message: 'msg a' }),
+        request(app).post('/api/tickets').set(await authHeader(fx.borrowerB)).send({ subject: 'B', message: 'msg b' })
       ]);
 
       expect(r1.status).toBe(201);
@@ -112,7 +112,7 @@ describe('Support tickets (Phase 08)', () => {
     beforeAll(async () => {
       const res = await request(app)
         .post('/api/tickets')
-        .set(authHeader(fx.borrowerA))
+        .set(await authHeader(fx.borrowerA))
         .send({ subject: 'Visibility test', category: 'account_access', message: 'Locked out' });
       borrowerATicket = res.body.data.ticket;
     });
@@ -121,7 +121,7 @@ describe('Support tickets (Phase 08)', () => {
       const otherBorrowerA = await createUser({ username: 'borrowera2', role: 'borrower', company: fx.employerA._id, department: 'Operations' });
       const res = await request(app)
         .get(`/api/tickets/${borrowerATicket._id}`)
-        .set(authHeader(otherBorrowerA));
+        .set(await authHeader(otherBorrowerA));
 
       expect(res.status).toBe(403);
     });
@@ -129,7 +129,7 @@ describe('Support tickets (Phase 08)', () => {
     it('employer_hr in the same company can see it', async () => {
       const res = await request(app)
         .get(`/api/tickets/${borrowerATicket._id}`)
-        .set(authHeader(fx.employerHrA));
+        .set(await authHeader(fx.employerHrA));
 
       expect(res.status).toBe(200);
     });
@@ -137,7 +137,7 @@ describe('Support tickets (Phase 08)', () => {
     it('the other lender\'s admin cannot see it', async () => {
       const res = await request(app)
         .get(`/api/tickets/${borrowerATicket._id}`)
-        .set(authHeader(fx.lenderAdminB));
+        .set(await authHeader(fx.lenderAdminB));
 
       expect(res.status).toBe(403);
     });
@@ -145,7 +145,7 @@ describe('Support tickets (Phase 08)', () => {
     it('the handling lender\'s admin (lenderAdminA) can see it', async () => {
       const res = await request(app)
         .get(`/api/tickets/${borrowerATicket._id}`)
-        .set(authHeader(fx.lenderAdminA));
+        .set(await authHeader(fx.lenderAdminA));
 
       expect(res.status).toBe(200);
     });
@@ -157,7 +157,7 @@ describe('Support tickets (Phase 08)', () => {
     beforeAll(async () => {
       const res = await request(app)
         .post('/api/tickets')
-        .set(authHeader(fx.borrowerA))
+        .set(await authHeader(fx.borrowerA))
         .send({ subject: 'Status test', message: 'issue' });
       ticket = res.body.data.ticket;
     });
@@ -165,7 +165,7 @@ describe('Support tickets (Phase 08)', () => {
     it('denied to the ticket creator (borrower)', async () => {
       const res = await request(app)
         .put(`/api/tickets/${ticket._id}/status`)
-        .set(authHeader(fx.borrowerA))
+        .set(await authHeader(fx.borrowerA))
         .send({ status: 'in_progress' });
 
       expect(res.status).toBe(403);
@@ -174,7 +174,7 @@ describe('Support tickets (Phase 08)', () => {
     it('allowed to the handling lender\'s admin', async () => {
       const res = await request(app)
         .put(`/api/tickets/${ticket._id}/status`)
-        .set(authHeader(fx.lenderAdminA))
+        .set(await authHeader(fx.lenderAdminA))
         .send({ status: 'in_progress' });
 
       expect(res.status).toBe(200);
@@ -186,19 +186,19 @@ describe('Support tickets (Phase 08)', () => {
     it('a creator reply reopens a resolved ticket to in_progress', async () => {
       const createRes = await request(app)
         .post('/api/tickets')
-        .set(authHeader(fx.borrowerA))
+        .set(await authHeader(fx.borrowerA))
         .send({ subject: 'Reopen test', message: 'issue' });
       const ticketId = createRes.body.data.ticket._id;
 
       const resolveRes = await request(app)
         .put(`/api/tickets/${ticketId}/status`)
-        .set(authHeader(fx.lenderAdminA))
+        .set(await authHeader(fx.lenderAdminA))
         .send({ status: 'resolved' });
       expect(resolveRes.body.data.ticket.status).toBe('resolved');
 
       const replyRes = await request(app)
         .post(`/api/tickets/${ticketId}/messages`)
-        .set(authHeader(fx.borrowerA))
+        .set(await authHeader(fx.borrowerA))
         .send({ body: 'Actually still broken' });
 
       expect(replyRes.status).toBe(201);

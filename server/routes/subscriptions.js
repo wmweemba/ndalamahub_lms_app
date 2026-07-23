@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Company = require('../models/Company');
-const { authenticateToken, authorizeMinRole } = require('../middleware/auth');
+const { requireAuth, authorizeMinRole } = require('../middleware/auth');
 const { isPlatformAdmin } = require('../utils/tenantScope');
 const { payingLenderId, computeEffectiveStatus } = require('../middleware/subscription');
 
@@ -10,7 +10,7 @@ const VALID_STATUSES = ['trialing', 'active', 'past_due', 'read_only', 'suspende
 // @route   GET /api/subscriptions/status
 // @desc    The caller's own tenant's effective subscription status (exempt from the gate — this is what the client banner polls)
 // @access  Private (any authenticated user)
-router.get('/status', authenticateToken, async (req, res) => {
+router.get('/status', requireAuth, async (req, res) => {
   try {
     if (isPlatformAdmin(req.user)) {
       return res.json({
@@ -60,7 +60,7 @@ router.get('/status', authenticateToken, async (req, res) => {
 // @route   GET /api/subscriptions
 // @desc    List lender companies with their subscription fields
 // @access  Private (platform_admin)
-router.get('/', authenticateToken, authorizeMinRole('platform_admin'), async (req, res) => {
+router.get('/', requireAuth, authorizeMinRole('platform_admin'), async (req, res) => {
   try {
     const lenders = await Company.find({ type: 'lender' }).select('name subscription');
     res.json({ success: true, data: { lenders } });
@@ -73,7 +73,7 @@ router.get('/', authenticateToken, authorizeMinRole('platform_admin'), async (re
 // @route   PUT /api/subscriptions/:companyId
 // @desc    Manually set a lender company's subscription state (manual billing)
 // @access  Private (platform_admin)
-router.put('/:companyId', authenticateToken, authorizeMinRole('platform_admin'), async (req, res) => {
+router.put('/:companyId', requireAuth, authorizeMinRole('platform_admin'), async (req, res) => {
   try {
     const { status, currentPeriodEnd, trialEndsAt, plan, notes } = req.body;
 

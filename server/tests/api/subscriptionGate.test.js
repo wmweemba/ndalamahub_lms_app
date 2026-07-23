@@ -31,13 +31,13 @@ describe('Subscription gate (Phase 10)', () => {
     });
 
     it('lender_admin gets 402 on GET /api/loans', async () => {
-      const res = await request(app).get('/api/loans').set(authHeader(fx.lenderAdminA));
+      const res = await request(app).get('/api/loans').set(await authHeader(fx.lenderAdminA));
       expect(res.status).toBe(402);
       expect(res.body.code).toBe('SUBSCRIPTION_LOCKED');
     });
 
     it('lender_admin still gets 200 on GET /api/tickets', async () => {
-      const res = await request(app).get('/api/tickets').set(authHeader(fx.lenderAdminA));
+      const res = await request(app).get('/api/tickets').set(await authHeader(fx.lenderAdminA));
       expect(res.status).toBe(200);
     });
 
@@ -49,18 +49,18 @@ describe('Subscription gate (Phase 10)', () => {
     });
 
     it('a borrower under that lender also 402s on loans (inheritance)', async () => {
-      const res = await request(app).get('/api/loans').set(authHeader(fx.borrowerA));
+      const res = await request(app).get('/api/loans').set(await authHeader(fx.borrowerA));
       expect(res.status).toBe(402);
     });
 
     it('a second, active lender is unaffected', async () => {
       await setSub(fx.lenderB._id, { status: 'active', currentPeriodEnd: daysFromNow(30) });
-      const res = await request(app).get('/api/loans').set(authHeader(fx.lenderAdminB));
+      const res = await request(app).get('/api/loans').set(await authHeader(fx.lenderAdminB));
       expect(res.status).toBe(200);
     });
 
     it('platform_admin is never gated', async () => {
-      const res = await request(app).get('/api/loans').set(authHeader(fx.platformAdmin));
+      const res = await request(app).get('/api/loans').set(await authHeader(fx.platformAdmin));
       expect(res.status).toBe(200);
     });
   });
@@ -68,25 +68,25 @@ describe('Subscription gate (Phase 10)', () => {
   describe('trialing past trialEndsAt locks even before the sweep runs', () => {
     it('computes the effective status live — a stale trialing doc past its date is treated as suspended once past the full staircase', async () => {
       await setSub(fx.lenderA._id, { status: 'trialing', trialEndsAt: daysAgo(20) });
-      const res = await request(app).get('/api/loans').set(authHeader(fx.lenderAdminA));
+      const res = await request(app).get('/api/loans').set(await authHeader(fx.lenderAdminA));
       expect(res.status).toBe(402);
     });
 
     it('within the 7-day grace window, access is still full (past_due, not locked)', async () => {
       await setSub(fx.lenderA._id, { status: 'trialing', trialEndsAt: daysAgo(3) });
-      const res = await request(app).get('/api/loans').set(authHeader(fx.lenderAdminA));
+      const res = await request(app).get('/api/loans').set(await authHeader(fx.lenderAdminA));
       expect(res.status).toBe(200);
     });
 
     it('within the read-only window (8-14 days past), GET succeeds but a write is blocked', async () => {
       await setSub(fx.lenderA._id, { status: 'trialing', trialEndsAt: daysAgo(10) });
 
-      const getRes = await request(app).get('/api/loans').set(authHeader(fx.lenderAdminA));
+      const getRes = await request(app).get('/api/loans').set(await authHeader(fx.lenderAdminA));
       expect(getRes.status).toBe(200);
 
       const writeRes = await request(app)
         .put(`/api/loans/${fx.loanA._id}/approve`)
-        .set(authHeader(fx.lenderAdminA))
+        .set(await authHeader(fx.lenderAdminA))
         .send({});
       expect(writeRes.status).toBe(402);
     });

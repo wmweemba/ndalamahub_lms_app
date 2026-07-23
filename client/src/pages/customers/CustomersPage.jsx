@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { StatusPill } from '@/components/ui/status-pill';
 import { CreateCustomerDialog } from '@/components/customers/CreateCustomerDialog';
 import { CustomerDetailDialog } from '@/components/customers/CustomerDetailDialog';
+import { ApplicationsList } from '@/components/customers/ApplicationsList';
+import { useCustomerApplications } from '@/hooks/useCustomerApplications';
 import api from '@/utils/api';
 
 export default function CustomersPage() {
@@ -13,6 +15,9 @@ export default function CustomersPage() {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeTab, setActiveTab] = useState('customers');
+
+    const { data: pendingApplications = [] } = useCustomerApplications('pending');
 
     const {
         data: customers = [],
@@ -41,26 +46,58 @@ export default function CustomersPage() {
         });
     }, [customers, searchTerm]);
 
-    if (isLoading) {
-        return (
-            <div className="p-4 md:p-8 flex justify-center">
-                <div className="h-6 w-6 rounded-full border-2 border-border border-t-foreground animate-spin" />
-            </div>
-        );
-    }
-
     return (
         <div className="p-4 md:p-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <h1 className="text-[22px] font-medium text-foreground">Customers</h1>
-                <Button
-                    onClick={() => setIsCreateDialogOpen(true)}
-                    className="w-full sm:w-auto"
-                >
-                    Add customer
-                </Button>
+                {activeTab === 'customers' && (
+                    <Button
+                        onClick={() => setIsCreateDialogOpen(true)}
+                        className="w-full sm:w-auto"
+                    >
+                        Add customer
+                    </Button>
+                )}
             </div>
 
+            <div className="flex gap-2 mb-6">
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('customers')}
+                    className={`px-4 py-2 rounded-full text-sm font-medium ${
+                        activeTab === 'customers'
+                            ? 'bg-[--nh-sage] text-foreground'
+                            : 'text-muted-foreground hover:bg-muted/40'
+                    }`}
+                >
+                    Customers
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('applications')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${
+                        activeTab === 'applications'
+                            ? 'bg-[--nh-sage] text-foreground'
+                            : 'text-muted-foreground hover:bg-muted/40'
+                    }`}
+                >
+                    Applications
+                    {pendingApplications.length > 0 && (
+                        <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[--nh-accent] text-white text-xs font-medium">
+                            {pendingApplications.length}
+                        </span>
+                    )}
+                </button>
+            </div>
+
+            {activeTab === 'applications' ? (
+                <ApplicationsList />
+            ) : isLoading ? (
+                <div className="flex justify-center">
+                    <div className="h-6 w-6 rounded-full border-2 border-border border-t-foreground animate-spin" />
+                </div>
+            ) : (
+            <>
             <div className="mb-6">
                 <Input
                     type="search"
@@ -151,6 +188,8 @@ export default function CustomersPage() {
                         ))}
                     </div>
                 </>
+            )}
+            </>
             )}
 
             <CreateCustomerDialog

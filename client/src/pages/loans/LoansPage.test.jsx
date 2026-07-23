@@ -27,6 +27,7 @@ const { loansFixture } = vi.hoisted(() => ({
       term: 6,
       status: 'active',
       applicationDate: '2026-06-01',
+      rolloverCount: 2,
     },
   ],
 }));
@@ -58,6 +59,15 @@ describe('LoansPage', () => {
     await waitFor(() => expect(screen.getAllByText('LN20260001').length).toBeGreaterThan(0));
     expect(screen.getAllByText('30 days').length).toBeGreaterThan(0);
     expect(screen.getAllByText('6 months').length).toBeGreaterThan(0);
+  });
+
+  it('shows a "Rolled over" pill on a loan with a positive rolloverCount', async () => {
+    seedUser({ _id: 'u1', username: 'lenderadmin', role: 'lender_admin', firstName: 'Lena' });
+    const { ui } = renderWithProviders(<LoansPage />);
+    render(ui);
+
+    await waitFor(() => expect(screen.getAllByText('LN20260002').length).toBeGreaterThan(0));
+    expect(screen.getAllByText('Rolled over ×2').length).toBeGreaterThan(0);
   });
 
   it('shows "Apply for a loan" for a borrower and hides it for a lender_admin', async () => {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import api from '@/utils/api';
+import { getCurrentUser } from '@/utils/roleUtils';
 import UserManagement from '@/components/settings/UserManagement';
 import CompanySettings from '@/components/settings/CompanySettings';
 import SystemSettings from '@/components/settings/SystemSettings';
@@ -15,12 +15,10 @@ import {
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('');
-  const [error, setError] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
-
-  useEffect(() => {
-    fetchCurrentUser();
-  }, []);
+  // Phase 25: getCurrentUser() reads the same in-memory cache the rest of
+  // the app does — this page only renders behind ProtectedRoute, which
+  // already guarantees it's hydrated, so no separate /auth/me fetch here.
+  const currentUser = getCurrentUser();
 
   const hasPermission = (requiredRole) => {
     if (!currentUser) return false;
@@ -46,30 +44,6 @@ export default function SettingsPage() {
       }
     }
   }, [currentUser, activeTab]);
-
-  const fetchCurrentUser = async () => {
-    try {
-      const token = localStorage.getItem('ndalamahub-token');
-      if (!token) {
-        // No token, redirect to login
-        window.location.href = '/login';
-        return;
-      }
-      
-      const response = await api.get('/auth/me');
-      if (response.data.success) {
-        setCurrentUser(response.data.data.user);
-      }
-    } catch (err) {
-      console.error('Failed to fetch current user:', err);
-      setError('Failed to load user information');
-      // If auth fails, redirect to login
-      if (err.response?.status === 401) {
-        localStorage.removeItem('ndalamahub-token');
-        window.location.href = '/login';
-      }
-    }
-  };
 
   const tabs = [
     {
@@ -226,12 +200,6 @@ export default function SettingsPage() {
 
         {/* Main Content */}
         <div className="flex-1 min-w-0">
-          {error && (
-            <div className="mb-4 p-4 bg-status-danger-bg text-status-danger-fg rounded-2xl text-sm">
-              {error}
-            </div>
-          )}
-
           {availableTabs.length === 0 ? (
             <Card className="p-8 text-center rounded-2xl">
               <div className="text-muted-foreground">

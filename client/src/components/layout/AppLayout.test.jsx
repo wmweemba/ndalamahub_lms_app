@@ -65,9 +65,9 @@ describe('AppLayout', () => {
     expect(screen.queryByRole('link', { name: /settings/i })).not.toBeInTheDocument();
   });
 
-  it('redirects to /login when no user is seeded', () => {
+  it('redirects to /login when no user is seeded', async () => {
     renderApp('/dashboard');
-    expect(screen.getByText('Login Page')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Login Page')).toBeInTheDocument());
   });
 
   it('shows Customers instead of Companies for a direct-model lender_admin', async () => {

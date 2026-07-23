@@ -1,3 +1,38 @@
+import api from '@/utils/api';
+import {
+    getCurrentUser,
+    setCurrentUser,
+    clearCurrentUser,
+    getHydrationPromise,
+    setHydrationPromise
+} from './authState';
+
+export { getCurrentUser, isHydrated, setCurrentUser, clearCurrentUser, resetCurrentUser } from './authState';
+
+// Re-hydrates the in-memory current-user cache from the session cookie on
+// app boot (a fresh tab, or a page refresh) — getCurrentUser() stays
+// synchronous for every existing call site; this is the one async entry
+// point that fills it in. Called by ProtectedRoute, once per app lifetime
+// (cached in authState.js — a second call anywhere just returns the same
+// promise).
+export const ensureHydrated = () => {
+    const existing = getHydrationPromise();
+    if (existing) return existing;
+
+    const promise = api.get('/auth/me', { skipAuthRedirect: true })
+        .then((res) => {
+            setCurrentUser(res.data?.data?.user || null);
+            return getCurrentUser();
+        })
+        .catch(() => {
+            clearCurrentUser();
+            return null;
+        });
+
+    setHydrationPromise(promise);
+    return promise;
+};
+
 export const ROLES = {
     PLATFORM_ADMIN: 'platform_admin',
     LENDER_ADMIN: 'lender_admin',
@@ -21,40 +56,6 @@ export const canDisburseLoan = (role) => {
         ROLES.PLATFORM_ADMIN,
         ROLES.LENDER_ADMIN
     ].includes(role);
-};
-
-// Get current user from JWT token
-export const getCurrentUser = () => {
-  try {
-    const token = localStorage.getItem('ndalamahub-token');
-    if (!token) {
-      return null;
-    }
-
-    const userData = localStorage.getItem('ndalamahub-user');
-    if (!userData) {
-      return null;
-    }
-
-    const user = JSON.parse(userData);
-
-    // Verify token is not expired (basic check)
-    const tokenData = JSON.parse(atob(token.split('.')[1]));
-    if (tokenData.exp * 1000 < Date.now()) {
-      // Token expired, clear storage
-      localStorage.removeItem('ndalamahub-token');
-      localStorage.removeItem('ndalamahub-user');
-      return null;
-    }
-
-    return user;
-  } catch (error) {
-    console.error('Error getting current user:', error);
-    // Clear potentially corrupted data
-    localStorage.removeItem('ndalamahub-token');
-    localStorage.removeItem('ndalamahub-user');
-    return null;
-  }
 };
 
 // Check if user can access companies management

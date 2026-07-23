@@ -212,8 +212,8 @@ export default function AppLayout() {
   const isDirectModel = profile?.company?.lendingModel === 'direct';
   const navItems = getNavItems(currentUser?.role, isDirectModel);
 
-  const handleLogout = () => {
-    authService.logout();
+  const handleLogout = async () => {
+    await authService.logout();
     navigate('/login');
   };
 

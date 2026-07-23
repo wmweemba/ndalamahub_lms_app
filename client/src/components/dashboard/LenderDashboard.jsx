@@ -21,6 +21,26 @@ export function LenderDashboard() {
     },
   });
 
+  // Shared with AppLayout's ['current-user-profile'] query (same key, same
+  // 1h staleTime) — resolves whether this lender is direct-model without an
+  // extra request in the real app; only direct-model lenders get website
+  // applications feeding the pending-applications KPI.
+  const { data: profile } = useQuery({
+    queryKey: ['current-user-profile'],
+    queryFn: () => api.get('/auth/me').then((res) => res.data.data.user),
+    staleTime: 60 * 60 * 1000,
+  });
+  const isDirectModel = profile?.company?.lendingModel === 'direct';
+
+  const { data: pendingApplications = [] } = useQuery({
+    queryKey: ['customer-applications', 'pending'],
+    queryFn: async () => {
+      const res = await api.get('/customer-applications?status=pending');
+      return res.data.data.applications;
+    },
+    enabled: isDirectModel,
+  });
+
   if (isLoading) return <DashboardLoading label="Loading portfolio dashboard..." />;
   if (error || !data) return <DashboardError />;
 
@@ -51,7 +71,11 @@ export function LenderDashboard() {
         <MetricCard
           label="Pending applications"
           value={p.pendingLoans}
-          sub={`${readyForDisbursement} ready to disburse`}
+          sub={
+            isDirectModel
+              ? `${readyForDisbursement} ready to disburse · ${pendingApplications.length} from website`
+              : `${readyForDisbursement} ready to disburse`
+          }
           tint="accent"
         />
       </div>

@@ -297,7 +297,14 @@ export default function LoansPage() {
                       {formatTerm(loan.term, loan.termUnit)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <StatusPill status={loan.status} />
+                      <div className="flex items-center gap-2">
+                        <StatusPill status={loan.status} />
+                        {loan.rolloverCount >= 1 && (
+                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-status-warning-bg text-status-warning-fg">
+                            Rolled over ×{loan.rolloverCount}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {formatDate(loan.applicationDate)}
@@ -322,7 +329,14 @@ export default function LoansPage() {
                       <p className="text-sm text-muted-foreground">Loan Number</p>
                       <p className="font-mono text-sm font-medium text-foreground">{loan.loanNumber}</p>
                     </div>
-                    <StatusPill status={loan.status} />
+                    <div className="flex items-center gap-2">
+                      <StatusPill status={loan.status} />
+                      {loan.rolloverCount >= 1 && (
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-status-warning-bg text-status-warning-fg">
+                          Rolled over ×{loan.rolloverCount}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div>

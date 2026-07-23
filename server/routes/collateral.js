@@ -3,7 +3,7 @@ const router = express.Router();
 const Collateral = require('../models/Collateral');
 const Loan = require('../models/Loan');
 const {
-  authenticateToken,
+  requireAuth,
   authorize
 } = require('../middleware/auth');
 const {
@@ -34,7 +34,7 @@ function canAttachToLoan(user, loan) {
 // @route   GET /api/collateral
 // @desc    The collateral register — lender-side roles only, scoped to own tenant
 // @access  Private (lender_officer+)
-router.get('/', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
+router.get('/', requireAuth, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const { status, type } = req.query;
     const filter = {};
@@ -74,7 +74,7 @@ router.get('/', authenticateToken, authorize('lender_admin', 'lender_officer'), 
 // @desc    Declare a collateral record against a loan — lender staff (own
 //          tenant) or the loan's own applicant (borrower, at application time)
 // @access  Private (lender_officer+, or the loan's own borrower)
-router.post('/loans/:loanId', authenticateToken, authorize('lender_admin', 'lender_officer', 'borrower'), async (req, res) => {
+router.post('/loans/:loanId', requireAuth, authorize('lender_admin', 'lender_officer', 'borrower'), async (req, res) => {
   try {
     const { loanId } = req.params;
     const { type, otherDescription, description, estimatedValue } = req.body;
@@ -111,7 +111,7 @@ router.post('/loans/:loanId', authenticateToken, authorize('lender_admin', 'lend
 // @desc    Edit a collateral record. Editing a verified record resets it to
 //          'declared' — re-verification is required after any change.
 // @access  Private (lender_officer+, own tenant only)
-router.put('/:id', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
+router.put('/:id', requireAuth, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const collateral = await Collateral.findById(req.params.id);
     if (!collateral) {
@@ -148,7 +148,7 @@ router.put('/:id', authenticateToken, authorize('lender_admin', 'lender_officer'
 // @route   PUT /api/collateral/:id/verify
 // @desc    Verify a declared collateral record
 // @access  Private (lender_officer+, own tenant only)
-router.put('/:id/verify', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
+router.put('/:id/verify', requireAuth, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const collateral = await Collateral.findById(req.params.id);
     if (!collateral) {
@@ -177,7 +177,7 @@ router.put('/:id/verify', authenticateToken, authorize('lender_admin', 'lender_o
 // @route   PUT /api/collateral/:id/reject
 // @desc    Reject a declared collateral record
 // @access  Private (lender_officer+, own tenant only)
-router.put('/:id/reject', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
+router.put('/:id/reject', requireAuth, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const collateral = await Collateral.findById(req.params.id);
     if (!collateral) {
@@ -206,7 +206,7 @@ router.put('/:id/reject', authenticateToken, authorize('lender_admin', 'lender_o
 // @route   PUT /api/collateral/:id/letter-of-sale
 // @desc    Record the paper letter-of-sale-on-file flag
 // @access  Private (lender_officer+, own tenant only)
-router.put('/:id/letter-of-sale', authenticateToken, authorize('lender_admin', 'lender_officer'), async (req, res) => {
+router.put('/:id/letter-of-sale', requireAuth, authorize('lender_admin', 'lender_officer'), async (req, res) => {
   try {
     const collateral = await Collateral.findById(req.params.id);
     if (!collateral) {

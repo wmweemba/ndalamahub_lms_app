@@ -3,13 +3,13 @@ const router = express.Router();
 const User = require('../models/User');
 const Company = require('../models/Company');
 const Loan = require('../models/Loan');
-const { authenticateToken, authorizeMinRole } = require('../middleware/auth');
+const { requireAuth, authorizeMinRole } = require('../middleware/auth');
 const { userScopeFilter, companyScopeFilter, loanScopeFilter } = require('../utils/tenantScope');
 
 // @route   GET /api/system/info
 // @desc    Get system information
 // @access  Private (Lender Admin and above)
-router.get('/info', authenticateToken, authorizeMinRole('lender_admin'), async (req, res) => {
+router.get('/info', requireAuth, authorizeMinRole('lender_admin'), async (req, res) => {
   try {
     // Get basic system statistics (tenant-scoped for non-platform admins)
     const totalUsers = await User.countDocuments(await userScopeFilter(req.user));
@@ -48,7 +48,7 @@ router.get('/info', authenticateToken, authorizeMinRole('lender_admin'), async (
 // @route   GET /api/system/settings
 // @desc    Get system settings
 // @access  Private (Lender Admin and above)
-router.get('/settings', authenticateToken, authorizeMinRole('lender_admin'), async (req, res) => {
+router.get('/settings', requireAuth, authorizeMinRole('lender_admin'), async (req, res) => {
   try {
     // In a real application, these would be stored in the database
     // For now, return default settings
@@ -101,7 +101,7 @@ router.get('/settings', authenticateToken, authorizeMinRole('lender_admin'), asy
 // @route   PUT /api/system/settings
 // @desc    Update system settings
 // @access  Private (Super User only)
-router.put('/settings', authenticateToken, authorizeMinRole('platform_admin'), async (req, res) => {
+router.put('/settings', requireAuth, authorizeMinRole('platform_admin'), async (req, res) => {
   try {
     const { system, email, notifications, api } = req.body;
 
@@ -164,7 +164,7 @@ router.put('/settings', authenticateToken, authorizeMinRole('platform_admin'), a
 // @route   POST /api/system/backup
 // @desc    Trigger system backup
 // @access  Private (Super User only)
-router.post('/backup', authenticateToken, authorizeMinRole('platform_admin'), async (req, res) => {
+router.post('/backup', requireAuth, authorizeMinRole('platform_admin'), async (req, res) => {
   try {
     // In a real application, this would trigger an actual backup process
     const backupId = `backup_${Date.now()}`;
@@ -192,7 +192,7 @@ router.post('/backup', authenticateToken, authorizeMinRole('platform_admin'), as
 // @route   GET /api/system/health
 // @desc    Get system health status
 // @access  Private (Admin roles)
-router.get('/health', authenticateToken, authorizeMinRole('employer_admin'), async (req, res) => {
+router.get('/health', requireAuth, authorizeMinRole('employer_admin'), async (req, res) => {
   try {
     const health = {
       status: 'healthy',

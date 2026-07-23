@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const requiredEnv = ['MONGODB_URI', 'JWT_SECRET'];
+const requiredEnv = ['MONGODB_URI', 'SESSION_SECRET'];
 const missingEnv = requiredEnv.filter((name) => !process.env[name]);
 if (missingEnv.length > 0) {
   console.error(`Missing required environment variables: ${missingEnv.join(', ')}`);

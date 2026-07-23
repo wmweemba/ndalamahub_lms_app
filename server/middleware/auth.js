@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
 // Role hierarchy, single source of truth for authorizeMinRole and hasMinRole
 const ROLE_HIERARCHY = {
@@ -10,23 +10,57 @@ const ROLE_HIERARCHY = {
     'borrower': 0
 };
 
-// Authenticate JWT token
-const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+const SESSION_ABSOLUTE_MS = 7 * 24 * 60 * 60 * 1000; // 7-day absolute cap, independent of rolling idle expiry
 
-    if (!token) {
-        return res.status(401).json({ message: 'Access denied. No token provided.' });
+// Global, mounted once in app.js before every route. Loads the session's user
+// fresh on every request (no stale JWT payload) and attaches the same
+// {id, username, role, company} shape routes have always consumed. Does NOT
+// reject requests with no session — that's requireAuth's job at each route —
+// but does reject (and destroys the session) the moment it finds one that no
+// longer resolves to an active user, so deactivation locks out the very next
+// request rather than waiting out a token's lifetime.
+const loadUser = async (req, res, next) => {
+    if (!req.session || !req.session.userId) {
+        return next();
+    }
+
+    const destroyAndReject = (message) => {
+        req.session.destroy(() => {
+            res.status(401).json({ message });
+        });
+    };
+
+    if (req.session.createdAt && Date.now() - req.session.createdAt > SESSION_ABSOLUTE_MS) {
+        return destroyAndReject('Session expired. Please log in again.');
     }
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
+        const user = await User.findById(req.session.userId).select('username role company isActive');
+        if (!user || !user.isActive) {
+            return destroyAndReject('Session invalid. Please log in again.');
+        }
+
+        req.user = {
+            id: user._id,
+            username: user.username,
+            role: user.role,
+            company: user.company
+        };
         next();
     } catch (error) {
-        console.error('Token verification error:', error);
-        res.status(401).json({ message: 'Invalid token.' });
+        console.error('Session user load error:', error);
+        destroyAndReject('Session invalid. Please log in again.');
     }
+};
+
+// Require an authenticated session — the per-route guard that replaces the
+// old authenticateToken call sites. req.user is populated by the global
+// loadUser middleware, if a valid session exists.
+const requireAuth = (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Access denied. Please log in.' });
+    }
+    next();
 };
 
 // Authorize specific roles
@@ -106,14 +140,15 @@ const authorizeCompany = () => {
     };
 };
 
-// Check whether a role meets a minimum role level (JWT-payload-safe
+// Check whether a role meets a minimum role level (req.user-shape-safe
 // replacement for the Mongoose User.hasPermission method)
 const hasMinRole = (role, minRole) => {
     return (ROLE_HIERARCHY[role] ?? -1) >= (ROLE_HIERARCHY[minRole] ?? Infinity);
 };
 
 module.exports = {
-    authenticateToken,
+    loadUser,
+    requireAuth,
     authorize,
     authorizeRole,
     authorizeMinRole,

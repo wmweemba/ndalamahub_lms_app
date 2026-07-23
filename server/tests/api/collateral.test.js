@@ -35,7 +35,7 @@ describe('Phase 21 — collateral register', () => {
     it('lender_officer can declare collateral on their own tenant loan -> 201', async () => {
       const res = await request(app)
         .post(`/api/collateral/loans/${fx.loanA_pending._id}`)
-        .set(authHeader(fx.lenderOfficerA))
+        .set(await authHeader(fx.lenderOfficerA))
         .send({ type: 'vehicle', description: 'Toyota Hilux', estimatedValue: 50000 });
       expect(res.status).toBe(201);
       expect(res.body.data.collateral.status).toBe('declared');
@@ -44,7 +44,7 @@ describe('Phase 21 — collateral register', () => {
     it('lender_officer of a different tenant gets 403 declaring on another lender\'s loan', async () => {
       const res = await request(app)
         .post(`/api/collateral/loans/${fx.loanA_pending._id}`)
-        .set(authHeader(fx.lenderOfficerB))
+        .set(await authHeader(fx.lenderOfficerB))
         .send({ type: 'vehicle', description: 'Toyota Hilux', estimatedValue: 50000 });
       expect(res.status).toBe(403);
     });
@@ -52,7 +52,7 @@ describe('Phase 21 — collateral register', () => {
     it('a borrower can declare collateral on their own loan -> 201', async () => {
       const res = await request(app)
         .post(`/api/collateral/loans/${fx.loanA_pending._id}`)
-        .set(authHeader(fx.borrowerA))
+        .set(await authHeader(fx.borrowerA))
         .send({ type: 'vehicle', description: 'Toyota Hilux', estimatedValue: 50000 });
       expect(res.status).toBe(201);
     });
@@ -60,7 +60,7 @@ describe('Phase 21 — collateral register', () => {
     it('a borrower cannot declare collateral on someone else\'s loan -> 403', async () => {
       const res = await request(app)
         .post(`/api/collateral/loans/${fx.loanA_pending._id}`)
-        .set(authHeader(fx.borrowerB))
+        .set(await authHeader(fx.borrowerB))
         .send({ type: 'vehicle', description: 'Toyota Hilux', estimatedValue: 50000 });
       expect(res.status).toBe(403);
     });
@@ -68,7 +68,7 @@ describe('Phase 21 — collateral register', () => {
     it('borrower reads their own loan\'s collateral via GET /loans/:id', async () => {
       const res = await request(app)
         .get(`/api/loans/${fx.loanA_pending._id}`)
-        .set(authHeader(fx.borrowerA));
+        .set(await authHeader(fx.borrowerA));
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body.data.collateral)).toBe(true);
       expect(res.body.data.collateral.length).toBeGreaterThan(0);
@@ -77,7 +77,7 @@ describe('Phase 21 — collateral register', () => {
     it('type "other" requires otherDescription', async () => {
       const res = await request(app)
         .post(`/api/collateral/loans/${fx.loanA_pending._id}`)
-        .set(authHeader(fx.lenderOfficerA))
+        .set(await authHeader(fx.lenderOfficerA))
         .send({ type: 'other', description: 'Something unusual', estimatedValue: 1000 });
       expect(res.status).toBe(400);
     });
@@ -85,15 +85,15 @@ describe('Phase 21 — collateral register', () => {
     it('editing a verified record resets it to declared', async () => {
       const created = await request(app)
         .post(`/api/collateral/loans/${fx.loanA_pending._id}`)
-        .set(authHeader(fx.lenderOfficerA))
+        .set(await authHeader(fx.lenderOfficerA))
         .send({ type: 'title_deed', description: 'Plot 123', estimatedValue: 80000 });
       const id = created.body.data.collateral._id;
 
-      await request(app).put(`/api/collateral/${id}/verify`).set(authHeader(fx.lenderOfficerA)).send({});
+      await request(app).put(`/api/collateral/${id}/verify`).set(await authHeader(fx.lenderOfficerA)).send({});
 
       const edited = await request(app)
         .put(`/api/collateral/${id}`)
-        .set(authHeader(fx.lenderOfficerA))
+        .set(await authHeader(fx.lenderOfficerA))
         .send({ estimatedValue: 90000 });
 
       expect(edited.status).toBe(200);
@@ -103,14 +103,14 @@ describe('Phase 21 — collateral register', () => {
 
   describe('register scoping', () => {
     it('GET /api/collateral only returns the caller\'s own tenant records', async () => {
-      const res = await request(app).get('/api/collateral').set(authHeader(fx.lenderAdminA));
+      const res = await request(app).get('/api/collateral').set(await authHeader(fx.lenderAdminA));
       expect(res.status).toBe(200);
       const lenderIds = res.body.data.collateral.map((c) => c.lenderCompany?._id || c.lenderCompany);
       expect(lenderIds.every((id) => id === fx.lenderA._id.toString())).toBe(true);
     });
 
     it('platform_admin sees all tenants', async () => {
-      const res = await request(app).get('/api/collateral').set(authHeader(fx.platformAdmin));
+      const res = await request(app).get('/api/collateral').set(await authHeader(fx.platformAdmin));
       expect(res.status).toBe(200);
     });
   });
@@ -129,28 +129,28 @@ describe('Phase 21 — collateral register', () => {
 
       const blocked = await request(app)
         .put(`/api/loans/${loan._id}/approve`)
-        .set(authHeader(fx.employerHrA))
+        .set(await authHeader(fx.employerHrA))
         .send({});
       expect(blocked.status).toBe(422);
       expect(blocked.body.message).toMatch(/collateral/i);
 
       const declared = await request(app)
         .post(`/api/collateral/loans/${loan._id}`)
-        .set(authHeader(fx.lenderOfficerA))
+        .set(await authHeader(fx.lenderOfficerA))
         .send({ type: 'vehicle', description: 'Delivery van', estimatedValue: 30000 });
       const collateralId = declared.body.data.collateral._id;
 
       const stillBlocked = await request(app)
         .put(`/api/loans/${loan._id}/approve`)
-        .set(authHeader(fx.employerHrA))
+        .set(await authHeader(fx.employerHrA))
         .send({});
       expect(stillBlocked.status).toBe(422);
 
-      await request(app).put(`/api/collateral/${collateralId}/verify`).set(authHeader(fx.lenderOfficerA)).send({});
+      await request(app).put(`/api/collateral/${collateralId}/verify`).set(await authHeader(fx.lenderOfficerA)).send({});
 
       const approved = await request(app)
         .put(`/api/loans/${loan._id}/approve`)
-        .set(authHeader(fx.employerHrA))
+        .set(await authHeader(fx.employerHrA))
         .send({});
       expect(approved.status).toBe(200);
     });
@@ -177,23 +177,23 @@ describe('Phase 21 — collateral register', () => {
         vettedAt: new Date()
       });
 
-      await request(app).put(`/api/loans/${loan._id}/approve`).set(authHeader(fx.employerHrA)).send({});
+      await request(app).put(`/api/loans/${loan._id}/approve`).set(await authHeader(fx.employerHrA)).send({});
 
       const blocked = await request(app)
         .put(`/api/loans/${loan._id}/disburse`)
-        .set(authHeader(fx.lenderAdminA))
+        .set(await authHeader(fx.lenderAdminA))
         .send({ disbursementMethod: 'mobile_money' });
       expect(blocked.status).toBe(422);
       expect(blocked.body.message).toMatch(/letter of sale/i);
 
       await request(app)
         .put(`/api/collateral/${collateral._id}/letter-of-sale`)
-        .set(authHeader(fx.lenderOfficerA))
+        .set(await authHeader(fx.lenderOfficerA))
         .send({ onFile: true, reference: 'LOS-001' });
 
       const disbursed = await request(app)
         .put(`/api/loans/${loan._id}/disburse`)
-        .set(authHeader(fx.lenderAdminA))
+        .set(await authHeader(fx.lenderAdminA))
         .send({ disbursementMethod: 'mobile_money' });
       expect(disbursed.status).toBe(200);
     });
@@ -211,13 +211,13 @@ describe('Phase 21 — collateral register', () => {
 
       const approved = await request(app)
         .put(`/api/loans/${loan._id}/approve`)
-        .set(authHeader(fx.employerHrA))
+        .set(await authHeader(fx.employerHrA))
         .send({});
       expect(approved.status).toBe(200);
 
       const disbursed = await request(app)
         .put(`/api/loans/${loan._id}/disburse`)
-        .set(authHeader(fx.lenderAdminA))
+        .set(await authHeader(fx.lenderAdminA))
         .send({ disbursementMethod: 'mobile_money' });
       expect(disbursed.status).toBe(200);
     });
@@ -232,7 +232,7 @@ describe('Phase 21 — collateral register', () => {
 
       const approved = await request(app)
         .put(`/api/loans/${loan._id}/approve`)
-        .set(authHeader(fx.employerHrA))
+        .set(await authHeader(fx.employerHrA))
         .send({});
       expect(approved.status).toBe(200);
     });

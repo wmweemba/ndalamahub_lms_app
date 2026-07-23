@@ -1,5 +1,4 @@
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
 const app = require('../../app');
 const db = require('../helpers/db');
 const { seedTwoTenants, PASSWORD } = require('../helpers/fixtures');
@@ -23,29 +22,27 @@ describe('Smoke tests', () => {
     expect(res.body.status).toBe('OK');
   });
 
-  it('GET /api/loans with no token returns 401', async () => {
+  it('GET /api/loans with no session returns 401', async () => {
     const res = await request(app).get('/api/loans');
     expect(res.status).toBe(401);
   });
 
-  it('GET /api/loans with a garbage token returns 401', async () => {
+  it('GET /api/loans with a garbage session cookie returns 401', async () => {
     const res = await request(app)
       .get('/api/loans')
-      .set('Authorization', 'Bearer garbage-token');
+      .set('Cookie', 'ndalamahub.sid=garbage-session-id');
     expect(res.status).toBe(401);
   });
 
-  it('POST /api/auth/login with seeded credentials returns 200 with token and refreshToken', async () => {
+  it('POST /api/auth/login with seeded credentials returns 200, sets a session cookie, and returns the user', async () => {
     const res = await request(app)
       .post('/api/auth/login')
       .send({ username: fixtures.lenderAdminA.username, password: PASSWORD });
 
     expect(res.status).toBe(200);
-    expect(res.body.token).toBeDefined();
-    expect(res.body.refreshToken).toBeDefined();
-
-    const decoded = jwt.verify(res.body.token, process.env.JWT_SECRET);
-    expect(decoded).toMatchObject({
+    expect(res.headers['set-cookie']).toBeDefined();
+    expect(res.headers['set-cookie'][0]).toMatch(/^ndalamahub\.sid=/);
+    expect(res.body.user).toMatchObject({
       id: fixtures.lenderAdminA._id.toString(),
       username: fixtures.lenderAdminA.username,
       role: 'lender_admin',
@@ -61,10 +58,10 @@ describe('Smoke tests', () => {
     expect(res.status).toBe(401);
   });
 
-  it('GET /api/auth/me with a minted token returns 200 and the right user', async () => {
+  it('GET /api/auth/me with a valid session returns 200 and the right user', async () => {
     const res = await request(app)
       .get('/api/auth/me')
-      .set(authHeader(fixtures.lenderAdminA));
+      .set(await authHeader(fixtures.lenderAdminA));
 
     expect(res.status).toBe(200);
     expect(res.body.data.user.username).toBe(fixtures.lenderAdminA.username);

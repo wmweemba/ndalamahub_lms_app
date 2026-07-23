@@ -4,7 +4,7 @@ const Ticket = require('../models/Ticket');
 const User = require('../models/User');
 const Loan = require('../models/Loan');
 const Company = require('../models/Company');
-const { authenticateToken } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 const {
   isPlatformAdmin,
   isLenderSide,
@@ -97,7 +97,7 @@ const serializeTicket = (ticket) => ({
 // @route   POST /api/tickets
 // @desc    Raise a new support ticket
 // @access  Private (any authenticated user)
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const { subject, category, priority, relatedLoan, message } = req.body;
 
@@ -175,7 +175,7 @@ router.post('/', authenticateToken, async (req, res) => {
 // @route   GET /api/tickets
 // @desc    List tickets visible to the caller
 // @access  Private
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
     const { status, page = 1, limit = 10 } = req.query;
 
@@ -210,7 +210,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // @route   GET /api/tickets/:id
 // @desc    Get a single ticket with full thread
 // @access  Private (visible tickets only)
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', requireAuth, async (req, res) => {
   try {
     const ticket = await Ticket.findById(req.params.id).populate(populateOpts);
     if (!ticket) {
@@ -234,7 +234,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // @route   POST /api/tickets/:id/messages
 // @desc    Append a message to a ticket's thread
 // @access  Private (visible tickets only)
-router.post('/:id/messages', authenticateToken, async (req, res) => {
+router.post('/:id/messages', requireAuth, async (req, res) => {
   try {
     const { body } = req.body;
     if (!body || !body.trim()) {
@@ -277,7 +277,7 @@ router.post('/:id/messages', authenticateToken, async (req, res) => {
 // @route   PUT /api/tickets/:id/status
 // @desc    Transition a ticket's status
 // @access  Private (handler side only)
-router.put('/:id/status', authenticateToken, async (req, res) => {
+router.put('/:id/status', requireAuth, async (req, res) => {
   try {
     const { status } = req.body;
     const validStatuses = ['open', 'in_progress', 'resolved', 'closed'];
@@ -319,7 +319,7 @@ router.put('/:id/status', authenticateToken, async (req, res) => {
 // @route   PUT /api/tickets/:id/assign
 // @desc    Assign a ticket to a handler-side user
 // @access  Private (handler side only)
-router.put('/:id/assign', authenticateToken, async (req, res) => {
+router.put('/:id/assign', requireAuth, async (req, res) => {
   try {
     const { assignedTo } = req.body;
     if (!assignedTo) {

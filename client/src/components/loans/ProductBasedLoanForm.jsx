@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import ProductSelector from './ProductSelector';
 import api from '@/utils/api';
+import { getCurrentUser } from '@/utils/roleUtils';
 import { formatCurrency, formatTerm, formatRateBasis } from '@/lib/format';
 import { ArrowLeft } from 'lucide-react';
 
@@ -47,11 +48,15 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
   const [paymentSchedule, setPaymentSchedule] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
+  // Phase 25: getCurrentUser() is the same in-memory cache the rest of the
+  // app reads (hydrated by the time this dialog can even be opened, since
+  // it only renders behind ProtectedRoute) — no need for this component's
+  // own /auth/me fetch, which used to be a workaround for the old JWT
+  // payload not carrying firstName/lastName at all.
+  const currentUser = getCurrentUser();
 
   useEffect(() => {
     if (open) {
-      fetchCurrentUser();
       resetForm();
     }
   }, [open]);
@@ -116,17 +121,6 @@ export default function ProductBasedLoanForm({ open, onClose, onSuccess }) {
       setFeeCalculation(null);
     }
   }, [formData.amount, selectedProduct]);
-
-  const fetchCurrentUser = async () => {
-    try {
-      const response = await api.get('/auth/me');
-      if (response.data.success) {
-        setCurrentUser(response.data.data.user);
-      }
-    } catch {
-      // best-effort; the "Full name" field just stays blank
-    }
-  };
 
   const resetForm = () => {
     setStep(1);

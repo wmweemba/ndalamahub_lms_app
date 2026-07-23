@@ -20,7 +20,7 @@ describe('Reports / dashboard tenancy', () => {
 
   describe('GET /api/reports/loans', () => {
     it('as employerAdminA -> rows reference loanA only', async () => {
-      const res = await request(app).get('/api/reports/loans').set(authHeader(fx.employerAdminA));
+      const res = await request(app).get('/api/reports/loans').set(await authHeader(fx.employerAdminA));
       expect(res.status).toBe(200);
       const ids = loanIdsOf(res.body.data.loans);
       expect(ids).toContain(fx.loanA._id.toString());
@@ -29,7 +29,7 @@ describe('Reports / dashboard tenancy', () => {
     });
 
     it('as lenderAdminB -> rows reference loanB only', async () => {
-      const res = await request(app).get('/api/reports/loans').set(authHeader(fx.lenderAdminB));
+      const res = await request(app).get('/api/reports/loans').set(await authHeader(fx.lenderAdminB));
       expect(res.status).toBe(200);
       const ids = loanIdsOf(res.body.data.loans);
       expect(ids).toContain(fx.loanB._id.toString());
@@ -40,7 +40,7 @@ describe('Reports / dashboard tenancy', () => {
 
   describe('GET /api/reports/companies', () => {
     it('as lenderAdminA -> employerA scope only, employerB absent', async () => {
-      const res = await request(app).get('/api/reports/companies').set(authHeader(fx.lenderAdminA));
+      const res = await request(app).get('/api/reports/companies').set(await authHeader(fx.lenderAdminA));
       expect(res.status).toBe(200);
       const companyIds = res.body.data.companies.map((c) => c._id.toString());
       expect(companyIds).toContain(fx.employerA._id.toString());
@@ -48,14 +48,14 @@ describe('Reports / dashboard tenancy', () => {
     });
 
     it('as employerAdminA -> 403 (pins the Phase 03 fix of the formerly broken-open authorizeMinRole gate)', async () => {
-      const res = await request(app).get('/api/reports/companies').set(authHeader(fx.employerAdminA));
+      const res = await request(app).get('/api/reports/companies').set(await authHeader(fx.employerAdminA));
       expect(res.status).toBe(403);
     });
   });
 
   describe('GET /api/dashboard/stats', () => {
     it('as employerAdminA -> loan counts reflect tenant A only (count must be 1)', async () => {
-      const res = await request(app).get('/api/dashboard/stats').set(authHeader(fx.employerAdminA));
+      const res = await request(app).get('/api/dashboard/stats').set(await authHeader(fx.employerAdminA));
       expect(res.status).toBe(200);
       expect(res.body.data.activeLoans).toBe(1);
       expect(res.body.data.totalLoanAmount).toBe(fx.loanA.amount);
@@ -64,7 +64,7 @@ describe('Reports / dashboard tenancy', () => {
 
   describe('GET /api/dashboard/lender-stats', () => {
     it('as lenderAdminA -> tenant-A counts only', async () => {
-      const res = await request(app).get('/api/dashboard/lender-stats').set(authHeader(fx.lenderAdminA));
+      const res = await request(app).get('/api/dashboard/lender-stats').set(await authHeader(fx.lenderAdminA));
       expect(res.status).toBe(200);
       const summary = res.body.data.portfolioSummary;
       expect(summary.totalLoans).toBe(2);

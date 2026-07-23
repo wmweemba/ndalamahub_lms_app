@@ -37,7 +37,7 @@ describe('Email notification wiring', () => {
   it('approve route sends the loan-approved template to the applicant', async () => {
     const res = await request(app)
       .put(`/api/loans/${fixtures.loanA_pending._id}/approve`)
-      .set(authHeader(fixtures.lenderAdminA))
+      .set(await authHeader(fixtures.lenderAdminA))
       .send({ approvalNotes: 'Looks good' });
 
     expect(res.status).toBe(200);
@@ -58,7 +58,7 @@ describe('Email notification wiring', () => {
 
     const res = await request(app)
       .put(`/api/loans/${fixtures.loanB_pending._id}/approve`)
-      .set(authHeader(fixtures.lenderAdminB))
+      .set(await authHeader(fixtures.lenderAdminB))
       .send({ approvalNotes: 'Looks good' });
 
     expect(res.status).toBe(200);

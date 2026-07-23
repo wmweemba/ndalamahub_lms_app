@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const sessionMiddleware = require('./middleware/session');
+const originCheck = require('./middleware/originCheck');
+const { loadUser } = require('./middleware/auth');
 
 const app = express();
 
@@ -13,6 +16,15 @@ app.use(cors({
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(require('express-mongo-sanitize')());
+
+// Sessions replace JWTs (Phase 25) — session cookie, then the per-request
+// user load (fresh from Mongo, so deactivation locks out the very next
+// request), then the same-site CSRF Origin check for unsafe methods. Order
+// matters: enforceSubscription below reads req.user, so loadUser must run
+// before it.
+app.use(sessionMiddleware);
+app.use(loadUser);
+app.use(originCheck);
 
 const rateLimit = require('express-rate-limit');
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 50, standardHeaders: true, legacyHeaders: false }));

@@ -21,14 +21,14 @@ describe('Loans tenancy', () => {
 
   describe('GET /api/loans list scoping', () => {
     it('platformAdmin sees loanA and loanB', async () => {
-      const res = await request(app).get('/api/loans').set(authHeader(fx.platformAdmin));
+      const res = await request(app).get('/api/loans').set(await authHeader(fx.platformAdmin));
       expect(res.status).toBe(200);
       const ids = idsOf(res.body.data.loans);
       expect(ids).toEqual(expect.arrayContaining([fx.loanA._id.toString(), fx.loanB._id.toString()]));
     });
 
     it('lenderAdminA sees loanA, not loanB', async () => {
-      const res = await request(app).get('/api/loans').set(authHeader(fx.lenderAdminA));
+      const res = await request(app).get('/api/loans').set(await authHeader(fx.lenderAdminA));
       expect(res.status).toBe(200);
       const ids = idsOf(res.body.data.loans);
       expect(ids).toContain(fx.loanA._id.toString());
@@ -36,7 +36,7 @@ describe('Loans tenancy', () => {
     });
 
     it('employerAdminB sees loanB only', async () => {
-      const res = await request(app).get('/api/loans').set(authHeader(fx.employerAdminB));
+      const res = await request(app).get('/api/loans').set(await authHeader(fx.employerAdminB));
       expect(res.status).toBe(200);
       const ids = idsOf(res.body.data.loans);
       expect(ids).toContain(fx.loanB._id.toString());
@@ -44,7 +44,7 @@ describe('Loans tenancy', () => {
     });
 
     it('employerHrA sees loanA only', async () => {
-      const res = await request(app).get('/api/loans').set(authHeader(fx.employerHrA));
+      const res = await request(app).get('/api/loans').set(await authHeader(fx.employerHrA));
       expect(res.status).toBe(200);
       const ids = idsOf(res.body.data.loans);
       expect(ids).toContain(fx.loanA._id.toString());
@@ -52,7 +52,7 @@ describe('Loans tenancy', () => {
     });
 
     it('borrowerA sees loanA only (own loans), not loanB', async () => {
-      const res = await request(app).get('/api/loans').set(authHeader(fx.borrowerA));
+      const res = await request(app).get('/api/loans').set(await authHeader(fx.borrowerA));
       expect(res.status).toBe(200);
       const ids = idsOf(res.body.data.loans);
       expect(ids).toContain(fx.loanA._id.toString());
@@ -65,28 +65,28 @@ describe('Loans tenancy', () => {
     it('lenderAdminA on loanA -> 200', async () => {
       const res = await request(app)
         .get(`/api/loans/${fx.loanA._id}`)
-        .set(authHeader(fx.lenderAdminA));
+        .set(await authHeader(fx.lenderAdminA));
       expect(res.status).toBe(200);
     });
 
     it('lenderAdminB on loanA -> 403', async () => {
       const res = await request(app)
         .get(`/api/loans/${fx.loanA._id}`)
-        .set(authHeader(fx.lenderAdminB));
+        .set(await authHeader(fx.lenderAdminB));
       expect(res.status).toBe(403);
     });
 
     it('employerAdminB on loanA -> 403', async () => {
       const res = await request(app)
         .get(`/api/loans/${fx.loanA._id}`)
-        .set(authHeader(fx.employerAdminB));
+        .set(await authHeader(fx.employerAdminB));
       expect(res.status).toBe(403);
     });
 
     it('borrowerB on loanA -> 403', async () => {
       const res = await request(app)
         .get(`/api/loans/${fx.loanA._id}`)
-        .set(authHeader(fx.borrowerB));
+        .set(await authHeader(fx.borrowerB));
       expect(res.status).toBe(403);
     });
   });
@@ -97,7 +97,7 @@ describe('Loans tenancy', () => {
     it('lenderAdminA on loanA -> 200; installment reflects the payment', async () => {
       const res = await request(app)
         .put(`/api/loans/${fx.loanA._id}/repayment`)
-        .set(authHeader(fx.lenderAdminA))
+        .set(await authHeader(fx.lenderAdminA))
         .send({
           installmentNumber: 1,
           amount: 100,
@@ -117,7 +117,7 @@ describe('Loans tenancy', () => {
 
       const res = await request(app)
         .put(`/api/loans/${fx.loanA._id}/repayment`)
-        .set(authHeader(fx.lenderAdminB))
+        .set(await authHeader(fx.lenderAdminB))
         .send({
           installmentNumber: 2,
           amount: 100,
@@ -137,7 +137,7 @@ describe('Loans tenancy', () => {
     it('employerAdminA on loanA -> 403 (role guard: employer-side is read-only on repayments)', async () => {
       const res = await request(app)
         .put(`/api/loans/${fx.loanA._id}/repayment`)
-        .set(authHeader(fx.employerAdminA))
+        .set(await authHeader(fx.employerAdminA))
         .send({
           installmentNumber: 3,
           amount: 100,
@@ -151,7 +151,7 @@ describe('Loans tenancy', () => {
     it('lenderOfficerB on loanA -> 403 (right role, wrong tenant)', async () => {
       const res = await request(app)
         .put(`/api/loans/${fx.loanA._id}/repayment`)
-        .set(authHeader(fx.lenderOfficerB))
+        .set(await authHeader(fx.lenderOfficerB))
         .send({
           installmentNumber: 3,
           amount: 100,

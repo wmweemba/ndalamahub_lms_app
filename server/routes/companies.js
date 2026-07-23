@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const Company = require('../models/Company');
-const { authenticateToken, authorizeRole, authorizeMinRole } = require('../middleware/auth');
+const { requireAuth, authorizeRole, authorizeMinRole } = require('../middleware/auth');
 const { isPlatformAdmin, idsEqual, companyScopeFilter, canReadCompany } = require('../utils/tenantScope');
 
 // @route   GET /api/companies
 // @desc    Get companies based on user role
 // @access  Private (Admin roles only)
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
     try {
         // Other roles should not access this endpoint
         const allowedRoles = ['platform_admin', 'lender_admin', 'employer_admin', 'employer_hr'];
@@ -27,7 +27,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // @route   POST /api/companies
 // @desc    Create new company
 // @access  Private (Super user and lender admin)
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
     try {
         // Super user can create any type of company
         if (req.user.role === 'platform_admin') {
@@ -87,7 +87,7 @@ router.post('/', authenticateToken, async (req, res) => {
 // @route   PUT /api/companies/:id
 // @desc    Update company
 // @access  Private (Super user and lender admin for their companies)
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', requireAuth, async (req, res) => {
     try {
         const companyId = req.params.id;
         const company = await Company.findById(companyId);
@@ -172,7 +172,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 // @route   DELETE /api/companies/:id
 // @desc    Delete company
 // @access  Private (Super user and lender admin for corporate companies only)
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', requireAuth, async (req, res) => {
     try {
         const companyId = req.params.id;
         const company = await Company.findById(companyId);

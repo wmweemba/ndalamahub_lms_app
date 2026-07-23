@@ -20,21 +20,21 @@ describe('Companies tenancy', () => {
   });
 
   it('GET /api/companies as lenderAdminA -> exactly lenderA + employerA', async () => {
-    const res = await request(app).get('/api/companies').set(authHeader(fx.lenderAdminA));
+    const res = await request(app).get('/api/companies').set(await authHeader(fx.lenderAdminA));
     expect(res.status).toBe(200);
     const ids = idsOf(res.body);
     expect(ids.sort()).toEqual([fx.employerA._id.toString(), fx.lenderA._id.toString()].sort());
   });
 
   it('GET /api/companies as employerAdminA -> exactly [employerA]', async () => {
-    const res = await request(app).get('/api/companies').set(authHeader(fx.employerAdminA));
+    const res = await request(app).get('/api/companies').set(await authHeader(fx.employerAdminA));
     expect(res.status).toBe(200);
     const ids = idsOf(res.body);
     expect(ids).toEqual([fx.employerA._id.toString()]);
   });
 
   it('GET /api/companies as borrowerA -> 403', async () => {
-    const res = await request(app).get('/api/companies').set(authHeader(fx.borrowerA));
+    const res = await request(app).get('/api/companies').set(await authHeader(fx.borrowerA));
     expect(res.status).toBe(403);
   });
 
@@ -42,7 +42,7 @@ describe('Companies tenancy', () => {
     const before = await Company.findById(fx.employerB._id);
     const res = await request(app)
       .put(`/api/companies/${fx.employerB._id}`)
-      .set(authHeader(fx.lenderAdminA))
+      .set(await authHeader(fx.lenderAdminA))
       .send({ description: 'hijacked' });
     expect(res.status).toBe(403);
     const after = await Company.findById(fx.employerB._id);
@@ -52,7 +52,7 @@ describe('Companies tenancy', () => {
   it('DELETE /api/companies/:employerB._id as lenderAdminA -> 403, document still exists', async () => {
     const res = await request(app)
       .delete(`/api/companies/${fx.employerB._id}`)
-      .set(authHeader(fx.lenderAdminA));
+      .set(await authHeader(fx.lenderAdminA));
     expect(res.status).toBe(403);
     const stillExists = await Company.findById(fx.employerB._id);
     expect(stillExists).not.toBeNull();
@@ -61,7 +61,7 @@ describe('Companies tenancy', () => {
   it('PUT /api/companies/:employerA._id as employerAdminB -> 403', async () => {
     const res = await request(app)
       .put(`/api/companies/${fx.employerA._id}`)
-      .set(authHeader(fx.employerAdminB))
+      .set(await authHeader(fx.employerAdminB))
       .send({ description: 'hijacked' });
     expect(res.status).toBe(403);
   });
@@ -82,7 +82,7 @@ describe('Companies tenancy', () => {
     it('platform_admin can create a lender with lendingModel: direct', async () => {
       const res = await request(app)
         .post('/api/companies')
-        .set(authHeader(fx.platformAdmin))
+        .set(await authHeader(fx.platformAdmin))
         .send({
           name: 'New Direct Lender',
           type: 'lender',
@@ -99,7 +99,7 @@ describe('Companies tenancy', () => {
       const before = await Company.findById(fx.lenderA._id);
       const res = await request(app)
         .put(`/api/companies/${fx.lenderA._id}`)
-        .set(authHeader(fx.lenderAdminA))
+        .set(await authHeader(fx.lenderAdminA))
         .send({ lendingModel: 'direct' });
       expect(res.status).toBe(200);
       const after = await Company.findById(fx.lenderA._id);
@@ -109,7 +109,7 @@ describe('Companies tenancy', () => {
     it('platform_admin can change a lender\'s lendingModel via PUT', async () => {
       const res = await request(app)
         .put(`/api/companies/${fx.lenderB._id}`)
-        .set(authHeader(fx.platformAdmin))
+        .set(await authHeader(fx.platformAdmin))
         .send({ lendingModel: 'direct' });
       expect(res.status).toBe(200);
       const after = await Company.findById(fx.lenderB._id);

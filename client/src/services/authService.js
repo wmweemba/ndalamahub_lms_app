@@ -1,20 +1,25 @@
-import api from '../utils/api';
+import api from '@/utils/api';
+import { setCurrentUser, clearCurrentUser } from '../utils/roleUtils';
 
 export const authService = {
     login: async (username, password) => {
         try {
             const response = await api.post('/auth/login', { username, password });
-            const { token, user } = response.data;
-            localStorage.setItem('ndalamahub-token', token);
-            localStorage.setItem('ndalamahub-user', JSON.stringify(user));
+            const { user } = response.data;
+            setCurrentUser(user);
             return user;
         } catch (error) {
             throw new Error(error.response?.data?.message || 'Login failed');
         }
     },
 
-    logout: () => {
-        localStorage.removeItem('ndalamahub-token');
-        localStorage.removeItem('ndalamahub-user');
+    logout: async () => {
+        try {
+            await api.post('/auth/logout');
+        } catch {
+            // best-effort — the session is treated as gone client-side either way
+        } finally {
+            clearCurrentUser();
+        }
     }
 };

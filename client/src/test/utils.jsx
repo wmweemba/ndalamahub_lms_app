@@ -1,29 +1,18 @@
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { setCurrentUser, resetCurrentUser } from '@/utils/authState';
 
-function base64UrlEncode(obj) {
-  return btoa(JSON.stringify(obj));
-}
-
-export function makeFakeToken(payloadOverrides = {}) {
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const payload = {
-    id: 'test-user-id',
-    username: 'testuser',
-    role: 'borrower',
-    company: 'test-company-id',
-    exp: Math.floor(Date.now() / 1000) + 3600,
-    ...payloadOverrides,
-  };
-  return `${base64UrlEncode(header)}.${base64UrlEncode(payload)}.fakesignature`;
-}
-
+// Phase 25: the current user lives in an in-memory cache (roleUtils.js),
+// not localStorage — seedUser resets it first so a test never inherits a
+// previous test's cached user, then sets it directly (no fake token, no
+// hydration round-trip needed since this *is* the hydrated state).
 export function seedUser(user) {
-  const token = makeFakeToken({ role: user.role, id: user._id, username: user.username });
-  localStorage.setItem('ndalamahub-token', token);
-  localStorage.setItem('ndalamahub-user', JSON.stringify(user));
-  return token;
+  resetCurrentUser();
+  setCurrentUser(user);
+  return user;
 }
+
+export { resetCurrentUser };
 
 export function renderWithProviders(ui) {
   const queryClient = new QueryClient({

@@ -4,7 +4,7 @@ const User = require('../models/User');
 const Company = require('../models/Company');
 const Loan = require('../models/Loan');
 const {
-  authenticateToken,
+  requireAuth,
   authorize,
   authorizeRole,  // Add this
   authorizeMinRole,
@@ -44,7 +44,7 @@ async function canTouchUser(reqUser, targetUser) {
 // @route   GET /api/users
 // @desc    Get all users (with filters)
 // @access  Private (Admin and HR roles)
-router.get('/', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
+router.get('/', requireAuth, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     const {
       page = 1,
@@ -124,7 +124,7 @@ router.get('/', authenticateToken, authorizeMinRole('employer_hr'), async (req, 
 // @route   GET /api/users/:id
 // @desc    Get user by ID
 // @access  Private (Admin roles or own profile)
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -174,7 +174,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // @route   POST /api/users
 // @desc    Create new user
 // @access  Private (Admin and HR roles)
-router.post('/', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
+router.post('/', requireAuth, authorizeMinRole('employer_hr'), async (req, res) => {
     try {
         const {
             firstName,
@@ -389,7 +389,7 @@ router.post('/', authenticateToken, authorizeMinRole('employer_hr'), async (req,
 // @route   PATCH /api/users/:id/status
 // @desc    Toggle user active status
 // @access  Private (Admin and HR roles)
-router.patch('/:id/status', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
+router.patch('/:id/status', requireAuth, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     const { id } = req.params;
     const { isActive } = req.body;
@@ -440,7 +440,7 @@ router.patch('/:id/status', authenticateToken, authorizeMinRole('employer_hr'), 
 // @route   PUT /api/users/:id/password
 // @desc    Change user password
 // @access  Private (Own profile or admin)
-router.put('/:id/password', authenticateToken, async (req, res) => {
+router.put('/:id/password', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { currentPassword, newPassword } = req.body;
@@ -520,7 +520,7 @@ router.put('/:id/password', authenticateToken, async (req, res) => {
 // @route   PUT /api/users/:id
 // @desc    Update user
 // @access  Private (Admin roles or own profile)
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -644,7 +644,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 //          Never returns the token in the response, same contract as
 //          forgot-password.
 // @access  Private (lender-side only)
-router.post('/:id/invite', authenticateToken, authorize(['lender_admin', 'lender_officer']), async (req, res) => {
+router.post('/:id/invite', requireAuth, authorize(['lender_admin', 'lender_officer']), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -696,7 +696,7 @@ router.post('/:id/invite', authenticateToken, authorize(['lender_admin', 'lender
 // @route   PATCH /api/users/:id/reset-password
 // @desc    Reset user password (Admin only)
 // @access  Private (Admin roles only)
-router.patch('/:id/reset-password', authenticateToken, authorize(['platform_admin', 'lender_admin', 'employer_admin']), async (req, res) => {
+router.patch('/:id/reset-password', requireAuth, authorize(['platform_admin', 'lender_admin', 'employer_admin']), async (req, res) => {
   try {
     const { id } = req.params;
     const { newPassword } = req.body;
@@ -755,7 +755,7 @@ router.patch('/:id/reset-password', authenticateToken, authorize(['platform_admi
 // @route   DELETE /api/users/:id
 // @desc    Delete user
 // @access  Private (Admin and HR roles)
-router.delete('/:id', authenticateToken, authorizeMinRole('employer_hr'), async (req, res) => {
+router.delete('/:id', requireAuth, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     const { id } = req.params;
 

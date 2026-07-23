@@ -27,7 +27,7 @@ describe('Hotfix regressions (2026-07-10)', () => {
     it('approve as lenderAdminB on loanA_pending -> 403 and the loan stays pending', async () => {
       const res = await request(app)
         .put(`/api/loans/${fx.loanA_pending._id}/approve`)
-        .set(authHeader(fx.lenderAdminB))
+        .set(await authHeader(fx.lenderAdminB))
         .send({});
 
       expect(res.status).toBe(403);
@@ -47,7 +47,7 @@ describe('Hotfix regressions (2026-07-10)', () => {
 
       const res = await request(app)
         .put(`/api/loans/${freshPending._id}/reject`)
-        .set(authHeader(fx.lenderAdminB))
+        .set(await authHeader(fx.lenderAdminB))
         .send({ approvalNotes: 'attempted cross-tenant rejection' });
 
       expect(res.status).toBe(403);
@@ -67,7 +67,7 @@ describe('Hotfix regressions (2026-07-10)', () => {
 
       const res = await request(app)
         .put(`/api/loans/${ownPending._id}/approve`)
-        .set(authHeader(fx.lenderAdminA))
+        .set(await authHeader(fx.lenderAdminA))
         .send({});
 
       expect(res.status).toBe(200);
@@ -79,7 +79,7 @@ describe('Hotfix regressions (2026-07-10)', () => {
     it('employerAdminA sets borrowerA.role to platform_admin -> 403, stored role still borrower', async () => {
       const res = await request(app)
         .put(`/api/users/${fx.borrowerA._id}`)
-        .set(authHeader(fx.employerAdminA))
+        .set(await authHeader(fx.employerAdminA))
         .send({ role: 'platform_admin' });
 
       expect(res.status).toBe(403);
@@ -91,7 +91,7 @@ describe('Hotfix regressions (2026-07-10)', () => {
     it('employerAdminA sets borrowerA.role to employer_hr (at/below own level) -> 200, role changes (cap does not block legitimate updates)', async () => {
       const res = await request(app)
         .put(`/api/users/${fx.borrowerA._id}`)
-        .set(authHeader(fx.employerAdminA))
+        .set(await authHeader(fx.employerAdminA))
         .send({ role: 'employer_hr' });
 
       expect(res.status).toBe(200);

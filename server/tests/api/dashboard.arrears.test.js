@@ -33,7 +33,7 @@ describe('Dashboard arrears-awareness', () => {
   });
 
   it('lenderAdminA /lender-stats shows the arrears loan under inArrearsLoans, absent from activeLoans', async () => {
-    const res = await request(app).get('/api/dashboard/lender-stats').set(authHeader(fx.lenderAdminA));
+    const res = await request(app).get('/api/dashboard/lender-stats').set(await authHeader(fx.lenderAdminA));
     expect(res.status).toBe(200);
     const summary = res.body.data.portfolioSummary;
     expect(summary.inArrearsLoans).toBe(1);
@@ -41,7 +41,7 @@ describe('Dashboard arrears-awareness', () => {
   });
 
   it('lenderAdminB /lender-stats is unaffected (tenancy holds on the new fields)', async () => {
-    const res = await request(app).get('/api/dashboard/lender-stats').set(authHeader(fx.lenderAdminB));
+    const res = await request(app).get('/api/dashboard/lender-stats').set(await authHeader(fx.lenderAdminB));
     expect(res.status).toBe(200);
     const summary = res.body.data.portfolioSummary;
     expect(summary.inArrearsLoans).toBe(0);
@@ -49,7 +49,7 @@ describe('Dashboard arrears-awareness', () => {
   });
 
   it('employerHrA /hr-stats shows the arrears loan under inArrearsLoans', async () => {
-    const res = await request(app).get('/api/dashboard/hr-stats').set(authHeader(fx.employerHrA));
+    const res = await request(app).get('/api/dashboard/hr-stats').set(await authHeader(fx.employerHrA));
     expect(res.status).toBe(200);
     const summary = res.body.data.loanSummary;
     expect(summary.inArrearsLoans).toBe(1);

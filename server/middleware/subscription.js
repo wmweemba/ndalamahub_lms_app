@@ -1,4 +1,3 @@
-const jwt = require('jsonwebtoken');
 const Company = require('../models/Company');
 const { isPlatformAdmin, isLenderSide, companyLenderId } = require('../utils/tenantScope');
 
@@ -55,25 +54,17 @@ function computeEffectiveStatus(subscription, now = new Date()) {
 }
 
 /**
- * Gate every non-exempt /api/* route. Mounted before the route mounts in
- * app.js; skips exempt prefixes and requests with no bearer token (the
- * route's own authenticateToken handles the 401 as usual). Never blocks
- * platform_admin. Fails open on unexpected DB/lookup errors — a billing
- * gate outage shouldn't take the whole API down.
+ * Gate every non-exempt /api/* route. Mounted after the global loadUser
+ * middleware (app.js) and before the route mounts; skips exempt prefixes and
+ * requests with no session (the route's own requireAuth handles the 401 as
+ * usual). Never blocks platform_admin. Fails open on unexpected DB/lookup
+ * errors — a billing gate outage shouldn't take the whole API down.
  */
 const enforceSubscription = async (req, res, next) => {
   if (isExempt(req.path)) return next();
 
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return next();
-
-  let user;
-  try {
-    user = jwt.verify(token, process.env.JWT_SECRET);
-  } catch (error) {
-    return next(); // invalid/expired token — the route's own auth middleware rejects it
-  }
+  const user = req.user;
+  if (!user) return next();
 
   if (isPlatformAdmin(user)) return next();
 

@@ -7,6 +7,13 @@ const { loadUser } = require('./middleware/auth');
 
 const app = express();
 
+// Coolify/Traefik terminates TLS and proxies to this container over plain
+// HTTP, setting X-Forwarded-For/X-Forwarded-Proto — without this, Express
+// doesn't trust those headers, breaking req.ip resolution for every
+// IP-keyed rate limiter (bucketing all real clients together under the
+// proxy's own address) and any req.secure/req.protocol check. Single hop.
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(require('helmet')());
 app.use(cors({

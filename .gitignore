@@ -3,9 +3,6 @@
 # This is a good practice to prevent checking in dependencies from any part of the monorepo-like structure.
 **/node_modules
 
-# pnpm lock files
-pnpm-lock.yaml
-
 # Environment variables
 # This is critical for security. Never commit your secrets.
 .env

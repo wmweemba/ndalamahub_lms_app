@@ -41,7 +41,7 @@ const resetPassword = async () => {
         console.log(`✅ Password reset for: ${user.username} (role: ${user.role})`);
 
     } catch (error) {
-        console.error('❌ Password reset failed:', error);
+        console.error('❌ Password reset failed:', error.message);
         process.exitCode = 1;
     } finally {
         await mongoose.disconnect();

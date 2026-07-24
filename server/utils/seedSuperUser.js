@@ -85,7 +85,7 @@ const seedDatabase = async () => {
         console.log('   Log in now and treat this as done — do not leave the env vars set in shell history.');
 
     } catch (error) {
-        console.error('❌ Database seeding failed:', error);
+        console.error('❌ Database seeding failed:', error.message);
         process.exitCode = 1;
     } finally {
         await mongoose.disconnect();

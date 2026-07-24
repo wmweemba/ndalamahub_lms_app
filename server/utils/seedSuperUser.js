@@ -40,25 +40,32 @@ const seedDatabase = async () => {
 
         // 2. Every User requires a company ref (schema constraint) even for
         // platform_admin, whose access is scoped to {} regardless — this is
-        // a structural placeholder, not a real lender/tenant record.
-        const company = await Company.create({
-            name: 'Nexus (Platform Owner)',
-            type: 'lender',
-            registrationNumber: 'NEXUS-INTERNAL',
-            status: 'active',
-            address: {
-                street: 'N/A',
-                city: 'Lusaka',
-                province: 'Lusaka',
-                country: 'Zambia'
-            },
-            contactInfo: {
-                email: BOOTSTRAP_ADMIN_EMAIL,
-                phone: '000000000'
-            },
-            description: 'Internal placeholder company for the platform owner account. Not a real tenant.'
-        });
-        console.log(`✅ Created placeholder company: ${company.name}`);
+        // a structural placeholder, not a real lender/tenant record. Reuse
+        // it if a prior partial run already created it (retries shouldn't
+        // fail on a duplicate-key error here).
+        let company = await Company.findOne({ registrationNumber: 'NEXUS-INTERNAL' });
+        if (company) {
+            console.log(`⚠️ Reusing existing placeholder company: ${company.name}`);
+        } else {
+            company = await Company.create({
+                name: 'Nexus (Platform Owner)',
+                type: 'lender',
+                registrationNumber: 'NEXUS-INTERNAL',
+                status: 'active',
+                address: {
+                    street: 'N/A',
+                    city: 'Lusaka',
+                    province: 'Lusaka',
+                    country: 'Zambia'
+                },
+                contactInfo: {
+                    email: BOOTSTRAP_ADMIN_EMAIL,
+                    phone: '000000000'
+                },
+                description: 'Internal placeholder company for the platform owner account. Not a real tenant.'
+            });
+            console.log(`✅ Created placeholder company: ${company.name}`);
+        }
 
         // 3. Create the platform_admin account
         const admin = await User.create({

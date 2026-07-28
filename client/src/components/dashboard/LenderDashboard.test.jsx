@@ -42,7 +42,20 @@ const { lenderStatsFixture } = vi.hoisted(() => ({ lenderStatsFixture: {
 } }));
 
 vi.mock('@/utils/api', () => ({
-  default: { get: vi.fn().mockResolvedValue({ data: { success: true, data: lenderStatsFixture } }) },
+  default: {
+    get: vi.fn((url) => {
+      if (url === '/dashboard/lender-stats') {
+        return Promise.resolve({ data: { success: true, data: lenderStatsFixture } });
+      }
+      if (url === '/auth/me') {
+        return Promise.resolve({ data: { data: { user: { company: { lendingModel: 'direct' } } } } });
+      }
+      if (url.startsWith('/customer-applications')) {
+        return Promise.resolve({ data: { data: { applications: [{ id: 'a1' }] } } });
+      }
+      return Promise.resolve({ data: { success: true, data: lenderStatsFixture } });
+    }),
+  },
 }));
 
 beforeEach(() => {
@@ -67,5 +80,16 @@ describe('LenderDashboard', () => {
     await waitFor(() => expect(screen.getByText('Portfolio overview')).toBeInTheDocument());
     expect(screen.getByText('In arrears')).toBeInTheDocument();
     expect(screen.getByText('Defaulted')).toBeInTheDocument();
+  });
+
+  it('for direct-model lenders, sums pendingLoans and website applications into the Pending applications headline', async () => {
+    const { ui } = renderWithProviders(<LenderDashboard />);
+    render(ui);
+
+    // pendingLoans: 2 (fixture) + 1 website application (mocked) = 3
+    await waitFor(() => expect(screen.getByText('1 from website', { exact: false })).toBeInTheDocument());
+    expect(screen.getByText('1 ready to disburse · 1 from website')).toBeInTheDocument();
+    const pendingCard = screen.getByText('Pending applications').closest('div');
+    expect(pendingCard).toHaveTextContent('3');
   });
 });

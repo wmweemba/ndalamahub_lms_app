@@ -70,7 +70,7 @@ export function LenderDashboard() {
         />
         <MetricCard
           label="Pending applications"
-          value={p.pendingLoans}
+          value={isDirectModel ? p.pendingLoans + pendingApplications.length : p.pendingLoans}
           sub={
             isDirectModel
               ? `${readyForDisbursement} ready to disburse · ${pendingApplications.length} from website`

@@ -52,8 +52,13 @@ const seedProduct = async () => {
                 method: 'flat_rate',
                 rateBasis: 'per_term'
             },
+            // collateralRequired is the field that actually gates approval
+            // (server/routes/loans.js). LoanProduct.collateralTypes is a
+            // separate, dormant, older enum unrelated to the real
+            // Collateral model's own type enum (vehicle/business_equipment/
+            // title_deed/other) — no route reads it, so it's omitted here
+            // rather than forced into a mismatched translation.
             collateralRequired: true,
-            collateralTypes: ['vehicle', 'business_equipment', 'title_deed', 'other'],
             rollover: { enabled: true, graceDays: 14 },
             isActive: true
         });

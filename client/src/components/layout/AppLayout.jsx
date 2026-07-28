@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   LogOut,
+  UserCircle,
 } from 'lucide-react';
 import { authService } from '@/services/authService';
 import api from '@/utils/api';
@@ -113,6 +114,13 @@ function Sidebar({ navItems, currentUser, onLogout }) {
         <p className="text-xs text-[--muted-foreground] mb-3">
           {ROLE_LABELS[currentUser.role] || currentUser.role}
         </p>
+        <NavLink
+          to="/account"
+          className="flex items-center gap-2 text-sm text-[--sidebar-foreground] hover:text-[--foreground] mb-2"
+        >
+          <UserCircle className="w-4 h-4" />
+          Change password
+        </NavLink>
         <button
           onClick={onLogout}
           className="flex items-center gap-2 text-sm text-[--sidebar-foreground] hover:text-[--foreground]"
@@ -157,6 +165,14 @@ function MobileTopBar({ navItems, currentUser, onLogout }) {
               onClick={() => setOpen(false)}
             />
           ))}
+          <NavLink
+            to="/account"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-3 px-3 py-2 text-sm rounded-[10px] text-[--sidebar-foreground] hover:bg-[--nh-sage]/40"
+          >
+            <UserCircle className="w-5 h-5 shrink-0" />
+            <span>Change password</span>
+          </NavLink>
           <button
             onClick={onLogout}
             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-[--sidebar-foreground] hover:text-[--foreground]"
@@ -166,6 +182,33 @@ function MobileTopBar({ navItems, currentUser, onLogout }) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function BorrowerTopBar({ onLogout }) {
+  return (
+    <div className="md:hidden flex items-center justify-between h-14 px-4 bg-[--sidebar] border-b border-[--sidebar-border]">
+      <div className="flex items-center gap-2">
+        <img src="/brand/svg/NdalamaHub-icon.svg" alt="" className="h-6 w-6" />
+        <img src="/brand/svg/NdalamaHub-wordmark-only.svg" alt="NdalamaHub" className="h-4" />
+      </div>
+      <div className="flex items-center gap-1">
+        <NavLink
+          to="/account"
+          className="p-2 text-[--sidebar-foreground]"
+          aria-label="My account"
+        >
+          <UserCircle className="w-5 h-5" />
+        </NavLink>
+        <button
+          onClick={onLogout}
+          className="p-2 text-[--sidebar-foreground]"
+          aria-label="Log out"
+        >
+          <LogOut className="w-5 h-5" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -222,7 +265,10 @@ export default function AppLayout() {
       <Sidebar navItems={navItems} currentUser={currentUser} onLogout={handleLogout} />
       <div className="flex-1 flex flex-col min-w-0">
         {isBorrower ? (
-          <BorrowerBottomNav navItems={navItems} />
+          <>
+            <BorrowerTopBar onLogout={handleLogout} />
+            <BorrowerBottomNav navItems={navItems} />
+          </>
         ) : (
           <MobileTopBar navItems={navItems} currentUser={currentUser} onLogout={handleLogout} />
         )}

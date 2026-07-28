@@ -47,8 +47,8 @@ router.get('/info', requireAuth, authorizeMinRole('lender_admin'), async (req, r
 
 // @route   GET /api/system/settings
 // @desc    Get system settings
-// @access  Private (Lender Admin and above)
-router.get('/settings', requireAuth, authorizeMinRole('lender_admin'), async (req, res) => {
+// @access  Private (Platform Admin only)
+router.get('/settings', requireAuth, authorizeMinRole('platform_admin'), async (req, res) => {
   try {
     // In a real application, these would be stored in the database
     // For now, return default settings

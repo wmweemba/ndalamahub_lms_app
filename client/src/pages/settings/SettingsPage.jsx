@@ -65,7 +65,7 @@ export default function SettingsPage() {
       label: 'System Settings',
       icon: SettingsIcon,
       description: 'System-wide configurations and preferences',
-      requiredRole: 'lender_admin'
+      requiredRole: 'platform_admin'
     },
     {
       id: 'billing',

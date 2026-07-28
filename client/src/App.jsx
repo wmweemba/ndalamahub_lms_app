@@ -12,6 +12,7 @@ import ReportsPage from './pages/reports/ReportsPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import SupportPage from './pages/support/SupportPage';
 import AccountLockedPage from './pages/account/AccountLockedPage';
+import AccountPage from './pages/account/AccountPage';
 
 export function App() {
     return (
@@ -28,6 +29,7 @@ export function App() {
                 <Route path="/reports" element={<ReportsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/support" element={<SupportPage />} />
+                <Route path="/account" element={<AccountPage />} />
             </Route>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/login" replace />} />

@@ -16,10 +16,20 @@ app.set('trust proxy', 1);
 
 // Middleware
 app.use(require('helmet')());
-app.use(cors({
+// /api/public is exempt: it's never session-authenticated and pins its own
+// per-lender CORS (server/routes/publicIntake.js's corsForLender) — the
+// `cors` package answers OPTIONS preflights itself by default and ends the
+// response before Express reaches any route mounted later, so if this ran
+// unconditionally it would always answer a public-intake preflight with the
+// app's own CORS_ORIGIN instead of ever letting the per-lender check run.
+const globalCors = cors({
     origin: process.env.CORS_ORIGIN || '*',
     credentials: true
-}));
+});
+app.use((req, res, next) => {
+    if (req.path.startsWith('/api/public')) return next();
+    return globalCors(req, res, next);
+});
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(require('express-mongo-sanitize')());

@@ -14,6 +14,11 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
+      // Without this, staleTime defaults to 0 and every route revisit
+      // refetches from scratch. Mutations already invalidate their own
+      // queries explicitly, so this doesn't risk showing stale data after
+      // a write — it only avoids redundant refetches on nav.
+      staleTime: 30 * 1000,
     },
   },
 })

@@ -47,8 +47,6 @@ async function canTouchUser(reqUser, targetUser) {
 router.get('/', requireAuth, authorizeMinRole('employer_hr'), async (req, res) => {
   try {
     const {
-      page = 1,
-      limit = 10,
       role,
       department,
       isActive,
@@ -59,9 +57,11 @@ router.get('/', requireAuth, authorizeMinRole('employer_hr'), async (req, res) =
     // Build filter object
     let filter = {};
 
-    // Company filter based on user role
+    // Company filter — narrows within the caller's own tenant scope (the
+    // mergeFilters below still intersects with `scope`, so this can't reach
+    // outside it)
     const scope = await userScopeFilter(req.user);
-    if (isPlatformAdmin(req.user) && companyId) {
+    if (companyId) {
       filter.company = companyId;
     }
 
@@ -96,15 +96,16 @@ router.get('/', requireAuth, authorizeMinRole('employer_hr'), async (req, res) =
 
     const finalFilter = mergeFilters(filter, scope);
 
-    // Calculate pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const total = await User.countDocuments(finalFilter);
-
-    // Get users without pagination for settings page
+    // Deliberately returns the full tenant-scoped list, not a paginated
+    // page — both consumers (Settings > User Management, the Customers
+    // page) need the complete set for client-side search/management. The
+    // 2000 cap is a defensive ceiling against unbounded growth, not a real
+    // pagination limit.
     const users = await User.find(finalFilter)
       .populate('company', 'name type')
       .select('-password')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .limit(2000);
 
     res.json({
       success: true,

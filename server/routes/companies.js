@@ -15,7 +15,13 @@ router.get('/', requireAuth, async (req, res) => {
             return res.status(403).json({ message: 'Access denied: Insufficient permissions' });
         }
 
-        const companies = await Company.find(await companyScopeFilter(req.user)).select('-settings');
+        // Deliberately unpaginated — consumers (Companies page, company
+        // filter dropdowns) need the complete tenant-scoped list. The 2000
+        // cap is a defensive ceiling against unbounded growth as more
+        // lender tenants are onboarded, not a real pagination limit.
+        const companies = await Company.find(await companyScopeFilter(req.user))
+            .select('-settings')
+            .limit(2000);
 
         res.json(companies);
     } catch (error) {

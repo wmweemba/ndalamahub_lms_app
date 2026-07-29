@@ -42,13 +42,32 @@ export const ROLES = {
     BORROWER: 'borrower'
 };
 
-export const canApproveLoan = (role) => {
-    return [
-        ROLES.PLATFORM_ADMIN,
-        ROLES.LENDER_ADMIN,
-        ROLES.EMPLOYER_ADMIN,
-        ROLES.EMPLOYER_HR
-    ].includes(role);
+const LENDER_SIDE_ROLES = [ROLES.LENDER_ADMIN, ROLES.LENDER_OFFICER];
+const EMPLOYER_SIDE_ROLES = [ROLES.EMPLOYER_ADMIN, ROLES.EMPLOYER_HR];
+
+// Mirrors server/utils/tenantScope.js's idsEqual — currentUser.company is a
+// raw id string when hydrated from the login response, but a populated
+// object ({_id, ...}) when hydrated from GET /auth/me, so both shapes must
+// resolve to the same comparison.
+const idsEqual = (a, b) => {
+    if (!a || !b) return false;
+    const aId = a._id ? a._id : a;
+    const bId = b._id ? b._id : b;
+    return String(aId) === String(bId);
+};
+
+// Mirrors server/routes/loans.js's canActOnLoanApproval() exactly — the
+// server remains the enforcer, this only makes the buttons match reality.
+export const canApproveLoanForLoan = (user, loan) => {
+    if (!user || !loan) return false;
+    if (user.role === ROLES.PLATFORM_ADMIN) return true;
+
+    const isDirect = idsEqual(loan.company, loan.lenderCompany);
+    if (isDirect) {
+        return LENDER_SIDE_ROLES.includes(user.role) && idsEqual(loan.lenderCompany, user.company);
+    }
+    return (EMPLOYER_SIDE_ROLES.includes(user.role) && idsEqual(loan.company, user.company)) ||
+        (user.role === ROLES.LENDER_ADMIN && idsEqual(loan.lenderCompany, user.company));
 };
 
 export const canDisburseLoan = (role) => {

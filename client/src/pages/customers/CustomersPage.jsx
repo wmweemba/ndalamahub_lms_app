@@ -27,7 +27,7 @@ export default function CustomersPage() {
         queryKey: ['customers'],
         queryFn: async () => {
             const response = await api.get('/users?role=borrower');
-            return Array.isArray(response.data) ? response.data : [];
+            return Array.isArray(response.data?.data) ? response.data.data : [];
         },
     });
 

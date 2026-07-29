@@ -55,6 +55,8 @@ router.post('/login', async (req, res) => {
         req.session.userId = user._id;
         req.session.createdAt = Date.now();
 
+        await User.updateOne({ _id: user._id }, { lastLogin: new Date() });
+
         res.json({
             user: {
                 id: user._id,

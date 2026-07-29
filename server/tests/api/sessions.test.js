@@ -33,6 +33,21 @@ describe('Session auth (Phase 25)', () => {
     expect(second.body.data.user.username).toBe(fx.lenderAdminA.username);
   });
 
+  it('login sets lastLogin (Phase 27, Fix 4)', async () => {
+    const user = await createUser({ username: 'lastloginuser', role: 'lender_officer', company: fx.lenderA._id });
+    expect(user.lastLogin).toBeFalsy();
+
+    const agent = request.agent(app);
+    const login = await agent
+      .post('/api/auth/login')
+      .send({ username: user.username, password: PASSWORD });
+    expect(login.status).toBe(200);
+
+    const updated = await User.findById(user._id);
+    expect(updated.lastLogin).toBeTruthy();
+    expect(new Date(updated.lastLogin).getTime()).toBeGreaterThan(Date.now() - 10000);
+  });
+
   it('deactivating a user locks out their very next request on an already-live session', async () => {
     const user = await createUser({ username: 'sessiontestuser', role: 'lender_officer', company: fx.lenderA._id });
     const agent = request.agent(app);

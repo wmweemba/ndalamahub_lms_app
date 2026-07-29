@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import api from '@/utils/api';
-import { Database, Server, Clock, Mail, Smartphone, Globe, HardDrive } from 'lucide-react';
+import { Database, Server, Clock, Mail, Smartphone, Globe, HardDrive, AlertTriangle } from 'lucide-react';
 
 export default function SystemSettings() {
   const [loading, setLoading] = useState(true);
@@ -135,6 +135,14 @@ export default function SystemSettings() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-start gap-3 bg-status-warning-bg text-status-warning-fg rounded-2xl p-4 text-sm">
+        <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+        <span>
+          Display only — these values are placeholders and changes are not yet saved. Full System
+          Settings backing is planned post-launch.
+        </span>
+      </div>
+
       {/* System Information */}
       <Card className="p-6">
         <div className="flex items-center justify-between mb-6">

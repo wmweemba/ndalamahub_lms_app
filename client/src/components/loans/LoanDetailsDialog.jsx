@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { StatusPill } from '@/components/ui/status-pill';
 import api from '@/utils/api';
-import { canApproveLoan, canDisburseLoan, getCurrentUser } from '@/utils/roleUtils';
+import { canApproveLoanForLoan, canDisburseLoan, getCurrentUser } from '@/utils/roleUtils';
 import { formatCurrency, formatDate, formatTerm } from '@/lib/format';
 import { PrepaymentDialog } from './PrepaymentDialog';
 import PaymentHistoryDialog from './PaymentHistoryDialog';
@@ -258,7 +258,7 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
   if (!loan) return null;
 
   const currentUser = getCurrentUser();
-  const userCanApprove = currentUser && canApproveLoan(currentUser.role);
+  const userCanApprove = canApproveLoanForLoan(currentUser, loan);
   const userCanDisburse = currentUser && canDisburseLoan(currentUser.role);
   const isLenderStaff = currentUser && ['platform_admin', 'lender_admin', 'lender_officer'].includes(currentUser.role);
 

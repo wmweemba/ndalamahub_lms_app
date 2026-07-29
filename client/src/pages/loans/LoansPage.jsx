@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,11 +12,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { StatusPill } from '@/components/ui/status-pill';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { LoanDetailsDialog } from '@/components/loans/LoanDetailsDialog';
 import ProductBasedLoanForm from '@/components/loans/ProductBasedLoanForm';
 import api from '@/utils/api';
 import { ROLES, canApplyForLoan, getCurrentUser } from '@/utils/roleUtils';
 import { formatCurrency, formatDate, formatTerm } from '@/lib/format';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+
+const PAGE_SIZE = 20;
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All Statuses' },
@@ -42,21 +46,37 @@ export default function LoansPage() {
 
   const [statusFilter, setStatusFilter] = useState('all');
   const [companyFilter, setCompanyFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [page, setPage] = useState(1);
+
+  const searchTerm = useDebouncedValue(searchInput, 400);
+
+  // Any filter change invalidates the current page of server-side results
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, companyFilter, searchTerm]);
 
   const {
-    data: loans = [],
+    data: loansResult,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['loans'],
+    queryKey: ['loans', { page, statusFilter, companyFilter, searchTerm }],
     queryFn: async () => {
-      const res = await api.get('/loans');
-      return res.data.data.loans;
+      const params = { page, limit: PAGE_SIZE };
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (companyFilter !== 'all') params.companyId = companyFilter;
+      if (searchTerm) params.search = searchTerm;
+      const res = await api.get('/loans', { params });
+      return res.data.data;
     },
+    placeholderData: (previous) => previous,
   });
 
-  useQuery({
+  const loans = loansResult?.loans ?? [];
+  const pagination = loansResult?.pagination ?? { page: 1, total: 0, totalPages: 1 };
+
+  const { data: companies = [] } = useQuery({
     queryKey: ['companies'],
     queryFn: async () => {
       const res = await api.get('/companies');
@@ -73,45 +93,10 @@ export default function LoansPage() {
     enabled: !!selectedLoanId,
   });
 
-  const companiesWithLoans = useMemo(() => {
-    const companyMap = new Map();
-    loans.forEach((loan) => {
-      if (loan.company && loan.company._id) {
-        companyMap.set(loan.company._id, loan.company);
-      }
-    });
-    return Array.from(companyMap.values());
-  }, [loans]);
-
-  const filteredLoans = useMemo(() => {
-    let filtered = [...loans];
-
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter((loan) => loan.status === statusFilter);
-    }
-
-    if (companyFilter !== 'all') {
-      filtered = filtered.filter((loan) => loan.company?._id === companyFilter);
-    }
-
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (loan) =>
-          loan.loanNumber?.toLowerCase().includes(search) ||
-          loan.applicant?.firstName?.toLowerCase().includes(search) ||
-          loan.applicant?.lastName?.toLowerCase().includes(search) ||
-          loan.applicant?.email?.toLowerCase().includes(search)
-      );
-    }
-
-    return filtered;
-  }, [loans, statusFilter, companyFilter, searchTerm]);
-
   const resetFilters = () => {
     setStatusFilter('all');
     setCompanyFilter('all');
-    setSearchTerm('');
+    setSearchInput('');
   };
 
   const handleLoanClick = (loanId) => {
@@ -133,7 +118,7 @@ export default function LoansPage() {
 
   const hasFiltersApplied = statusFilter !== 'all' || companyFilter !== 'all' || !!searchTerm;
 
-  if (isLoading) return <div className="p-4 md:p-8 text-sm text-muted-foreground">Loading loans...</div>;
+  if (isLoading && !loansResult) return <div className="p-4 md:p-8 text-sm text-muted-foreground">Loading loans...</div>;
 
   return (
     <div className="p-4 md:p-8">
@@ -163,8 +148,8 @@ export default function LoansPage() {
               id="search"
               type="text"
               placeholder="Loan #, Name, Email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full"
             />
           </div>
@@ -199,7 +184,7 @@ export default function LoansPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Companies</SelectItem>
-                    {companiesWithLoans.map((company) => (
+                    {companies.map((company) => (
                       <SelectItem key={company._id} value={company._id}>
                         {company.name}
                       </SelectItem>
@@ -216,13 +201,9 @@ export default function LoansPage() {
           </div>
         </div>
 
-        <div className="mt-4 text-sm text-muted-foreground">
-          Showing <span className="font-medium text-foreground">{filteredLoans.length}</span> of{' '}
-          <span className="font-medium text-foreground">{loans.length}</span> loans
-        </div>
       </Card>
 
-      {filteredLoans.length === 0 ? (
+      {loans.length === 0 ? (
         <Card className="p-8 text-center rounded-2xl">
           <div className="mb-4">
             <svg
@@ -240,14 +221,14 @@ export default function LoansPage() {
             </svg>
           </div>
           <h3 className="text-base font-medium text-foreground mb-2">
-            {loans.length === 0 ? 'No loans yet' : 'No loans match your filters'}
+            {hasFiltersApplied ? 'No loans match your filters' : 'No loans yet'}
           </h3>
           <p className="text-sm text-muted-foreground">
-            {loans.length === 0
-              ? 'There are no loan applications to display.'
-              : 'Try adjusting your filters to see more results.'}
+            {hasFiltersApplied
+              ? 'Try adjusting your filters to see more results.'
+              : 'There are no loan applications to display.'}
           </p>
-          {hasFiltersApplied && loans.length > 0 && (
+          {hasFiltersApplied && (
             <Button variant="outline" onClick={resetFilters} className="mt-4">
               Clear filters
             </Button>
@@ -271,7 +252,7 @@ export default function LoansPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredLoans.map((loan) => (
+                {loans.map((loan) => (
                   <tr
                     key={loan._id}
                     className="border-b border-border last:border-0 hover:bg-muted cursor-pointer"
@@ -317,7 +298,7 @@ export default function LoansPage() {
 
           {/* Mobile card list */}
           <div className="lg:hidden space-y-4">
-            {filteredLoans.map((loan) => (
+            {loans.map((loan) => (
               <Card
                 key={loan._id}
                 className="p-4 cursor-pointer rounded-2xl"
@@ -375,6 +356,14 @@ export default function LoansPage() {
               </Card>
             ))}
           </div>
+
+          <PaginationControls
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
         </>
       )}
 

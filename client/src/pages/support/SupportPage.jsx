@@ -11,6 +11,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { StatusPill } from '@/components/ui/status-pill';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,6 +35,7 @@ const CATEGORIES = [
 const STATUSES = ['open', 'in_progress', 'resolved', 'closed'];
 
 const HANDLER_ROLES = ['lender_admin', 'lender_officer', 'platform_admin'];
+const PAGE_SIZE = 20;
 
 export function SupportPage() {
   const currentUser = getCurrentUser();
@@ -47,14 +49,19 @@ export function SupportPage() {
 
   const [detailTicketId, setDetailTicketId] = useState(null);
   const [replyBody, setReplyBody] = useState('');
+  const [page, setPage] = useState(1);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['tickets'],
+  const { data: ticketsResult, isLoading, error } = useQuery({
+    queryKey: ['tickets', { page }],
     queryFn: async () => {
-      const res = await api.get('/tickets');
-      return res.data.data.tickets;
+      const res = await api.get('/tickets', { params: { page, limit: PAGE_SIZE } });
+      return res.data.data;
     },
+    placeholderData: (previous) => previous,
   });
+
+  const data = ticketsResult?.tickets ?? [];
+  const pagination = ticketsResult?.pagination ?? { page: 1, total: 0, totalPages: 1 };
 
   const { data: detailTicket } = useQuery({
     queryKey: ['tickets', detailTicketId],
@@ -172,6 +179,14 @@ export function SupportPage() {
           </div>
         </div>
       )}
+
+      <PaginationControls
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        total={pagination.total}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {/* New ticket dialog */}
       <Dialog open={newTicketOpen} onOpenChange={setNewTicketOpen}>

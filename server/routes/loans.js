@@ -197,20 +197,35 @@ router.get('/', requireAuth, async (req, res) => {
       if (endDate) filter.applicationDate.$lte = new Date(endDate);
     }
 
-    // Search filter
+    // Search filter — matches loan number/purpose directly, plus applicant
+    // name/email via a lookup (Loan has no denormalized applicant text to
+    // regex against directly)
     if (search) {
+      const searchRegex = { $regex: search, $options: 'i' };
+      const matchingApplicantIds = await User.find({
+        $or: [
+          { firstName: searchRegex },
+          { lastName: searchRegex },
+          { email: searchRegex }
+        ]
+      }).distinct('_id');
+
       filter.$or = [
-        { loanNumber: { $regex: search, $options: 'i' } },
-        { purpose: { $regex: search, $options: 'i' } }
+        { loanNumber: searchRegex },
+        { purpose: searchRegex },
+        { applicant: { $in: matchingApplicantIds } }
       ];
     }
 
     // Company access control (tenant scope)
     const scope = await loanScopeFilter(req.user);
-    if (isPlatformAdmin(req.user)) {
-      // Platform admins can additionally filter by explicit company/lender query params
-      if (companyId) filter.company = companyId;
-      if (lenderCompanyId) filter.lenderCompany = lenderCompanyId;
+    // companyId narrows to one company within the caller's own tenant scope
+    // (mergeFilters below still intersects with `scope`, so this can't be
+    // used to reach outside it). lenderCompanyId is platform-admin-only —
+    // it's a cross-tenant filter, not a same-tenant narrowing.
+    if (companyId) filter.company = companyId;
+    if (isPlatformAdmin(req.user) && lenderCompanyId) {
+      filter.lenderCompany = lenderCompanyId;
     }
     const finalFilter = mergeFilters(filter, scope);
 

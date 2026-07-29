@@ -25,6 +25,12 @@ const store = MongoStore.create({
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
+// Dev-only escape hatch (Phase 27): Render/Netlify are different registrable
+// domains, so a SameSite=Lax cookie never rides the SPA's cross-site XHR.
+// Unset in production (Coolify's same-parent-domain setup), so the prod
+// cookie shape is byte-for-byte unchanged.
+const crossSite = process.env.CROSS_SITE_COOKIE === 'true';
+
 const sessionMiddleware = session({
   name: 'ndalamahub.sid',
   secret: process.env.SESSION_SECRET,
@@ -34,8 +40,9 @@ const sessionMiddleware = session({
   rolling: true, // refresh the idle-expiry cookie on every response
   cookie: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    // SameSite=None requires Secure — force it on when cross-site, otherwise keep the prod rule
+    secure: crossSite || process.env.NODE_ENV === 'production',
+    sameSite: crossSite ? 'none' : 'lax',
     maxAge: ONE_DAY_MS // idle timeout; the absolute 7-day cap is enforced in middleware/auth.js's loadUser via session.createdAt
   }
 });

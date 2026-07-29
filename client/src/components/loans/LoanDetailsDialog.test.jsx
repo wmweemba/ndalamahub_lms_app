@@ -22,7 +22,8 @@ const pendingLoan = {
   termUnit: 'days',
   interestRate: 25,
   applicant: { firstName: 'Jane', lastName: 'Doe', email: 'jane@techcorp.zm' },
-  company: { name: 'TechCorp Zambia' },
+  company: { _id: 'company-1', name: 'TechCorp Zambia' },
+  lenderCompany: { _id: 'lender-1', name: 'Manifi' },
   applicationDate: '2026-07-01',
 };
 
@@ -33,39 +34,79 @@ const approvedLoan = {
   status: 'approved',
 };
 
+const directLoan = {
+  ...pendingLoan,
+  _id: 'loan-3',
+  loanNumber: 'LN20260003',
+  company: { _id: 'lender-1', name: 'Manifi' },
+  lenderCompany: { _id: 'lender-1', name: 'Manifi' },
+};
+
 beforeEach(() => {
   localStorage.clear();
   putMock.mockClear();
 });
 
 describe('LoanDetailsDialog', () => {
-  it('shows Approve/Reject for an employer_hr viewing a pending loan', () => {
-    seedUser({ _id: 'u1', username: 'hruser', role: 'employer_hr', firstName: 'Henry' });
+  it('shows Approve/Reject for an employer_hr of the loan\'s company viewing a pending loan', () => {
+    seedUser({ _id: 'u1', username: 'hruser', role: 'employer_hr', firstName: 'Henry', company: 'company-1' });
     render(<LoanDetailsDialog loan={pendingLoan} open={true} onClose={vi.fn()} onUpdate={vi.fn()} />);
 
     expect(screen.getByText('Approve application')).toBeInTheDocument();
     expect(screen.getByText('Reject')).toBeInTheDocument();
   });
 
-  it('hides Approve/Reject for a lender_officer viewing a pending loan', () => {
-    seedUser({ _id: 'u2', username: 'officer1', role: 'lender_officer', firstName: 'Owen' });
+  it('hides Approve/Reject for a lender_officer viewing an employer-model pending loan', () => {
+    seedUser({ _id: 'u2', username: 'officer1', role: 'lender_officer', firstName: 'Owen', company: 'lender-1' });
     render(<LoanDetailsDialog loan={pendingLoan} open={true} onClose={vi.fn()} onUpdate={vi.fn()} />);
 
     expect(screen.queryByText('Approve application')).not.toBeInTheDocument();
     expect(screen.queryByText('Reject')).not.toBeInTheDocument();
   });
 
+  it('shows Approve/Reject for a lender_officer of the lender viewing a direct pending loan', () => {
+    seedUser({ _id: 'u2', username: 'officer1', role: 'lender_officer', firstName: 'Owen', company: 'lender-1' });
+    render(<LoanDetailsDialog loan={directLoan} open={true} onClose={vi.fn()} onUpdate={vi.fn()} />);
+
+    expect(screen.getByText('Approve application')).toBeInTheDocument();
+    expect(screen.getByText('Reject')).toBeInTheDocument();
+  });
+
+  it('hides Approve/Reject for a lender_officer of a different lender viewing a direct pending loan', () => {
+    seedUser({ _id: 'u2b', username: 'officer2', role: 'lender_officer', firstName: 'Olga', company: 'lender-2' });
+    render(<LoanDetailsDialog loan={directLoan} open={true} onClose={vi.fn()} onUpdate={vi.fn()} />);
+
+    expect(screen.queryByText('Approve application')).not.toBeInTheDocument();
+    expect(screen.queryByText('Reject')).not.toBeInTheDocument();
+  });
+
+  it('shows Approve/Reject for a lender_admin of the lender viewing a direct pending loan', () => {
+    seedUser({ _id: 'u3', username: 'lenderadmin', role: 'lender_admin', firstName: 'Lena', company: 'lender-1' });
+    render(<LoanDetailsDialog loan={directLoan} open={true} onClose={vi.fn()} onUpdate={vi.fn()} />);
+
+    expect(screen.getByText('Approve application')).toBeInTheDocument();
+    expect(screen.getByText('Reject')).toBeInTheDocument();
+  });
+
   it('shows Disburse loan for a lender_admin viewing an approved loan', () => {
-    seedUser({ _id: 'u3', username: 'lenderadmin', role: 'lender_admin', firstName: 'Lena' });
+    seedUser({ _id: 'u3', username: 'lenderadmin', role: 'lender_admin', firstName: 'Lena', company: 'lender-1' });
     render(<LoanDetailsDialog loan={approvedLoan} open={true} onClose={vi.fn()} onUpdate={vi.fn()} />);
 
     expect(screen.getByText('Disburse loan')).toBeInTheDocument();
   });
 
+  it('does not show Disburse loan for a lender_officer viewing a direct approved loan (unchanged by this fix)', () => {
+    seedUser({ _id: 'u2', username: 'officer1', role: 'lender_officer', firstName: 'Owen', company: 'lender-1' });
+    const approvedDirectLoan = { ...directLoan, status: 'approved' };
+    render(<LoanDetailsDialog loan={approvedDirectLoan} open={true} onClose={vi.fn()} onUpdate={vi.fn()} />);
+
+    expect(screen.queryByText('Disburse loan')).not.toBeInTheDocument();
+  });
+
   it('calls onUpdate after a successful approve mutation', async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn();
-    seedUser({ _id: 'u1', username: 'hruser', role: 'employer_hr', firstName: 'Henry' });
+    seedUser({ _id: 'u1', username: 'hruser', role: 'employer_hr', firstName: 'Henry', company: 'company-1' });
     render(<LoanDetailsDialog loan={pendingLoan} open={true} onClose={vi.fn()} onUpdate={onUpdate} />);
 
     await user.click(screen.getByText('Approve application'));

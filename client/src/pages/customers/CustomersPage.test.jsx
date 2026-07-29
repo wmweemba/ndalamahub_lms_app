@@ -30,7 +30,7 @@ vi.mock('@/utils/api', () => ({
   default: {
     get: vi.fn((url) => {
       if (url === '/users?role=borrower') {
-        return Promise.resolve({ data: customersFixture });
+        return Promise.resolve({ data: { success: true, data: customersFixture } });
       }
       if (url === '/loans') {
         return Promise.resolve({ data: { success: true, data: { loans: [] } } });

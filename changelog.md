@@ -7,6 +7,12 @@
 - `CLAUDE.md` rewritten to reflect current reality: Phase 27 merged, dev restored, the prepayment bug and its two display-bug siblings fixed, the runbook's existence, and what's left before Clement's handover (clear test data, restore test, reports-export check).
 - **Outstanding, unchanged from the prior entry**: `server/utils/clearDummyBorrowerData.js` provided (dry-run by default) to clear the test customer/loan/collateral before handover — not yet confirmed run; the backup restore test.
 
+## Follow-up, same day: production cleared, cron/env vars confirmed
+
+- William ran `clearDummyBorrowerData.js` — dry run reviewed first, then `CONFIRM=yes` — removing the test customer/loan/collateral created via the real manifipay.com submission. Production now contains exactly Manifi + its one product, zero test residue, ahead of Clement's handover.
+- William checked every env var called out in `docs/PRODUCTION_RUNBOOK.md` §3 directly in Coolify, including `ENABLE_CRON`/`NODE_ENV`/single-instance for the cron scheduler (§4) — all confirmed in order.
+- Remaining before full launch-ready: the reports/exports smoke check, and the backup restore test.
+
 # 2026-07-29 (ad-hoc fix — prepayment never completes the loan)
 
 Found live in production: William made a prepayment covering the full remaining balance of a test loan via "Make prepayment," expecting it to close the loan. It didn't — the loan stayed `active` with an empty schedule and no further actions available.

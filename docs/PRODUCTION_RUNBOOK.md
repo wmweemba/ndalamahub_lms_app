@@ -123,3 +123,5 @@ See §4 — check `ENABLE_CRON`, confirm the `[cron] scheduler started` log line
 - No uptime/health-check monitoring beyond manual observation.
 - No self-service forgot-password UI (§7) — admin-mediated only.
 - Dark platform-admin register, RHF+Zod adoption, and other UI punch-list items remain post-launch (see `docs/18-post-demo-ui-punchlist.md`).
+
+**Confirmed done (2026-07-29):** `ENABLE_CRON`, `NODE_ENV`, single-instance, and every other env var in §3 checked directly in Coolify by William — all in order, cron scheduler confirmed running. Test customer/loan/collateral cleared via `clearDummyBorrowerData.js` (dry-run reviewed first, then `CONFIRM=yes`) — production now contains exactly Manifi + its product + Clement's pending account, zero test residue.

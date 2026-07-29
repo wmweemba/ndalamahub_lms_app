@@ -1,3 +1,12 @@
+# 2026-07-29 (launch readiness — runbook, DECISIONS.md close-out, dev env confirmed restored)
+
+- **Dev environment (Render/Netlify) confirmed restored** after William applied the Phase 27 `CROSS_SITE_COOKIE` config on Render (`SESSION_SECRET`, `CROSS_SITE_COOKIE=true`, `CORS_ORIGIN`) and redeployed Netlify with the corrected `VITE_API_URL`. Login now holds across navigation/refresh on the Netlify dev site.
+- **Production launch smoke, largely complete**: William manually verified approve, disburse, letter-of-sale, and prepayment/settlement directly against production, using the test customer/loan created by a real manifipay.com submission — catching the prepayment-completion bug (previous entry) along the way. Reports/exports is the one remaining smoke-test item.
+- **New `docs/PRODUCTION_RUNBOOK.md`** — environment map, deploy/rollback procedure, full env-var inventory (names only), scheduled-job reference (including the `ENABLE_CRON`/single-instance/log-line checks), one-off maintenance script inventory, backup status (Mongo/Postgres daily to Cloudflare at 03:00/04:00, confirmed running — **restore test still outstanding**), and recovery procedures for a locked-out user, a subscription-locked tenant, and a bad deploy.
+- `docs/DECISIONS.md`'s "Manifi launch decisions" entry marked **Executed**, per Phase 26's own acceptance criteria.
+- `CLAUDE.md` rewritten to reflect current reality: Phase 27 merged, dev restored, the prepayment bug and its two display-bug siblings fixed, the runbook's existence, and what's left before Clement's handover (clear test data, restore test, reports-export check).
+- **Outstanding, unchanged from the prior entry**: `server/utils/clearDummyBorrowerData.js` provided (dry-run by default) to clear the test customer/loan/collateral before handover — not yet confirmed run; the backup restore test.
+
 # 2026-07-29 (ad-hoc fix — prepayment never completes the loan)
 
 Found live in production: William made a prepayment covering the full remaining balance of a test loan via "Make prepayment," expecting it to close the loan. It didn't — the loan stayed `active` with an empty schedule and no further actions available.

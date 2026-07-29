@@ -8,7 +8,7 @@ const PaymentHistoryDialog = ({ open, onClose, loan }) => {
   // Extract all payments from different sources
   const regularPayments = [];
   const prepayments = loan.prepayments || [];
-  const earlySettlement = loan.earlySettlement;
+  const earlySettlement = loan.earlySettlement?.settled ? loan.earlySettlement : null;
 
   // Extract regular installment payments from repayment schedule
   if (loan.repaymentSchedule && Array.isArray(loan.repaymentSchedule)) {
@@ -41,7 +41,7 @@ const PaymentHistoryDialog = ({ open, onClose, loan }) => {
         <DialogHeader>
           <DialogTitle>Complete payment history</DialogTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Loan: <span className="font-mono">{loan.loanNumber || 'N/A'}</span> | Total paid: <span className="font-mono">{formatCurrency(loan.totalPaid)}</span>
+            Loan: <span className="font-mono">{loan.loanNumber || 'N/A'}</span> | Total paid: <span className="font-mono">{formatCurrency(loan.paymentTracking?.totalPaid || 0)}</span>
           </p>
         </DialogHeader>
 
@@ -173,44 +173,28 @@ const PaymentHistoryDialog = ({ open, onClose, loan }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Settlement date</p>
-                <p className="text-foreground">{formatDate(earlySettlement.date)}</p>
+                <p className="text-foreground">{formatDate(earlySettlement.settlementDate)}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Amount paid</p>
                 <p className="font-mono font-medium text-foreground">
-                  {formatCurrency(earlySettlement.amount)}
+                  {formatCurrency(earlySettlement.settlementAmount)}
                 </p>
               </div>
-              {earlySettlement.penalty > 0 && (
+              {earlySettlement.earlySettlementFee > 0 && (
                 <div>
-                  <p className="text-sm text-muted-foreground">Prepayment penalty</p>
+                  <p className="text-sm text-muted-foreground">Early settlement fee</p>
                   <p className="font-mono font-medium text-status-danger-fg">
-                    {formatCurrency(earlySettlement.penalty)}
+                    {formatCurrency(earlySettlement.earlySettlementFee)}
                   </p>
                 </div>
               )}
-              <div>
-                <p className="text-sm text-muted-foreground">Total paid</p>
-                <p className="font-mono font-medium text-foreground">
-                  {formatCurrency(earlySettlement.totalPaid)}
-                </p>
-              </div>
-              {earlySettlement.method && (
+              {earlySettlement.savingsRealized > 0 && (
                 <div>
-                  <p className="text-sm text-muted-foreground">Payment method</p>
-                  <p className="capitalize text-foreground">{earlySettlement.method.replace(/_/g, ' ')}</p>
-                </div>
-              )}
-              {earlySettlement.reference && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Reference number</p>
-                  <p className="text-foreground">{earlySettlement.reference}</p>
-                </div>
-              )}
-              {earlySettlement.notes && (
-                <div className="md:col-span-2">
-                  <p className="text-sm text-muted-foreground">Notes</p>
-                  <p className="text-sm text-foreground">{earlySettlement.notes}</p>
+                  <p className="text-sm text-muted-foreground">Interest savings</p>
+                  <p className="font-mono font-medium text-status-success-fg">
+                    {formatCurrency(earlySettlement.savingsRealized)}
+                  </p>
                 </div>
               )}
             </div>

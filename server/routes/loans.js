@@ -1142,6 +1142,14 @@ router.post('/:id/prepayment', requireAuth, authorize('lender_admin', 'lender_of
     loan.recalculateSchedule(allocationStrategy);
     const newScheduleLength = loan.repaymentSchedule.length;
 
+    // A prepayment covering the full remaining balance leaves nothing to
+    // schedule (recalculateSchedule empties it) — mirror /repayment's own
+    // allPaid completion check, or the loan is stuck 'active' forever with
+    // no installments and no further action available.
+    if (loan.calculateRemainingBalance() <= 0.01) {
+      loan.status = 'completed';
+    }
+
     // Save loan with prepayment and new schedule
     await loan.save();
 

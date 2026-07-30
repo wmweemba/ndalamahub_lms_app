@@ -132,6 +132,19 @@ See §4 — check `ENABLE_CRON`, confirm the `[cron] scheduler started` log line
 
 **Confirmed done (2026-07-29):** `ENABLE_CRON`, `NODE_ENV`, single-instance, and every other env var in §3 checked directly in Coolify by William — all in order, cron scheduler confirmed running. Test customer/loan/collateral cleared via `clearDummyBorrowerData.js` (dry-run reviewed first, then `CONFIRM=yes`) — production now contains exactly Manifi + its product + Clement's pending account, zero test residue.
 
+**Self-service password reset CONFIRMED WORKING IN PRODUCTION (2026-07-30):** deployed via
+Coolify and tested end to end by William on his own account — request link, email received,
+link opened, new password set, signed in successfully. `APP_URL` is therefore confirmed
+correct (pointing at the client origin); a wrong value would have produced a broken link
+with no error anywhere. This closes the manual gate noted below — the two auth routes and
+both client pages still have **no automated test coverage**, so this manual run is the only
+verification they have. **Re-verify after any change to `APP_URL`, the email provider, or
+the auth routes.**
+
+**Reminder:** any staff or customer invite issued **before 2026-07-29** used a
+`/reset-password?token=` link that had no matching client route and silently redirected to
+`/login`. Those invites were never usable and need re-sending.
+
 **`CORS_ORIGIN` verified in production (2026-07-29):** checked manually by William in Coolify — set to the exact production origin, not `*`. This matters because `server/app.js` falls back to `origin: process.env.CORS_ORIGIN || '*'` alongside `credentials: true`. Browsers reject wildcard-plus-credentials outright so it fails safe in practice, but the fallback is a footgun for any non-browser caller. **Re-check this env var specifically after any environment change** rather than assuming it is still set. Removing the `|| '*'` fallback in favour of a fail-fast boot check is queued as post-launch cleanup (see §9) — it was deliberately not changed during launch week, since `CORS_ORIGIN` is not currently a required-at-boot variable and making it one could break the Render/Netlify dev environment.
 
 **Report exports verified (2026-07-29):** the last outstanding launch-smoke item. Wired end to end — `GET /reports/:type/export/:format` (`server/routes/reports.js:298`) streams real PDFKit/ExcelJS output with `Content-Disposition: attachment` behind `requireAuth` + `authorizeMinRole('employer_hr')`, and `client/src/components/reports/ReportModal.jsx:18` downloads it as a blob with the correct filename and extension.

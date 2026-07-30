@@ -147,7 +147,7 @@ export default function SystemSettings() {
       <Card className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
-            <Server className="w-6 h-6 text-[--nh-periwinkle]" />
+            <Server className="w-6 h-6 text-nh-periwinkle" />
             <h3 className="text-base font-medium text-foreground">System Information</h3>
           </div>
         </div>
@@ -182,7 +182,7 @@ export default function SystemSettings() {
 
           <div className="bg-muted p-4 rounded-lg">
             <div className="flex items-center space-x-2 mb-2">
-              <Globe className="w-5 h-5 text-[--nh-periwinkle]" />
+              <Globe className="w-5 h-5 text-nh-periwinkle" />
               <span className="font-medium text-foreground">Statistics</span>
             </div>
             <p className="text-sm text-muted-foreground">Users: {systemInfo.totalUsers}</p>

@@ -81,8 +81,8 @@ function SidebarNavLink({ to, label, Icon, onClick }) {
       className={({ isActive }) =>
         `flex items-center gap-3 px-3 py-2 text-sm rounded-[10px] ${
           isActive
-            ? 'bg-[--nh-sage] text-[--foreground] font-medium'
-            : 'text-[--sidebar-foreground] hover:bg-[--nh-sage]/40'
+            ? 'bg-nh-sage text-foreground font-medium'
+            : 'text-sidebar-foreground hover:bg-nh-sage/40'
         }`
       }
     >
@@ -94,7 +94,7 @@ function SidebarNavLink({ to, label, Icon, onClick }) {
 
 function Sidebar({ navItems, currentUser, onLogout }) {
   return (
-    <aside className="hidden md:flex md:flex-col w-[220px] shrink-0 bg-[--sidebar] border-r border-[--sidebar-border] h-screen sticky top-0">
+    <aside className="hidden md:flex md:flex-col w-[220px] shrink-0 bg-sidebar border-r border-sidebar-border h-screen sticky top-0">
       <div className="px-4 py-5">
         <img
           src="/brand/svg/NdalamaHub-lockup-horizontal-light.svg"
@@ -107,23 +107,23 @@ function Sidebar({ navItems, currentUser, onLogout }) {
           <SidebarNavLink key={item.to} to={item.to} label={item.label} Icon={item.icon} />
         ))}
       </nav>
-      <div className="px-4 py-4 border-t border-[--sidebar-border]">
-        <p className="text-sm font-medium text-[--foreground] truncate">
+      <div className="px-4 py-4 border-t border-sidebar-border">
+        <p className="text-sm font-medium text-foreground truncate">
           {currentUser.firstName || currentUser.username}
         </p>
-        <p className="text-xs text-[--muted-foreground] mb-3">
+        <p className="text-xs text-muted-foreground mb-3">
           {ROLE_LABELS[currentUser.role] || currentUser.role}
         </p>
         <NavLink
           to="/account"
-          className="flex items-center gap-2 text-sm text-[--sidebar-foreground] hover:text-[--foreground] mb-2"
+          className="flex items-center gap-2 text-sm text-sidebar-foreground hover:text-foreground mb-2"
         >
           <UserCircle className="w-4 h-4" />
           Change password
         </NavLink>
         <button
           onClick={onLogout}
-          className="flex items-center gap-2 text-sm text-[--sidebar-foreground] hover:text-[--foreground]"
+          className="flex items-center gap-2 text-sm text-sidebar-foreground hover:text-foreground"
         >
           <LogOut className="w-4 h-4" />
           Log out
@@ -138,22 +138,22 @@ function MobileTopBar({ navItems, currentUser, onLogout }) {
 
   return (
     <div className="md:hidden">
-      <div className="flex items-center justify-between h-14 px-4 bg-[--sidebar] border-b border-[--sidebar-border]">
+      <div className="flex items-center justify-between h-14 px-4 bg-sidebar border-b border-sidebar-border">
         <div className="flex items-center gap-2">
           <img src="/brand/svg/NdalamaHub-icon.svg" alt="" className="h-6 w-6" />
           <img src="/brand/svg/NdalamaHub-wordmark-only.svg" alt="NdalamaHub" className="h-4" />
         </div>
         <button
           onClick={() => setOpen((v) => !v)}
-          className="p-2 -mr-2 text-[--sidebar-foreground]"
+          className="p-2 -mr-2 text-sidebar-foreground"
           aria-label={open ? 'Close menu' : 'Open menu'}
         >
           {open ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
       </div>
       {open && (
-        <div className="bg-[--sidebar] border-b border-[--sidebar-border] px-3 py-3 space-y-1">
-          <div className="px-3 py-2 text-sm text-[--sidebar-foreground] border-b border-[--sidebar-border] mb-2">
+        <div className="bg-sidebar border-b border-sidebar-border px-3 py-3 space-y-1">
+          <div className="px-3 py-2 text-sm text-sidebar-foreground border-b border-sidebar-border mb-2">
             {currentUser.firstName || currentUser.username} · {ROLE_LABELS[currentUser.role] || currentUser.role}
           </div>
           {navItems.map((item) => (
@@ -168,14 +168,14 @@ function MobileTopBar({ navItems, currentUser, onLogout }) {
           <NavLink
             to="/account"
             onClick={() => setOpen(false)}
-            className="flex items-center gap-3 px-3 py-2 text-sm rounded-[10px] text-[--sidebar-foreground] hover:bg-[--nh-sage]/40"
+            className="flex items-center gap-3 px-3 py-2 text-sm rounded-[10px] text-sidebar-foreground hover:bg-nh-sage/40"
           >
             <UserCircle className="w-5 h-5 shrink-0" />
             <span>Change password</span>
           </NavLink>
           <button
             onClick={onLogout}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-[--sidebar-foreground] hover:text-[--foreground]"
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-sidebar-foreground hover:text-foreground"
           >
             <LogOut className="w-4 h-4" />
             Log out
@@ -188,7 +188,7 @@ function MobileTopBar({ navItems, currentUser, onLogout }) {
 
 function BorrowerTopBar({ onLogout }) {
   return (
-    <div className="md:hidden flex items-center justify-between h-14 px-4 bg-[--sidebar] border-b border-[--sidebar-border]">
+    <div className="md:hidden flex items-center justify-between h-14 px-4 bg-sidebar border-b border-sidebar-border">
       <div className="flex items-center gap-2">
         <img src="/brand/svg/NdalamaHub-icon.svg" alt="" className="h-6 w-6" />
         <img src="/brand/svg/NdalamaHub-wordmark-only.svg" alt="NdalamaHub" className="h-4" />
@@ -196,14 +196,14 @@ function BorrowerTopBar({ onLogout }) {
       <div className="flex items-center gap-1">
         <NavLink
           to="/account"
-          className="p-2 text-[--sidebar-foreground]"
+          className="p-2 text-sidebar-foreground"
           aria-label="My account"
         >
           <UserCircle className="w-5 h-5" />
         </NavLink>
         <button
           onClick={onLogout}
-          className="p-2 text-[--sidebar-foreground]"
+          className="p-2 text-sidebar-foreground"
           aria-label="Log out"
         >
           <LogOut className="w-5 h-5" />
@@ -225,7 +225,7 @@ function BorrowerBottomNav({ navItems }) {
           to={item.to}
           className={({ isActive }) =>
             `flex-1 flex flex-col items-center justify-center gap-1 py-2 min-h-[44px] ${
-              isActive ? 'text-[--nh-accent]' : 'text-muted-foreground'
+              isActive ? 'text-nh-accent' : 'text-muted-foreground'
             }`
           }
         >
@@ -261,7 +261,7 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[--background]">
+    <div className="min-h-screen flex bg-background">
       <Sidebar navItems={navItems} currentUser={currentUser} onLogout={handleLogout} />
       <div className="flex-1 flex flex-col min-w-0">
         {isBorrower ? (

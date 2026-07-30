@@ -124,7 +124,7 @@ export default function SettingsPage() {
                 onClick={() => setActiveTab(tab.id)}
               >
                 <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <div className="w-10 h-10 bg-status-info-bg rounded-lg flex items-center justify-center">
                       <Icon className="w-5 h-5 text-status-info-fg" />
                     </div>
@@ -133,7 +133,7 @@ export default function SettingsPage() {
                     <h3 className="font-medium text-foreground text-sm">{tab.label}</h3>
                     <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{tab.description}</p>
                   </div>
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
@@ -169,7 +169,7 @@ export default function SettingsPage() {
       {/* Desktop: Traditional Sidebar Layout */}
       <div className="hidden lg:flex gap-6 max-w-full">
         {/* Sidebar Navigation */}
-        <div className="w-64 flex-shrink-0">
+        <div className="w-64 shrink-0">
           <Card className="p-4 rounded-2xl">
             <nav className="space-y-1">
               {availableTabs.map((tab) => {
@@ -182,11 +182,11 @@ export default function SettingsPage() {
                     onClick={() => setActiveTab(tab.id)}
                     className={`w-full flex items-start px-3 py-3 rounded-[10px] text-left transition-colors ${
                       isActive
-                        ? 'bg-[--nh-sage] text-foreground font-medium'
-                        : 'text-muted-foreground hover:bg-[--nh-sage]/40'
+                        ? 'bg-nh-sage text-foreground font-medium'
+                        : 'text-muted-foreground hover:bg-nh-sage/40'
                     }`}
                   >
-                    <Icon className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
+                    <Icon className="w-5 h-5 mr-3 mt-0.5 shrink-0" />
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium text-foreground">{tab.label}</div>
                       <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{tab.description}</div>

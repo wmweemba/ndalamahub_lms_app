@@ -234,9 +234,12 @@ Demo: end-to-end lender walkthrough for Manifi — create a borrower, receive a 
   (`bg-primary`, `text-primary-foreground`, `border-input`, `text-muted-foreground`,
   `focus:ring-ring`, `bg-status-danger-bg`, …) which resolve correctly. If a raw variable
   is genuinely needed, `bg-(--token)` or `bg-[var(--token)]` both work.
-  **Other files still carry the broken v3 form — see the changelog entry for 2026-07-30.**
-  To check: `grep -o '\.bg-\\\[--[a-z-]*\\\]{[^}]*}' client/dist/assets/*.css` — any hit
-  whose value lacks `var(` is a dead rule.
+  **The codebase is now clean — swept in Phase 28 (`docs/28-tailwind-v4-token-sweep.md`,
+  2026-07-30): 38 occurrences across 5 files converted, zero dead rules remain.** Keep it
+  that way; this is a standing rule, not a one-time migration.
+  To check: `grep -oE '\.[a-z-]+-\\\[--[a-z-]+\\\]\{[^}]*\}' client/dist/assets/*.css | grep -v 'var('`
+  — must return nothing. Any hit is a dead rule. Note that `pnpm lint` and `pnpm build`
+  **both pass while this bug is present**, so they are not evidence; the grep is.
 - **Zero server changes.** `git diff --stat main -- server/` must be empty at every phase merge. A UI phase that needs a server change stops and flags it. Gate: `cd server && pnpm test` → **261/261** before merge.
 - **Client gates per phase:** `pnpm lint`, `pnpm build`, `pnpm test` (from Phase 12 onward) all green.
 - **Stack is fixed:** React 19, Vite 7, Tailwind 4, shadcn/ui, TanStack Query, React Router 7, pnpm 10.12.1. No new UI/component libraries. New shadcn-style primitives may be added under `components/ui/` following the existing file conventions.

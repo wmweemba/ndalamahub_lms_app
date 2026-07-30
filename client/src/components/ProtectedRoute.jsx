@@ -21,7 +21,7 @@ const ProtectedRoute = ({ children }) => {
   // already-logged-in user would flash through /login on every refresh.
   if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[--background] text-muted-foreground text-sm">
+      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground text-sm">
         Loading…
       </div>
     );

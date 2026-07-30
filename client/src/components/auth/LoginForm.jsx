@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
 
 export function LoginForm({ onSuccess }) {
@@ -81,6 +82,15 @@ export function LoginForm({ onSuccess }) {
             >
                 {loading ? 'Signing in...' : 'Sign in'}
             </button>
+
+            <p className="text-sm text-center">
+                <Link
+                    to="/forgot-password"
+                    className="text-[--primary] hover:underline focus:outline-none focus:ring-2 focus:ring-[--ring] rounded"
+                >
+                    Forgot your password?
+                </Link>
+            </p>
         </form>
     );
 }

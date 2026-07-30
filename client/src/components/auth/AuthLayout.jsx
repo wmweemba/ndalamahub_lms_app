@@ -1,4 +1,4 @@
-export function AuthLayout({ children }) {
+export function AuthLayout({ children, subtitle = 'Sign in to your account' }) {
   return (
     <div className="bg-[--background] min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md p-8 bg-[--card] rounded-2xl border border-[--border]">
@@ -8,7 +8,7 @@ export function AuthLayout({ children }) {
             alt="NdalamaHub"
             className="h-24"
           />
-          <p className="text-[--muted-foreground] mt-2">Sign in to your account</p>
+          <p className="text-[--muted-foreground] mt-2 text-center">{subtitle}</p>
         </div>
         {children}
       </div>

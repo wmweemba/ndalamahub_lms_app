@@ -95,7 +95,11 @@ All follow the same pattern: env vars at runtime (never hardcoded secrets), run 
 ## 7. Common recovery procedures
 
 ### A lender/staff user is locked out (forgot password, or account deactivated)
-There is currently **no self-service "forgot password" UI** on the login page (the server route `POST /auth/forgot-password` exists and works, but nothing in the client calls it — flagged, not built, as of this writing). Recovery today is always admin-mediated:
+**Self-service password reset is now available (built 2026-07-29).** The login page has a "Forgot your password?" link → `/forgot-password` → the user receives an email → `/reset-password?token=…` → they set their own password. The reset link expires in **10 minutes**. This requires the user to have an **email address on their account**; NRC-only users (borrowers are often created without email by design) still need the admin-mediated path below.
+
+The same `/reset-password` page also serves the **staff account invite** (`POST /api/users/:id/invite`, 7-day token) and the **customer account invite** — all three flows email a `/reset-password?token=` link. Before 2026-07-29 the client had no such route and every one of those links silently redirected to `/login`, so any invite sent before that date was unusable and needs re-sending.
+
+Admin-mediated recovery is still the fallback, and the only option for users with no email on file:
 1. Any `lender_admin` (or `platform_admin`) for that tenant logs into NdalamaHub → **Settings → User Management** → find the user → **Reset password** (sets a new password directly, no email needed).
 2. If literally no admin for that tenant can log in either, `platform_admin` (William) can do the same from his own account — platform admins can reach every tenant's User Management.
 3. If even that's unavailable (e.g. a fresh env with no browser access), fall back to `resetAdminPassword.js` (§5) from a server shell.
@@ -121,7 +125,15 @@ See §4 — check `ENABLE_CRON`, confirm the `[cron] scheduler started` log line
 
 - Restore test (§6) not yet performed.
 - No uptime/health-check monitoring beyond manual observation.
-- No self-service forgot-password UI (§7) — admin-mediated only.
+- ~~No self-service forgot-password UI~~ — **built 2026-07-29** (§7). Still admin-mediated for users with no email on file. Depends on `APP_URL` being set correctly to the **client** origin (`https://ndalamahub.nxhub.online`, not the API origin) — if it is wrong or unset, every reset and invite email contains a broken link and the failure is silent. Re-verify `APP_URL` after any environment change.
+- `POST /auth/forgot-password` and `POST /auth/reset-password` have **no automated test coverage**, and neither do the two new client pages. Verified manually end-to-end instead.
+- The forgot-password endpoint returns different success messages for known vs unknown addresses (`server/routes/auth.js:97` vs `:114`), making the API an account-enumeration oracle for a direct caller. The UI does not expose this — it always shows the same confirmation. One-line post-launch fix: make both messages identical.
 - Dark platform-admin register, RHF+Zod adoption, and other UI punch-list items remain post-launch (see `docs/18-post-demo-ui-punchlist.md`).
 
 **Confirmed done (2026-07-29):** `ENABLE_CRON`, `NODE_ENV`, single-instance, and every other env var in §3 checked directly in Coolify by William — all in order, cron scheduler confirmed running. Test customer/loan/collateral cleared via `clearDummyBorrowerData.js` (dry-run reviewed first, then `CONFIRM=yes`) — production now contains exactly Manifi + its product + Clement's pending account, zero test residue.
+
+**`CORS_ORIGIN` verified in production (2026-07-29):** checked manually by William in Coolify — set to the exact production origin, not `*`. This matters because `server/app.js` falls back to `origin: process.env.CORS_ORIGIN || '*'` alongside `credentials: true`. Browsers reject wildcard-plus-credentials outright so it fails safe in practice, but the fallback is a footgun for any non-browser caller. **Re-check this env var specifically after any environment change** rather than assuming it is still set. Removing the `|| '*'` fallback in favour of a fail-fast boot check is queued as post-launch cleanup (see §9) — it was deliberately not changed during launch week, since `CORS_ORIGIN` is not currently a required-at-boot variable and making it one could break the Render/Netlify dev environment.
+
+**Report exports verified (2026-07-29):** the last outstanding launch-smoke item. Wired end to end — `GET /reports/:type/export/:format` (`server/routes/reports.js:298`) streams real PDFKit/ExcelJS output with `Content-Disposition: attachment` behind `requireAuth` + `authorizeMinRole('employer_hr')`, and `client/src/components/reports/ReportModal.jsx:18` downloads it as a blob with the correct filename and extension.
+
+**Security audit (2026-07-29):** NS-002 full audit run against the repo — **0 P0, 0 actionable P1, 5 P2**. Clear to deploy. Secrets hygiene clean across the full git history; `gitleaks` 8.30.1 run directly returned 15 findings, all verified false positives (12 in gitignored `.claude/settings.local.json`, 1 in gitignored-and-never-committed `server/.env`, 2 truncated JWT header stubs in tracked READMEs). Session/auth, tenancy enforcement, `trust proxy`, error-message suppression, and helmet all verified by reading code. The `form-data`-via-axios finding was confirmed a false positive (see punch-list item 12). Public intake (`server/routes/publicIntake.js`) — the only unauthenticated write endpoint — has two-tier IP rate limiting (3/min burst, 10/hour), per-lender CORS applied via `router.use` so preflight is covered, and explicit payload validation. **Still unverified from the repo, needs eyes in Coolify:** MongoDB not publicly port-exposed, app container not running as root, and the app's Mongo user not being an admin/root role.

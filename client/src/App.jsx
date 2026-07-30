@@ -6,6 +6,12 @@ import AppLayout from '@/components/layout/AppLayout';
 const LoginPage = lazy(() =>
     import('./pages/auth/LoginPage').then((m) => ({ default: m.LoginPage }))
 );
+const ForgotPasswordPage = lazy(() =>
+    import('./pages/auth/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage }))
+);
+const ResetPasswordPage = lazy(() =>
+    import('./pages/auth/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage }))
+);
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
 const CompaniesPage = lazy(() =>
     import('./pages/companies/CompaniesPage').then((m) => ({ default: m.CompaniesPage }))
@@ -33,6 +39,11 @@ export function App() {
         <Suspense fallback={<RouteLoadingFallback />}>
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
+                {/* Public by necessity: forgot-password, staff invite and customer invite
+                    emails all link to /reset-password?token=. Guarding these would bounce
+                    every one of those links to /login via the catch-all below. */}
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/account-locked" element={<AccountLockedPage />} />
                 <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                     <Route path="/dashboard" element={<DashboardPage />} />

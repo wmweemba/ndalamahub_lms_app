@@ -143,3 +143,126 @@
     @apply bg-background text-foreground;
   }
 }
+/* ─────────────────────────────────────────────────────────────────────────
+   Auth pages (login / forgot-password / reset-password)
+   ─────────────────────────────────────────────────────────────────────────
+   Deliberate exception to UI_SPEC §1.5 "flat over decorative" — see §12.
+   The auth screens are a showcase surface: gradient ground, accent halo and
+   layered shadow. The authenticated app stays flat. Do not propagate this
+   treatment inward.
+
+   Written as plain CSS rather than utility classes because the layout has
+   three responsive tiers (desktop / tablet-landscape / stacked) touching a
+   dozen properties each; as arbitrary Tailwind variants it becomes an
+   unreadable and error-prone className soup. Tokens below still come from
+   :root, so the palette has one source of truth.                          */
+
+@layer components {
+  .auth-shell{
+    position:relative; min-height:100vh; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    padding:3vh 3vw; background:var(--background);
+  }
+
+  /* Page-wide dark region with a slanted edge. Bleeds past the card top and
+     bottom so the card reads as floating ON the composition, not beside it. */
+  .auth-bleed{
+    position:fixed; inset:0; z-index:0;
+    background:radial-gradient(120% 100% at 20% 15%, #2A2A2A 0%, #1C1C1C 58%, #121212 100%);
+    clip-path:polygon(0 0, 60% 0, 54% 100%, 0 100%);
+  }
+  .auth-bleed svg{position:absolute;inset:0;width:100%;height:100%;opacity:.5}
+
+  .auth-card{
+    position:relative; z-index:1;
+    width:min(1140px,94vw); height:min(720px,90vh);
+    background:var(--card); border-radius:28px;
+    box-shadow:0 44px 100px -32px rgba(18,18,18,.55), 0 4px 12px rgba(18,18,18,.08);
+    display:grid; grid-template-columns:1fr 1fr;
+    padding:14px;                      /* white margin separating panel from bleed */
+  }
+
+  /* The wrapper owns the rounded corners, the panel owns the diagonal:
+     clip-path overrides border-radius, so they cannot share one element.
+     Where the clip removes the panel, the wrapper's card colour shows. */
+  .auth-panel-wrap{
+    border-radius:20px; overflow:hidden; background:var(--card); position:relative;
+  }
+  .auth-panel{
+    position:absolute; inset:0; overflow:hidden;
+    background:radial-gradient(115% 95% at 28% 22%, #2E2E2E 0%, #1C1C1C 56%, #131313 100%);
+    clip-path:polygon(0 0, 100% 0, 88% 100%, 0 100%);
+    display:flex; flex-direction:column; justify-content:space-between;
+    padding:2.5rem 2.75rem;
+  }
+  .auth-panel svg{position:absolute;inset:0;width:100%;height:100%}
+  .auth-panel-top,.auth-panel-bottom{position:relative;z-index:1}
+  .auth-panel-mark{height:32px;width:auto}
+  .auth-panel-title{
+    color:#FFF;font-size:1.95rem;line-height:1.18;font-weight:600;
+    letter-spacing:-.022em;max-width:16ch;
+  }
+  .auth-panel-copy{
+    color:rgba(204,218,209,.8);font-size:.92rem;line-height:1.6;
+    margin-top:.9rem;max-width:30ch;
+  }
+
+  .auth-form-side{display:flex;align-items:center;justify-content:center;padding:2.5rem 3rem}
+  .auth-form-wrap{width:100%;max-width:360px}
+  .auth-title{font-size:2rem;font-weight:600;letter-spacing:-.022em;margin-bottom:.4rem}
+  .auth-subtitle{color:var(--muted-foreground);font-size:.93rem;margin-bottom:1.9rem}
+
+  /* ── Tablet landscape — keep the floating card, tighten the rhythm.
+     ~10" tablets land at 1024-1280 wide but only 768-834 tall, so the
+     binding constraint is VERTICAL space, not width. */
+  @media (min-width:861px) and (max-width:1180px){
+    .auth-shell{padding:2.5vh 3vw}
+    /* width:100% respects the shell's padding box — vw would stack on top
+       of that padding and overflow the viewport. */
+    .auth-card{width:100%;max-width:1140px;height:min(720px,94vh);padding:12px}
+    .auth-panel{padding:2rem 2.15rem}
+    .auth-panel-mark{height:28px}
+    .auth-panel-title{font-size:1.6rem;max-width:15ch}
+    .auth-panel-copy{font-size:.86rem;margin-top:.7rem;max-width:28ch}
+    .auth-form-side{padding:2rem 2.25rem}
+    .auth-form-wrap{max-width:330px}
+    .auth-title{font-size:1.75rem}
+    .auth-subtitle{font-size:.88rem;margin-bottom:1.5rem}
+  }
+
+  /* Short landscape (e.g. 1280x800): reclaim vertical space at any width
+     above the stack breakpoint so nothing clips on a 10" tab. */
+  @media (min-width:861px) and (max-height:830px){
+    .auth-shell{padding:2vh 3vw}
+    .auth-card{height:min(700px,96vh)}
+    .auth-panel{padding-top:1.9rem;padding-bottom:1.9rem}
+    .auth-form-side{padding-top:1.75rem;padding-bottom:1.75rem}
+  }
+
+  /* ── Mobile and tablet portrait — no diagonals, no float.
+     Portrait (~810px) stacks too: side-by-side there gives ~380px columns,
+     too cramped for both the panel copy and a usable form (UI_SPEC §1.4). */
+  @media (max-width:860px){
+    .auth-shell{padding:0;display:block;overflow:auto}
+    .auth-bleed{position:absolute;clip-path:none;height:190px;inset:0 0 auto 0}
+    .auth-card{
+      width:100%;height:auto;min-height:100vh;border-radius:0;padding:0;
+      grid-template-columns:1fr;
+      /* auto 1fr — without it, min-height:100vh stretches BOTH rows, so the
+         band row grows past the 190px bleed and leaves a dead gap. */
+      grid-template-rows:auto 1fr;
+      box-shadow:none;background:transparent;
+    }
+    .auth-panel-wrap{border-radius:0;background:transparent;min-height:190px}
+    .auth-panel{
+      position:static;                 /* back into flow so the grid can stack */
+      clip-path:none;background:transparent;min-height:190px;
+      padding:1.75rem;justify-content:flex-start;
+    }
+    .auth-panel svg,.auth-panel-title,.auth-panel-copy{display:none}
+    .auth-form-side{
+      background:var(--card);border-radius:24px 24px 0 0;
+      padding:2.25rem 1.5rem 3rem;align-items:flex-start;
+    }
+  }
+}

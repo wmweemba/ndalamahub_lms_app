@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NdalamaHub — Login mockup A1 (strict flat)</title>
+<style>
+  /* ── NdalamaHub tokens (from client/src/index.css) ───────────────── */
+  :root{
+    --background:#F4F7F5; --foreground:#1C1C1C; --card:#FFFFFF;
+    --primary:#D6295E; --primary-foreground:#FFFFFF;
+    --secondary:#CCDAD1;            /* sage */
+    --muted-foreground:#8A8A88;
+    --border:#E4E4E1; --input:#E4E4E1;
+    --charcoal:#1C1C1C;
+    --radius:0.75rem;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--background); color:var(--foreground);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .shell{display:grid;grid-template-columns:1fr 1fr;min-height:100vh}
+
+  /* ── LEFT: flat charcoal panel, network motif ─────────────────────
+     STRICT: no gradient, no shadow, no glow. One flat colour block.
+     Accent is deliberately ABSENT here so the CTA is the single
+     accent surface on the page (UI_SPEC §3.1).                      */
+  .panel{
+    position:relative; background:var(--charcoal);
+    display:flex; flex-direction:column; justify-content:space-between;
+    padding:3.5rem; overflow:hidden;
+  }
+  .panel svg{position:absolute;inset:0;width:100%;height:100%;opacity:.55}
+  .panel-top,.panel-bottom{position:relative;z-index:1}
+  .panel .mark{height:34px;width:auto}
+  .panel h2{
+    color:#FFF;font-size:2.25rem;line-height:1.15;font-weight:600;
+    letter-spacing:-.02em;max-width:13ch;
+  }
+  .panel p{
+    color:var(--secondary);font-size:.95rem;line-height:1.6;
+    margin-top:1rem;max-width:34ch;
+  }
+  /* ── the future marketing / tenant-branding slot ──────────────── */
+  .slot-note{
+    margin-top:2rem;border-top:1px solid rgba(204,218,209,.18);
+    padding-top:1rem;color:rgba(204,218,209,.55);
+    font-size:.75rem;letter-spacing:.04em;text-transform:uppercase;
+  }
+
+  /* ── RIGHT: flat white, form sits directly on the surface ───────── */
+  .form-side{
+    background:var(--card);
+    display:flex;align-items:center;justify-content:center;padding:3rem 2rem;
+  }
+  .form-wrap{width:100%;max-width:380px}
+  .lockup{height:72px;width:auto;margin-bottom:2.25rem;display:block}
+  h1{font-size:2rem;font-weight:600;letter-spacing:-.02em;margin-bottom:.4rem}
+  .sub{color:var(--muted-foreground);font-size:.95rem;margin-bottom:2rem}
+
+  label{display:block;font-size:.8rem;font-weight:500;margin-bottom:.4rem}
+  .field{margin-bottom:1.1rem}
+  input{
+    width:100%;padding:.8rem .9rem;font-size:.95rem;font-family:inherit;
+    border:1px solid var(--input);border-radius:10px;
+    background:var(--card);color:var(--foreground);outline:none;
+  }
+  input::placeholder{color:#B8B8B5}
+  input:focus{border-color:var(--primary)}
+
+  .forgot{
+    display:block;text-align:right;font-size:.82rem;
+    color:var(--muted-foreground);text-decoration:none;margin-bottom:1.75rem;
+  }
+  .forgot:hover{color:var(--primary)}
+
+  /* the ONE accent surface on this page */
+  .btn{
+    width:100%;padding:.85rem;border:none;border-radius:10px;
+    background:var(--primary);color:var(--primary-foreground);
+    font-size:.95rem;font-weight:500;font-family:inherit;cursor:pointer;
+  }
+  .btn:hover{opacity:.92}
+
+  .foot{
+    margin-top:2rem;padding-top:1.25rem;border-top:1px solid var(--border);
+    font-size:.78rem;color:var(--muted-foreground);line-height:1.6;
+  }
+
+  /* ── mobile: panel collapses to a slim band (UI_SPEC §1.4) ──────── */
+  @media (max-width:820px){
+    .shell{grid-template-columns:1fr}
+    .panel{min-height:150px;padding:1.75rem}
+    .panel h2,.panel p,.slot-note{display:none}
+    .form-side{padding:2.5rem 1.5rem}
+    .lockup{height:56px}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ══ LEFT PANEL — swappable slot (photo / marketing / tenant art) ══ -->
+  <section class="panel">
+    <svg viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <g stroke="#CCDAD1" stroke-opacity=".20" stroke-width="2" stroke-linecap="round" fill="none">
+        <path d="M300,300 L300,140"/><path d="M300,300 L140,530"/><path d="M300,300 L460,530"/>
+        <path d="M140,530 L60,690"/><path d="M140,530 L250,700"/>
+        <path d="M460,530 L560,660"/><path d="M460,530 L380,700"/>
+        <path d="M300,140 L170,60"/><path d="M300,140 L440,70"/>
+      </g>
+      <g fill="#CCDAD1" fill-opacity=".26">
+        <circle cx="300" cy="140" r="15"/><circle cx="140" cy="530" r="15"/><circle cx="460" cy="530" r="15"/>
+        <circle cx="60"  cy="690" r="9"/><circle cx="250" cy="700" r="9"/>
+        <circle cx="560" cy="660" r="9"/><circle cx="380" cy="700" r="9"/>
+        <circle cx="170" cy="60"  r="9"/><circle cx="440" cy="70"  r="9"/>
+      </g>
+      <!-- central hub kept in sage, NOT accent — CTA owns the accent -->
+      <circle cx="300" cy="300" r="26" fill="#CCDAD1" fill-opacity=".38"/>
+    </svg>
+
+    <div class="panel-top">
+      <!-- NB: *-dark.svg is the variant FOR dark backgrounds (white stroke).
+           *-light.svg is charcoal and disappears here. -->
+      <img class="mark" src="../../../client/public/brand/svg/NdalamaHub-lockup-horizontal-dark.svg" alt="NdalamaHub">
+    </div>
+
+    <div class="panel-bottom">
+      <h2>Lending, managed end to end.</h2>
+      <p>Applications, approvals, disbursement, collateral and repayments — one system, built for Zambian lenders.</p>
+      <div class="slot-note">Slot — marketing content or tenant art drops in here</div>
+    </div>
+  </section>
+
+  <!-- ══ RIGHT — the form ══ -->
+  <section class="form-side">
+    <div class="form-wrap">
+      <!-- No lockup here: the panel carries the brand on desktop and in the
+           collapsed mobile band. Two lockups in one viewport reads as a mistake. -->
+      <h1>Welcome back</h1>
+      <p class="sub">Sign in to your account to continue.</p>
+
+      <div class="field">
+        <label for="u">Username</label>
+        <input id="u" type="text" placeholder="Enter your username">
+      </div>
+      <div class="field">
+        <label for="p">Password</label>
+        <input id="p" type="password" placeholder="Enter your password">
+      </div>
+
+      <a class="forgot" href="#">Forgot your password?</a>
+      <button class="btn">Sign in</button>
+
+      <p class="foot">
+        Accounts are created by your administrator. If you don't have one, or your
+        account has no email address on file, contact your administrator.
+      </p>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

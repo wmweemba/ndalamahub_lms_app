@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AuthLayout } from '../../components/auth/AuthLayout';
+import { authInputClass, authButtonClass } from '../../components/auth/LoginForm';
 import { authService } from '../../services/authService';
 
 // Mirrors validatePassword() in server/utils/auth.js. Kept in sync by hand — the server
@@ -34,9 +35,9 @@ export function ResetPasswordPage() {
   // and all land here; the page deliberately does not try to tell them apart.
   if (!token) {
     return (
-      <AuthLayout subtitle="Invalid reset link">
+      <AuthLayout title="Invalid reset link">
         <div className="space-y-6">
-          <div className="bg-[--status-danger-bg] border border-[--status-danger-fg]/20 text-[--status-danger-fg] px-4 py-3 rounded-lg text-sm">
+          <div className="bg-status-danger-bg border border-status-danger-fg/20 text-status-danger-fg px-4 py-3 rounded-lg text-sm">
             <p>
               This link is missing its reset token. It may have been broken by your email
               client, or only partly copied.
@@ -44,12 +45,12 @@ export function ResetPasswordPage() {
           </div>
           <Link
             to="/forgot-password"
-            className="block w-full py-3 text-center bg-[--primary] text-[--primary-foreground] font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[--ring] focus:ring-offset-2 transition-opacity"
+            className="block w-full py-3 text-center bg-primary text-primary-foreground font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-opacity"
           >
             Request a new link
           </Link>
-          <p className="text-sm text-center text-[--muted-foreground]">
-            <Link to="/login" className="text-[--primary] hover:underline">
+          <p className="text-sm text-center text-muted-foreground">
+            <Link to="/login" className="text-primary hover:underline">
               Back to sign in
             </Link>
           </p>
@@ -77,7 +78,7 @@ export function ResetPasswordPage() {
   };
 
   return (
-    <AuthLayout subtitle="Set a new password">
+    <AuthLayout title="Set a new password">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label htmlFor="password" className="sr-only">
@@ -88,7 +89,7 @@ export function ResetPasswordPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-3 py-3 rounded-lg border border-[--input] bg-[--card] text-[--foreground] focus:outline-none focus:ring-2 focus:ring-[--ring] focus:border-transparent transition-colors"
+            className={authInputClass}
             placeholder="New password"
             autoComplete="new-password"
             required
@@ -104,13 +105,13 @@ export function ResetPasswordPage() {
             type="password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            className="w-full px-3 py-3 rounded-lg border border-[--input] bg-[--card] text-[--foreground] focus:outline-none focus:ring-2 focus:ring-[--ring] focus:border-transparent transition-colors"
+            className={authInputClass}
             placeholder="Confirm new password"
             autoComplete="new-password"
             required
           />
           {confirm.length > 0 && !matches && (
-            <p className="mt-2 text-sm text-[--status-danger-fg]">Passwords do not match.</p>
+            <p className="mt-2 text-sm text-status-danger-fg">Passwords do not match.</p>
           )}
         </div>
 
@@ -120,7 +121,7 @@ export function ResetPasswordPage() {
             return (
               <li
                 key={rule.label}
-                className={ok ? 'text-[--status-success-fg]' : 'text-[--muted-foreground]'}
+                className={ok ? 'text-status-success-fg' : 'text-muted-foreground'}
               >
                 <span aria-hidden="true">{ok ? '✓' : '○'}</span>{' '}
                 <span className="sr-only">{ok ? 'Met:' : 'Not met:'}</span>
@@ -131,7 +132,7 @@ export function ResetPasswordPage() {
         </ul>
 
         {error && (
-          <div className="bg-[--status-danger-bg] border border-[--status-danger-fg]/20 text-[--status-danger-fg] px-4 py-3 rounded-lg text-sm">
+          <div className="bg-status-danger-bg border border-status-danger-fg/20 text-status-danger-fg px-4 py-3 rounded-lg text-sm">
             <p>{error}</p>
             {details.length > 0 && (
               <ul className="mt-2 list-disc list-inside space-y-1">
@@ -153,15 +154,15 @@ export function ResetPasswordPage() {
         <button
           type="submit"
           disabled={!canSubmit}
-          className="w-full py-3 bg-[--primary] text-[--primary-foreground] font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[--ring] focus:ring-offset-2 transition-opacity disabled:opacity-50"
+          className={authButtonClass}
         >
           {loading ? 'Setting password...' : 'Set password'}
         </button>
 
-        <p className="text-sm text-center text-[--muted-foreground]">
+        <p className="text-sm text-center text-muted-foreground">
           <Link
             to="/login"
-            className="text-[--primary] hover:underline focus:outline-none focus:ring-2 focus:ring-[--ring] rounded"
+            className="text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-ring rounded"
           >
             Back to sign in
           </Link>

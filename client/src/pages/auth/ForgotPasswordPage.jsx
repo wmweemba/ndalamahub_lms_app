@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthLayout } from '../../components/auth/AuthLayout';
+import { authInputClass, authButtonClass } from '../../components/auth/LoginForm';
 import { authService } from '../../services/authService';
 
 export function ForgotPasswordPage() {
@@ -30,20 +31,20 @@ export function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <AuthLayout subtitle="Check your email">
+      <AuthLayout title="Check your email">
         <div className="space-y-6">
-          <div className="bg-[--status-success-bg] border border-[--status-success-fg]/20 text-[--status-success-fg] px-4 py-3 rounded-lg text-sm">
+          <div className="bg-status-success-bg border border-status-success-fg/20 text-status-success-fg px-4 py-3 rounded-lg text-sm">
             <p>
               If an account with that email exists, we&apos;ve sent a password reset link to
               it. The link expires in 10 minutes.
             </p>
           </div>
-          <p className="text-sm text-[--muted-foreground]">
+          <p className="text-sm text-muted-foreground">
             Didn&apos;t get it? Check your spam folder, or{' '}
             <button
               type="button"
               onClick={() => setSent(false)}
-              className="text-[--primary] hover:underline focus:outline-none focus:ring-2 focus:ring-[--ring] rounded"
+              className="text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-ring rounded"
             >
               try a different email address
             </button>
@@ -51,7 +52,7 @@ export function ForgotPasswordPage() {
           </p>
           <Link
             to="/login"
-            className="block w-full py-3 text-center border border-[--border] text-[--foreground] font-medium rounded-lg hover:bg-[--muted] focus:outline-none focus:ring-2 focus:ring-[--ring] transition-colors"
+            className="block w-full py-3 text-center border border-border text-foreground font-medium rounded-lg hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring transition-colors"
           >
             Back to sign in
           </Link>
@@ -61,13 +62,11 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <AuthLayout subtitle="Reset your password">
+    <AuthLayout
+      title="Reset your password"
+      subtitle="Enter the email address on your account and we'll send you a link to set a new password."
+    >
       <form onSubmit={handleSubmit} className="space-y-6">
-        <p className="text-sm text-[--muted-foreground]">
-          Enter the email address on your account and we&apos;ll send you a link to set a new
-          password.
-        </p>
-
         <div>
           <label htmlFor="email" className="sr-only">
             Email address
@@ -77,7 +76,7 @@ export function ForgotPasswordPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-3 rounded-lg border border-[--input] bg-[--card] text-[--foreground] focus:outline-none focus:ring-2 focus:ring-[--ring] focus:border-transparent transition-colors"
+            className={authInputClass}
             placeholder="Email address"
             autoComplete="email"
             required
@@ -85,7 +84,7 @@ export function ForgotPasswordPage() {
         </div>
 
         {error && (
-          <div className="bg-[--status-danger-bg] border border-[--status-danger-fg]/20 text-[--status-danger-fg] px-4 py-3 rounded-lg text-sm">
+          <div className="bg-status-danger-bg border border-status-danger-fg/20 text-status-danger-fg px-4 py-3 rounded-lg text-sm">
             <p>{error}</p>
           </div>
         )}
@@ -93,21 +92,21 @@ export function ForgotPasswordPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 bg-[--primary] text-[--primary-foreground] font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[--ring] focus:ring-offset-2 transition-opacity disabled:opacity-50"
+          className={authButtonClass}
         >
           {loading ? 'Sending...' : 'Send reset link'}
         </button>
 
-        <p className="text-sm text-center text-[--muted-foreground]">
+        <p className="text-sm text-center text-muted-foreground">
           <Link
             to="/login"
-            className="text-[--primary] hover:underline focus:outline-none focus:ring-2 focus:ring-[--ring] rounded"
+            className="text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-ring rounded"
           >
             Back to sign in
           </Link>
         </p>
 
-        <p className="text-xs text-center text-[--muted-foreground]">
+        <p className="text-xs text-center text-muted-foreground">
           No email on your account? Ask your administrator to reset it for you.
         </p>
       </form>

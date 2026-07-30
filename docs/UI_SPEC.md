@@ -22,6 +22,22 @@
 4. **Zambia-aware.** Borrower-facing screens assume mobile, variable connectivity, and mobile money familiarity. Favor big legible numbers, minimal chrome, and layouts that survive a small Android screen over desktop-first patterns.
 5. **Flat over decorative.** No gradients, no heavy shadows, no glow. Corner radius and color tinting carry the personality, not effects.
 
+> **Documented exception — the auth screens (2026-07-30).** Login, forgot-password and
+> reset-password deliberately break principle 5: gradient ground, accent halo, layered
+> shadow, a floating card and diagonal clip edges. They are a **showcase surface** — the
+> first and only marketing-adjacent screen in the product, and the future home of the
+> landing/marketing panel. The authenticated app stays flat.
+>
+> **This exception does not travel.** Do not carry gradients, halos or diagonals inward to
+> dashboards, tables or dialogs. If a new screen wants this treatment, it needs its own
+> entry here — an exception recorded once is a decision; an exception copied silently is
+> drift. Styles are isolated in `client/src/index.css` under `@layer components`, all
+> prefixed `auth-`, so the blast radius is visible at a glance.
+>
+> Principle 3 still holds inside the exception: `--nh-accent` appears exactly twice on the
+> auth screens (the panel's hub node and the primary CTA) and never drifts toward the
+> orange-red band.
+
 ## 2. The three registers
 
 | Register | Who | Devices | Reference |
@@ -151,8 +167,10 @@ Two weights only: 400 and 500. **No bold (700)** — it reads heavy against this
 
 The logo exists — final v2 set, validated 2026-07-12, vendored at `client/public/brand/`. Usage:
 
-- **Sidebar/app header:** `svg/NdalamaHub-lockup-horizontal-light.svg` (dark variant reserved for the post-demo dark register).
-- **Login page:** stacked lockup or horizontal lockup, centered.
+- **Naming, read this first:** `-light` / `-dark` describe the **background the lockup is placed on**, not the colour of the lockup itself. `-light` is charcoal-stroked (for light surfaces); `-dark` is white-stroked (for dark surfaces). Using `-light` on a dark panel makes it effectively invisible — this cost real time during the 2026-07-30 login rebuild.
+- **Sidebar/app header:** `svg/NdalamaHub-lockup-horizontal-light.svg`.
+- **Auth screens:** `svg/NdalamaHub-lockup-horizontal-dark.svg`, top-left of the dark panel. The form column carries **no** lockup — the panel supplies brand on desktop and in the collapsed mobile band, and two lockups in one viewport reads as a mistake.
+- **Sizing caution:** `NdalamaHub-lockup-stacked.svg` is a 320×320 canvas with heavy internal padding, so at typical header heights the wordmark shrinks to near-nothing. Prefer a horizontal lockup wherever vertical space is limited.
 - **Favicon/tab:** `raster/favicon.ico` + `svg/NdalamaHub-icon-favicon.svg`; `raster/apple-touch-icon.png`. PWA icons exist but a manifest is post-demo.
 - **Known limitation:** lockup text is live Inter `<text>`, fine in-app once Inter is loaded (Phase 12 does this); outlining is only needed for standalone/print/social use (punch list).
 
@@ -201,13 +219,24 @@ Demo: end-to-end lender walkthrough for Manifi — create a borrower, receive a 
 1. **Dark platform register** — full `platform_admin` control-room theme (mockup exists). PA uses light register until then.
 2. **Settings stub tabs** (Security, Notifications, Integrations) — removed in Phase 12; they were local-state placeholders with dead Save buttons. Rebuild only with real server backing (server work → its own phase).
 3. **Client dep-audit leftovers** — transitive dev-build-tool findings (`rollup`, `picomatch`, `postcss`, `esbuild`, `form-data`); don't ship to the browser. Deferred to the Coolify migration runbook.
-4. **Auth screens** — no forgot-password/refresh UI is built; auth migration (CLAUDE.md §8) is pending. UI phases must not design auth UI beyond restyling the existing login form.
+4. **Auth screens** — forgot-password/reset UI **built 2026-07-29**; login redesigned **2026-07-30**. Token-refresh UI is still unbuilt and the auth migration (CLAUDE.md §8) remains the gate for anything further.
 5. **Charts** — no trend endpoints exist; charts return when a real endpoint does (server work → flag, don't build).
 6. **`window.confirm` → styled confirm dialogs**; **RHF+Zod adoption**; **sonner everywhere** (adopted progressively from Phase 12, sweep later); **PWA manifest** (icons ready); **wordmark text→outline conversion**; **accessibility audit** (§8 spot-checks happen per phase; a full pass is post-demo).
 7. **`/users` page removed** (Phase 17) — revisit only if a dedicated cross-company user directory is wanted later.
 
 ## 13. Engineering conventions for UI phases
 
+- **Tailwind v4: never write `bg-[--token]`.** The project is on Tailwind **v4.1**, which
+  **removed** the v3 shorthand that expanded `[--token]` to `var(--token)`. It does not
+  error — it silently emits invalid CSS (`background-color:--primary`, no `var()`), so the
+  rule is dropped and the element falls back to transparent. This is how the login button
+  shipped white instead of accent on 2026-07-30. Use the `@theme inline` utilities
+  (`bg-primary`, `text-primary-foreground`, `border-input`, `text-muted-foreground`,
+  `focus:ring-ring`, `bg-status-danger-bg`, …) which resolve correctly. If a raw variable
+  is genuinely needed, `bg-(--token)` or `bg-[var(--token)]` both work.
+  **Other files still carry the broken v3 form — see the changelog entry for 2026-07-30.**
+  To check: `grep -o '\.bg-\\\[--[a-z-]*\\\]{[^}]*}' client/dist/assets/*.css` — any hit
+  whose value lacks `var(` is a dead rule.
 - **Zero server changes.** `git diff --stat main -- server/` must be empty at every phase merge. A UI phase that needs a server change stops and flags it. Gate: `cd server && pnpm test` → **261/261** before merge.
 - **Client gates per phase:** `pnpm lint`, `pnpm build`, `pnpm test` (from Phase 12 onward) all green.
 - **Stack is fixed:** React 19, Vite 7, Tailwind 4, shadcn/ui, TanStack Query, React Router 7, pnpm 10.12.1. No new UI/component libraries. New shadcn-style primitives may be added under `components/ui/` following the existing file conventions.

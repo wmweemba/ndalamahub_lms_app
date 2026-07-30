@@ -11,7 +11,7 @@ export function LoginPage() {
   };
 
   return (
-    <AuthLayout>
+    <AuthLayout title="Welcome back" subtitle="Sign in to your account to continue.">
       <LoginForm onSuccess={handleLoginSuccess} />
     </AuthLayout>
   );

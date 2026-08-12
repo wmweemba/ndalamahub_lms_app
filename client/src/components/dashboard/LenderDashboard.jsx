@@ -84,7 +84,7 @@ export function LenderDashboard() {
         <StatusBreakdownCard
           title="Portfolio overview"
           rows={[
-            { label: 'Pending', count: p.pendingLoans, pill: 'pending' },
+            { label: 'Pending (loans)', count: p.pendingLoans, pill: 'pending' },
             { label: 'Approved', count: p.approvedLoans, pill: 'approved' },
             { label: 'Active', count: p.activeLoans, pill: 'active' },
             { label: 'In arrears', count: p.inArrearsLoans, pill: 'in_arrears' },
@@ -103,9 +103,15 @@ export function LenderDashboard() {
             <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/loans')}>
               View portfolio loans
             </Button>
-            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/companies')}>
-              Manage employers
-            </Button>
+            {isDirectModel ? (
+              <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/customers?tab=applications')}>
+                View applications{pendingApplications.length > 0 ? ` (${pendingApplications.length})` : ''}
+              </Button>
+            ) : (
+              <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/companies')}>
+                Manage employers
+              </Button>
+            )}
             <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/reports')}>
               Generate reports
             </Button>

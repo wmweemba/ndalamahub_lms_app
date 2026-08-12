@@ -269,10 +269,6 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
   const collateralApprovalBlocker = collateralRequired && !collateralAllVerified
     ? 'Collateral pending verification'
     : null;
-  const collateralDisbursementBlocker = collateralRequired && collateralAllVerified &&
-    !nonRejectedCollateral.every((c) => c.letterOfSale?.onFile)
-    ? 'Letter of sale not on file'
-    : collateralApprovalBlocker;
 
   const handleApprove = async () => {
     if (!approvalComment.trim()) {
@@ -514,12 +510,6 @@ export function LoanDetailsDialog({ loan, open, onClose, onUpdate }) {
             {!actionError && canApprove && collateralApprovalBlocker && (
               <div className="w-full bg-status-warning-bg text-status-warning-fg rounded-2xl p-3 text-sm">
                 {collateralApprovalBlocker}
-              </div>
-            )}
-
-            {!actionError && !collateralApprovalBlocker && canDisburse && collateralDisbursementBlocker && (
-              <div className="w-full bg-status-warning-bg text-status-warning-fg rounded-2xl p-3 text-sm">
-                {collateralDisbursementBlocker}
               </div>
             )}
 

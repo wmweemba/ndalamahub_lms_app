@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,10 @@ export default function CustomersPage() {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeTab, setActiveTab] = useState('customers');
+    const [searchParams] = useSearchParams();
+    const [activeTab, setActiveTab] = useState(
+        searchParams.get('tab') === 'applications' ? 'applications' : 'customers'
+    );
 
     const { data: pendingApplications = [] } = useCustomerApplications('pending');
 

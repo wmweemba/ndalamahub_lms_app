@@ -155,7 +155,7 @@ describe('Phase 21 — collateral register', () => {
       expect(approved.status).toBe(200);
     });
 
-    it('blocks disbursement until letter of sale is on file, then allows it', async () => {
+    it('disburses without a letter of sale on file (tracking-only, does not block), and still records one when provided', async () => {
       const product = await makeProduct(fx.lenderA._id, true);
       const loan = await createLoan({
         applicant: fx.borrowerA._id,
@@ -179,23 +179,18 @@ describe('Phase 21 — collateral register', () => {
 
       await request(app).put(`/api/loans/${loan._id}/approve`).set(await authHeader(fx.employerHrA)).send({});
 
-      const blocked = await request(app)
-        .put(`/api/loans/${loan._id}/disburse`)
-        .set(await authHeader(fx.lenderAdminA))
-        .send({ disbursementMethod: 'mobile_money' });
-      expect(blocked.status).toBe(422);
-      expect(blocked.body.message).toMatch(/letter of sale/i);
-
-      await request(app)
-        .put(`/api/collateral/${collateral._id}/letter-of-sale`)
-        .set(await authHeader(fx.lenderOfficerA))
-        .send({ onFile: true, reference: 'LOS-001' });
-
       const disbursed = await request(app)
         .put(`/api/loans/${loan._id}/disburse`)
         .set(await authHeader(fx.lenderAdminA))
         .send({ disbursementMethod: 'mobile_money' });
       expect(disbursed.status).toBe(200);
+
+      const recorded = await request(app)
+        .put(`/api/collateral/${collateral._id}/letter-of-sale`)
+        .set(await authHeader(fx.lenderOfficerA))
+        .send({ onFile: true, reference: 'LOS-001' });
+      expect(recorded.status).toBe(200);
+      expect(recorded.body.data.collateral.letterOfSale.onFile).toBe(true);
     });
 
     it('non-collateral products are unaffected', async () => {

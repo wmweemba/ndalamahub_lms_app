@@ -64,18 +64,14 @@ async function checkCollateralForApproval(loan) {
 }
 
 /**
- * Collateral gate for disburse (Phase 21). Requires the approval gate to
- * pass, plus every verified collateral record must have its letter-of-sale
- * on file (paper process — no file uploads, locked decision).
+ * Collateral gate for disburse. Requires the approval gate to pass — same
+ * requirement as approval, no additional check. Letter-of-sale is tracked on
+ * the collateral record for staff visibility only; it does not gate any loan
+ * action (Manifi working-model clarification, 2026-08-12: some borrowers are
+ * never asked for a letter of sale).
  */
 async function checkCollateralForDisbursement(loan) {
-  const approvalCheck = await checkCollateralForApproval(loan);
-  if (!approvalCheck.ok) return approvalCheck;
-  if (!approvalCheck.required) return { ok: true };
-
-  const allLettered = approvalCheck.verifiedRecords.every((r) => r.letterOfSale && r.letterOfSale.onFile);
-  if (!allLettered) return { ok: false, message: 'Letter of sale not on file' };
-  return { ok: true };
+  return checkCollateralForApproval(loan);
 }
 // @route   GET /api/loans/:id/repayment-schedule/export/excel
 // @desc    Export detailed repayment schedule for a loan as Excel

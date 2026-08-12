@@ -78,4 +78,14 @@ describe('CustomersPage', () => {
     await waitFor(() => expect(screen.getAllByText('John Banda').length).toBeGreaterThan(0));
     expect(screen.getByRole('button', { name: /add customer/i })).toBeInTheDocument();
   });
+
+  it('opens directly on the Applications tab when linked with ?tab=applications', async () => {
+    seedUser({ _id: 'u1', username: 'lenderadmin', role: 'lender_admin', company: 'lender-1' });
+    window.history.pushState({}, '', '/customers?tab=applications');
+    const { ui } = renderWithProviders(<CustomersPage />);
+    render(ui);
+
+    await waitFor(() => expect(screen.queryByText('John Banda')).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /add customer/i })).not.toBeInTheDocument();
+  });
 });

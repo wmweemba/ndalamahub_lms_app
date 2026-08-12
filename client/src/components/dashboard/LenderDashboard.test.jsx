@@ -92,4 +92,20 @@ describe('LenderDashboard', () => {
     const pendingCard = screen.getByText('Pending applications').closest('div');
     expect(pendingCard).toHaveTextContent('3');
   });
+
+  it('labels the portfolio breakdown row "Pending (loans)" to distinguish it from the applications KPI', async () => {
+    const { ui } = renderWithProviders(<LenderDashboard />);
+    render(ui);
+
+    await waitFor(() => expect(screen.getByText('Portfolio overview')).toBeInTheDocument());
+    expect(screen.getByText('Pending (loans)')).toBeInTheDocument();
+  });
+
+  it('shows a "View applications" quick action instead of "Manage employers" for direct-model lenders', async () => {
+    const { ui } = renderWithProviders(<LenderDashboard />);
+    render(ui);
+
+    await waitFor(() => expect(screen.getByText(/View applications/)).toBeInTheDocument());
+    expect(screen.queryByText('Manage employers')).not.toBeInTheDocument();
+  });
 });

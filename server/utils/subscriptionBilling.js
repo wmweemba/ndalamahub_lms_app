@@ -39,6 +39,7 @@ function computePeriodExtension(subscription, { periodMonths, customPeriodEnd } 
     const end = new Date(customPeriodEnd);
     if (Number.isNaN(end.getTime())) throw invalid('customPeriodEnd is not a valid date');
     if (end.getTime() <= now.getTime()) throw invalid('customPeriodEnd must be in the future');
+    if (end.getTime() <= base.getTime()) throw invalid('customPeriodEnd must be after the current access date');
     return { periodStart: base, periodEnd: end };
   }
 

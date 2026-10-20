@@ -72,6 +72,21 @@ describe('Subscription payments (U3)', () => {
     expect(res.body.data.payment.customPeriodEnd).toBe(true);
   });
 
+  it('custom end not after current access date -> 400', async () => {
+    await setSub(fx.lenderA._id, { status: 'active', currentPeriodEnd: daysFromNow(60) });
+    const res = await post(fx.lenderA._id, { amount: 10, method: 'cash', customPeriodEnd: daysFromNow(30).toISOString() });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/after the current access date/);
+  });
+
+  it('legacy lender with no persisted subscription.status can record a payment', async () => {
+    await setSub(fx.lenderA._id, { status: 'active', currentPeriodEnd: daysFromNow(10) });
+    await Company.collection.updateOne({ _id: fx.lenderA._id }, { $unset: { 'subscription.status': '' } });
+    const res = await post(fx.lenderA._id, { amount: 10, method: 'cash', periodMonths: 1 });
+    expect(res.status).toBe(201);
+    expect(res.body.data.company.subscription.status).toBe('active');
+  });
+
   describe('400s', () => {
     it.each([
       ['bad amount', { amount: 0, method: 'cash', periodMonths: 1 }],

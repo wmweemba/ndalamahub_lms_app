@@ -114,11 +114,9 @@ router.put('/:id', requireAuth, async (req, res) => {
             }
 
             const body = { ...req.body };
-            delete body['subscription.reminderSentFor'];
-            if (body.subscription && typeof body.subscription === 'object') {
-                body.subscription = { ...body.subscription };
-                delete body.subscription.reminderSentFor;
-            }
+            // All billing changes go through /api/subscriptions so they are audited.
+            delete body.subscription;
+            Object.keys(body).forEach((k) => { if (k.startsWith('subscription.')) delete body[k]; });
             const updatedCompany = await Company.findByIdAndUpdate(
                 companyId,
                 body,

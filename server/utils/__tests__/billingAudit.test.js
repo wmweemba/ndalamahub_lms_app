@@ -25,6 +25,15 @@ describe('billingAudit', () => {
     expect(diffSnapshots(a, moved)).toEqual(['currentPeriodEnd']);
   });
 
+  test("treats '' notes the same as unset", () => {
+    const a = snapshotSubscription({ status: 'active', notes: '' });
+    const b = snapshotSubscription({ status: 'active' });
+    expect(a.notes).toBeNull();
+    expect(diffSnapshots(a, b)).toEqual([]);
+    expect(diffSnapshots({ notes: '' }, { notes: null })).toEqual([]);
+    expect(diffSnapshots({ notes: '' }, { notes: 'x' })).toEqual(['notes']);
+  });
+
   test('creates a row with correct changedFields', async () => {
     const id = new mongoose.Types.ObjectId();
     const row = await logBillingChange({

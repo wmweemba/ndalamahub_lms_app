@@ -182,6 +182,10 @@ router.post('/:companyId/payments', requireAuth, authorizeMinRole('platform_admi
     }
 
     const before = snapshotSubscription(company.subscription);
+    // Guard values come from the stored document: the in-memory doc may carry
+    // schema defaults that were never persisted (legacy lenders).
+    const stored = await Company.findById(company._id).select('subscription').lean();
+    const storedSub = (stored && stored.subscription) || {};
 
     payment = await SubscriptionPayment.create({
       lenderCompany: company._id,
@@ -201,8 +205,8 @@ router.post('/:companyId/payments', requireAuth, authorizeMinRole('platform_admi
 
     let updatedCompany;
     try {
-      const prevEnd = company.subscription?.currentPeriodEnd;
-      const prevStatus = company.subscription?.status;
+      const prevEnd = storedSub.currentPeriodEnd;
+      const prevStatus = storedSub.status;
       const set = {
         'subscription.status': 'active',
         'subscription.currentPeriodEnd': extension.periodEnd
@@ -217,7 +221,9 @@ router.post('/:companyId/payments', requireAuth, authorizeMinRole('platform_admi
         { $set: set, $unset: { 'subscription.suspendedAt': '' } }
       );
       if (result.matchedCount === 0) {
-        await SubscriptionPayment.deleteOne({ _id: payment._id }).catch(() => {});
+        await SubscriptionPayment.deleteOne({ _id: payment._id }).catch((delErr) => {
+          console.error('Record payment: rollback failed, orphaned payment needs reconciliation', payment._id, delErr);
+        });
         return res.status(409).json({ success: false, message: 'Subscription changed while recording this payment; reload and try again' });
       }
     } catch (saveErr) {

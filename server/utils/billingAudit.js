@@ -10,7 +10,7 @@ function snapshotSubscription(subscription) {
   const out = {};
   for (const k of KEYS) {
     let v = src[k];
-    if (v === undefined || v === null) {
+    if (v === undefined || v === null || v === '') {
       v = null;
     } else if (DATE_KEYS.includes(k)) {
       v = v instanceof Date ? v : new Date(v);
@@ -24,8 +24,8 @@ function diffSnapshots(before, after) {
   const b = before || {};
   const a = after || {};
   return KEYS.filter((k) => {
-    const x = b[k] == null ? null : b[k];
-    const y = a[k] == null ? null : a[k];
+    const x = b[k] == null || b[k] === '' ? null : b[k];
+    const y = a[k] == null || a[k] === '' ? null : a[k];
     if (x === null || y === null) return x !== y;
     if (x instanceof Date || y instanceof Date) {
       return new Date(x).getTime() !== new Date(y).getTime();

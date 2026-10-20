@@ -82,6 +82,11 @@ describe('computePeriodExtension', () => {
       expectInvalid({ customPeriodEnd: NOW });
       expectInvalid({ customPeriodEnd: '2026-01-01' });
     });
+    it('customPeriodEnd in the future but not after current access date', () => {
+      const s2 = { status: 'active', currentPeriodEnd: new Date('2026-12-10T00:00:00Z') };
+      expect(() => computePeriodExtension(s2, { customPeriodEnd: '2026-11-01T00:00:00Z' }, NOW))
+        .toThrow('customPeriodEnd must be after the current access date');
+    });
   });
 });
 

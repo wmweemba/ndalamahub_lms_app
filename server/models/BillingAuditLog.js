@@ -36,10 +36,15 @@ billingAuditLogSchema.index({ lenderCompany: 1, createdAt: -1 });
 const reject = function (next) {
   next(new Error('BillingAuditLog is append-only: updates and deletes are not allowed'));
 };
-['updateOne', 'findOneAndUpdate', 'updateMany', 'deleteOne', 'deleteMany', 'findOneAndDelete', 'replaceOne']
+['updateOne', 'findOneAndUpdate', 'updateMany', 'deleteOne', 'deleteMany', 'findOneAndDelete', 'findOneAndReplace', 'replaceOne']
   .forEach((op) => billingAuditLogSchema.pre(op, { document: false, query: true }, reject));
 // Document-level variants (doc.updateOne() / doc.deleteOne())
 billingAuditLogSchema.pre('updateOne', { document: true, query: false }, reject);
 billingAuditLogSchema.pre('deleteOne', { document: true, query: false }, reject);
+// Block re-saving an existing row (doc.field = x; doc.save())
+billingAuditLogSchema.pre('save', function (next) {
+  if (!this.isNew) return next(new Error('BillingAuditLog is append-only: updates and deletes are not allowed'));
+  next();
+});
 
 module.exports = mongoose.model('BillingAuditLog', billingAuditLogSchema);

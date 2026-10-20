@@ -75,6 +75,12 @@ describe('billingAudit', () => {
     await expect(BillingAuditLog.updateOne({ _id: row._id }, { source: 'admin' })).rejects.toThrow(/append-only/);
     await expect(BillingAuditLog.deleteOne({ _id: row._id })).rejects.toThrow(/append-only/);
     await expect(BillingAuditLog.deleteMany({})).rejects.toThrow(/append-only/);
+    await expect(BillingAuditLog.findOneAndUpdate({ _id: row._id }, { source: 'admin' })).rejects.toThrow(/append-only/);
+    await expect(BillingAuditLog.findOneAndReplace({ _id: row._id }, { source: 'admin' })).rejects.toThrow(/append-only/);
+    const loaded = await BillingAuditLog.findById(row._id);
+    loaded.source = 'admin';
+    await expect(loaded.save()).rejects.toThrow(/append-only/);
+    expect((await BillingAuditLog.findById(row._id)).source).toBe('system');
     expect(await BillingAuditLog.countDocuments()).toBe(1);
   });
 });

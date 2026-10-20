@@ -74,7 +74,7 @@ Subagents read this section and their own unit only.
 
 | ID | Title | Recs | Model | Risk | Depends on | Owns (files) | Status |
 |---|---|---|---|---|---|---|---|
-| U1 | Payment ledger model + period-extension utility | 2 | sonnet | high | — | `server/models/SubscriptionPayment.js` (new), `server/utils/subscriptionBilling.js` (new), `server/utils/__tests__/subscriptionBilling.test.js` (new) | todo |
+| U1 | Payment ledger model + period-extension utility | 2 | sonnet | high | — | `server/models/SubscriptionPayment.js` (new), `server/utils/subscriptionBilling.js` (new), `server/utils/__tests__/subscriptionBilling.test.js` (new) | done |
 | U2 | Billing audit log model + logging utility | 5 | sonnet | high | — | `server/models/BillingAuditLog.js` (new), `server/utils/billingAudit.js` (new), `server/utils/__tests__/billingAudit.test.js` (new) | done |
 | U3 | Record-payment, payment-history and audit API routes; audit on PUT | 2, 5 | sonnet | high | U1, U2 | `server/routes/subscriptions.js`, `server/tests/api/subscriptionPayments.test.js` (new), `server/tests/api/billingAudit.test.js` (new) | todo |
 | U4 | Pre-expiry reminder email + audit of automatic transitions | 3, 5 | sonnet | high | U2 | `server/jobs/expireSubscriptions.js`, `server/utils/emailTemplates.js`, `server/models/Company.js` (subscription subdoc only), `server/tests/api/subscriptionReminders.test.js` (new) | todo |
@@ -312,6 +312,7 @@ Run on the local dev stack (`pnpm dev`, client on :5173 through the Vite proxy) 
 8. Run `cd server && pnpm job:subscriptions` against the local dev DB only, after setting the fixture's period end to 3 days ago with Adjust. Changes then shows an "Automatic status change" by "System" (active → past due).
 
 ## Log
+- 2026-10-20 U1 done (17 tests; Opus diff read OK). Notes for U3: `computePeriodExtension` requires a real Number for `periodMonths` (coerce body strings first); month maths is UTC. U2 hardening commit 3e6df4f: also blocks `findOneAndReplace` and re-`save()` of an existing row (security-review finding). `bulkWrite`/raw-driver writes still bypass Mongoose hooks; DB-role enforcement is out of scope (noted for William). Worktrees are cut from `main`, not the build branch: implementers must `git merge --ff-only build/subscription-billing` first.
 - 2026-10-20 U2 done (29e5da6, 6 tests; Opus diff read OK; also blocks findOneAndDelete/replaceOne). **Known pre-existing failure:** `utils/__tests__/loan.rollover.test.js` "quotes a settlement off the post-rollover schedule" fails on clean code too (date-dependent, interestBalance 312.5 vs 0). Effective baseline is 345/346; out of scope for this build, flagged for William.
 - 2026-10-20 10:41 Checkpoint A approved by William. Base 76dceb8 confirmed. Build session started 10:41; branch build/subscription-billing created.
 - 2026-10-20 plan amended (2): William's scope is all five recommendations, not three. Added the billing audit log (rec 5) as U2, plus audit wiring in U3/U4/U6. D6 was rewritten and D13 added. Units renumbered (old U2–U7 → U3–U8). Recommendation coverage table added.

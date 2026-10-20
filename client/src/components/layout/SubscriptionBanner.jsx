@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '@/utils/api';
-import { getCurrentUser } from '@/utils/roleUtils';
+import { getCurrentUser, canSeeBillingBanner, canSeeUpcomingBillingNotice } from '@/utils/roleUtils';
+import { daysUntil } from '@/lib/subscription';
+import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
-const LENDER_SIDE_ROLES = ['lender_admin', 'lender_officer'];
-const TRIAL_WARNING_DAYS = 7;
+const WARNING_DAYS = 7;
 
 const TINT_CLASSES = {
   warning: 'bg-status-warning-bg text-status-warning-fg',
@@ -23,29 +24,21 @@ function Banner({ tint, title, children }) {
 
 export function SubscriptionBanner() {
   const currentUser = getCurrentUser();
+  const canSee = canSeeBillingBanner(currentUser);
 
   const { data } = useQuery({
     queryKey: ['subscription-status'],
     queryFn: () => api.get('/subscriptions/status').then((res) => res.data.data),
     staleTime: 60 * 60 * 1000, // 1h
-    enabled: !!currentUser,
+    enabled: !!currentUser && canSee,
   });
 
-  if (!data || data.exempt) return null;
-
-  const isLenderSide = LENDER_SIDE_ROLES.includes(currentUser?.role);
-
-  const trialEndingSoon =
-    data.effectiveStatus === 'trialing' &&
-    data.trialEndsAt &&
-    new Date(data.trialEndsAt) - Date.now() < TRIAL_WARNING_DAYS * 24 * 60 * 60 * 1000;
+  if (!canSee || !data || data.exempt) return null;
 
   if (data.effectiveStatus === 'past_due') {
     return (
       <Banner tint="warning" title="Payment overdue">
-        {isLenderSide
-          ? 'Your subscription payment is overdue. You still have full access during the grace period, but please arrange payment soon to avoid losing functionality.'
-          : "Your lender's subscription payment is overdue. Access is unaffected for now, but may become limited soon if it isn't resolved."}
+        Your subscription payment is overdue. You still have full access during the grace period, but please arrange payment soon to avoid losing functionality.
       </Banner>
     );
   }
@@ -53,21 +46,34 @@ export function SubscriptionBanner() {
   if (data.effectiveStatus === 'read_only') {
     return (
       <Banner tint="danger" title="Read-only access">
-        {isLenderSide
-          ? 'Your subscription is unpaid and access is now read-only — you can view dashboards and reports, but cannot create or modify records. Arrange payment now to avoid a full lockout.'
-          : "Your lender's account is unpaid and access is now read-only — dashboards and reports are still available, but changes cannot be made until they renew."}
+        Your subscription is unpaid and access is now read-only — you can view dashboards and reports, but cannot create or modify records. Arrange payment now to avoid a full lockout.
       </Banner>
     );
   }
 
-  if (trialEndingSoon) {
+  if (!canSeeUpcomingBillingNotice(currentUser)) return null;
+
+  if (
+    data.effectiveStatus === 'trialing' &&
+    data.trialEndsAt &&
+    daysUntil(data.trialEndsAt) <= WARNING_DAYS
+  ) {
     return (
       <Banner tint="info" title="Trial ending soon">
-        {isLenderSide
-          ? 'Your free trial ends soon. Arrange payment to keep uninterrupted access.'
-          : "Your lender's free trial ends soon."}
+        Your free trial ends on <span className="font-mono">{formatDate(data.trialEndsAt)}</span>. Arrange payment to keep uninterrupted access.
       </Banner>
     );
+  }
+
+  if (data.effectiveStatus === 'active' && data.currentPeriodEnd) {
+    const days = daysUntil(data.currentPeriodEnd);
+    if (days >= 0 && days <= WARNING_DAYS) {
+      return (
+        <Banner tint="info" title="Subscription renews soon">
+          Your subscription runs until <span className="font-mono">{formatDate(data.currentPeriodEnd)}</span>. Arrange payment with Nexus before then to keep uninterrupted access.
+        </Banner>
+      );
+    }
   }
 
   return null;

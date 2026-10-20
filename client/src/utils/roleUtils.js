@@ -160,3 +160,14 @@ export const canAccessCollateralNav = (role) => {
         ROLES.LENDER_OFFICER
     ].includes(role);
 };
+
+// Billing banner visibility (decision D11): past_due/read_only notices go to
+// lender staff only; employer-side roles, borrowers and platform_admin see none.
+export const canSeeBillingBanner = (user) => {
+    return [ROLES.LENDER_ADMIN, ROLES.LENDER_OFFICER].includes(user?.role);
+};
+
+// Trial-ending and renewal-upcoming notices are for the lender admin only.
+export const canSeeUpcomingBillingNotice = (user) => {
+    return user?.role === ROLES.LENDER_ADMIN;
+};

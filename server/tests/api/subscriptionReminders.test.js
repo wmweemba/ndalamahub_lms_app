@@ -182,4 +182,20 @@ describe('Subscription reminders and transition audit (U4)', () => {
     expect((await getSub()).status).toBe('past_due');
     expect(await BillingAuditLog.countDocuments({ lenderCompany: fx.lenderA._id, action: 'subscription.status_changed' })).toBe(1);
   });
+  it('access includes the whole last day: the job waits a full day past the end date, matching the gate', async () => {
+    const HOUR = 60 * 60 * 1000;
+    for (const [status, field, key] of [['active', 'currentPeriodEnd', 'activeToPastDue'], ['trialing', 'trialEndsAt', 'trialToPastDue']]) {
+      // The job runs at 02:00 Lusaka on the end date itself: still the paid/trial day.
+      await setSub(fx.lenderA._id, { status, [field]: new Date(asOf.getTime() - HOUR) });
+      let result = await expireSubscriptions(asOf);
+      expect(result[key]).toBe(0);
+      expect((await getSub()).status).toBe(status);
+
+      // A full day later the lender moves to past due.
+      await setSub(fx.lenderA._id, { status, [field]: new Date(asOf.getTime() - 25 * HOUR) });
+      result = await expireSubscriptions(asOf);
+      expect(result[key]).toBe(1);
+      expect((await getSub()).status).toBe('past_due');
+    }
+  });
 });

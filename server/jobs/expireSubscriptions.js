@@ -61,11 +61,13 @@ async function expireSubscriptions(asOf = new Date()) {
     let notifyKind = null;
     const before = snapshotSubscription(sub);
 
-    if (sub.status === 'trialing' && sub.trialEndsAt && sub.trialEndsAt < asOf) {
+    // Access includes the whole end date: lapse only once a full day has passed,
+    // the same count the access gate uses (computeEffectiveStatus).
+    if (sub.status === 'trialing' && sub.trialEndsAt && daysPast(sub.trialEndsAt, asOf) >= 1) {
       sub.status = 'past_due';
       result.trialToPastDue += 1;
       notifyKind = 'trial_ended';
-    } else if (sub.status === 'active' && sub.currentPeriodEnd && sub.currentPeriodEnd < asOf) {
+    } else if (sub.status === 'active' && sub.currentPeriodEnd && daysPast(sub.currentPeriodEnd, asOf) >= 1) {
       sub.status = 'past_due';
       result.activeToPastDue += 1;
       notifyKind = 'renewal_due';

@@ -2,18 +2,14 @@ import { formatDate } from '@/lib/format';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// Which date governs a lender's access. Only a trialing lender is bound by
-// trialEndsAt; once paying, a stale trialEndsAt must be ignored.
+// Which date governs a lender's access. Mirrors the server gate's anchor:
+// currentPeriodEnd when set (a paying lender always has one, so a stale
+// trialEndsAt is ignored), else trialEndsAt (trial, or trial lapsed unpaid).
 export function getAccessUntil(subscription) {
   if (!subscription) return { date: null, kind: null };
-  if (subscription.status === 'trialing') {
-    return subscription.trialEndsAt
-      ? { date: subscription.trialEndsAt, kind: 'trial' }
-      : { date: null, kind: null };
-  }
-  return subscription.currentPeriodEnd
-    ? { date: subscription.currentPeriodEnd, kind: 'paid' }
-    : { date: null, kind: null };
+  if (subscription.currentPeriodEnd) return { date: subscription.currentPeriodEnd, kind: 'paid' };
+  if (subscription.trialEndsAt) return { date: subscription.trialEndsAt, kind: 'trial' };
+  return { date: null, kind: null };
 }
 
 export function daysUntil(date, now = new Date()) {

@@ -67,8 +67,27 @@ describe('SubscriptionBanner', () => {
 
   it('names the trial end date for lender_admin', async () => {
     const end = inDays(3);
-    setup('lender_admin', { effectiveStatus: 'trialing', trialEndsAt: end });
+    setup('lender_admin', { status: 'trialing', effectiveStatus: 'trialing', trialEndsAt: end });
     const alert = await waitFor(() => screen.getByRole('alert'));
     expect(alert).toHaveTextContent(formatDate(end));
+  });
+
+  it('shows a paying lender on its last paid day no trial banner', async () => {
+    setup('lender_admin', {
+      status: 'past_due',
+      effectiveStatus: 'trialing',
+      currentPeriodEnd: inDays(0),
+      trialEndsAt: inDays(-90),
+    });
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    await settle();
+    expect(screen.queryByText('Trial ending soon')).not.toBeInTheDocument();
+  });
+
+  it('shows no trial banner once the trial date has passed', async () => {
+    setup('lender_admin', { status: 'trialing', effectiveStatus: 'trialing', trialEndsAt: inDays(-2) });
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    await settle();
+    expect(screen.queryByText('Trial ending soon')).not.toBeInTheDocument();
   });
 });

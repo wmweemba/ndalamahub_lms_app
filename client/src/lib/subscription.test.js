@@ -10,9 +10,23 @@ describe('getAccessUntil', () => {
     expect(getAccessUntil(sub)).toEqual({ date: sub.currentPeriodEnd, kind: 'paid' });
   });
 
-  it('uses trialEndsAt while trialing', () => {
-    const sub = { status: 'trialing', trialEndsAt: inDays(10), currentPeriodEnd: inDays(60) };
+  it('uses trialEndsAt while trialing with no period end', () => {
+    const sub = { status: 'trialing', trialEndsAt: inDays(10) };
     expect(getAccessUntil(sub)).toEqual({ date: sub.trialEndsAt, kind: 'trial' });
+  });
+
+  // Matches the server gate: currentPeriodEnd wins whenever it is set.
+  it('uses currentPeriodEnd when trialing with a period end set', () => {
+    const sub = { status: 'trialing', trialEndsAt: inDays(10), currentPeriodEnd: inDays(60) };
+    expect(getAccessUntil(sub)).toEqual({ date: sub.currentPeriodEnd, kind: 'paid' });
+  });
+
+  it('keeps the trial date for a lapsed-trial past_due lender who never paid', () => {
+    const sub = { status: 'past_due', trialEndsAt: inDays(-5) };
+    expect(getAccessUntil(sub)).toEqual({ date: sub.trialEndsAt, kind: 'trial' });
+    const r = getExpiryStatus(sub, { now });
+    expect(r.tone).toBe('danger');
+    expect(r.label).toMatch(/^Expired /);
   });
 
   it('returns nulls when there is no date', () => {

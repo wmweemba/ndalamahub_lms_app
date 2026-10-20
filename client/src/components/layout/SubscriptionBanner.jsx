@@ -53,10 +53,14 @@ export function SubscriptionBanner() {
 
   if (!canSeeUpcomingBillingNotice(currentUser)) return null;
 
+  // Persisted status (not effectiveStatus): the gate reports 'trialing' for any
+  // lapsed-but-in-grace lender, including a paying one on its last paid day.
+  const trialDays = data.trialEndsAt ? daysUntil(data.trialEndsAt) : null;
   if (
-    data.effectiveStatus === 'trialing' &&
-    data.trialEndsAt &&
-    daysUntil(data.trialEndsAt) <= WARNING_DAYS
+    data.status === 'trialing' &&
+    trialDays !== null &&
+    trialDays >= 0 &&
+    trialDays <= WARNING_DAYS
   ) {
     return (
       <Banner tint="info" title="Trial ending soon">

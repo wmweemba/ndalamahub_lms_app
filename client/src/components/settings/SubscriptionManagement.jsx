@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +24,9 @@ import { Textarea } from '@/components/ui/textarea';
 import api from '@/utils/api';
 import { formatDate } from '@/lib/format';
 import { getAccessUntil, getExpiryStatus } from '@/lib/subscription';
-import { CreditCard, Edit } from 'lucide-react';
+import RecordSubscriptionPaymentDialog from './RecordSubscriptionPaymentDialog';
+import SubscriptionHistoryDialog from './SubscriptionHistoryDialog';
+import { CreditCard, Edit, Wallet, History } from 'lucide-react';
 
 const STATUS_OPTIONS = ['trialing', 'active', 'past_due', 'read_only', 'suspended', 'cancelled'];
 
@@ -63,32 +67,23 @@ function AccessUntilCell({ subscription }) {
 }
 
 export default function SubscriptionManagement() {
-  const [lenders, setLenders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
   const [editing, setEditing] = useState(null);
+  const [recording, setRecording] = useState(null);
+  const [viewingHistory, setViewingHistory] = useState(null);
 
-  useEffect(() => {
-    fetchLenders();
-  }, []);
-
-  const fetchLenders = async () => {
-    try {
-      setLoading(true);
+  const { data: lenders = [], isLoading: loading, isError } = useQuery({
+    queryKey: ['subscriptions'],
+    queryFn: async () => {
       const response = await api.get('/subscriptions');
-      if (response.data.success) {
-        setLenders(response.data.data.lenders);
-      }
-    } catch (err) {
-      setError('Failed to load subscriptions');
-      console.error('Subscriptions fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return response.data.success ? response.data.data.lenders : [];
+    },
+  });
+  const error = isError ? 'Failed to load subscriptions' : null;
 
   const handleUpdated = (updatedCompany) => {
-    setLenders((prev) => prev.map((l) => (l._id === updatedCompany._id ? updatedCompany : l)));
+    queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+    queryClient.invalidateQueries({ queryKey: ['subscription-audit', updatedCompany._id] });
     setEditing(null);
   };
 
@@ -141,6 +136,12 @@ export default function SubscriptionManagement() {
                       <Button variant="outline" size="sm" onClick={() => setEditing(lender)}>
                         <Edit className="w-3.5 h-3.5 mr-1" /> Adjust
                       </Button>
+                      <Button variant="outline" size="sm" onClick={() => setRecording(lender)}>
+                        <Wallet className="w-3.5 h-3.5 mr-1" /> Record payment
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setViewingHistory(lender)}>
+                        <History className="w-3.5 h-3.5 mr-1" /> View history
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -159,6 +160,14 @@ export default function SubscriptionManagement() {
           onClose={() => setEditing(null)}
           onUpdated={handleUpdated}
         />
+      )}
+
+      {recording && (
+        <RecordSubscriptionPaymentDialog company={recording} onClose={() => setRecording(null)} />
+      )}
+
+      {viewingHistory && (
+        <SubscriptionHistoryDialog company={viewingHistory} onClose={() => setViewingHistory(null)} />
       )}
     </div>
   );
@@ -190,10 +199,13 @@ function EditSubscriptionDialog({ company, onClose, onUpdated }) {
         notes: formData.notes,
       });
       if (response.data.success) {
+        toast.success('Subscription updated');
         onUpdated(response.data.data.company);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update subscription');
+      const message = err.response?.data?.message || 'Failed to update subscription';
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }

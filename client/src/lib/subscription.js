@@ -30,3 +30,28 @@ export function getExpiryStatus(subscription, { soonDays = 14, now = new Date() 
   if (days <= soonDays) return { tone: 'warning', label: `Expires in ${days}d` };
   return null;
 }
+
+// Mirrors the server's addMonthsClamped (UTC): 31 Jan + 1 month = end of Feb.
+function addMonthsClamped(date, months) {
+  const d = new Date(date);
+  const day = d.getUTCDate();
+  const target = new Date(Date.UTC(
+    d.getUTCFullYear(), d.getUTCMonth() + months, 1,
+    d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds(), d.getUTCMilliseconds()
+  ));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(day, lastDay));
+  return target;
+}
+
+// Preview of the period end a recorded payment will produce (server rule D1):
+// base = max(now, currentPeriodEnd, trialEndsAt if trialing), then add months.
+// The server response stays the source of truth.
+export function previewPeriodEnd(subscription, periodMonths, now = new Date()) {
+  const sub = subscription || {};
+  const candidates = [new Date(now).getTime()];
+  if (sub.currentPeriodEnd) candidates.push(new Date(sub.currentPeriodEnd).getTime());
+  if (sub.status === 'trialing' && sub.trialEndsAt) candidates.push(new Date(sub.trialEndsAt).getTime());
+  const base = new Date(Math.max(...candidates));
+  return addMonthsClamped(base, periodMonths);
+}

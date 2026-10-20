@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getAccessUntil, daysUntil, getExpiryStatus } from './subscription';
+import { getAccessUntil, daysUntil, getExpiryStatus, previewPeriodEnd } from './subscription';
 
 const now = new Date('2026-10-20T12:00:00Z');
 const inDays = (n) => new Date(now.getTime() + n * 24 * 60 * 60 * 1000).toISOString();
@@ -51,5 +51,29 @@ describe('getExpiryStatus', () => {
 
   it('returns null with no date', () => {
     expect(getExpiryStatus({ status: 'active' }, { now })).toBeNull();
+  });
+});
+
+describe('previewPeriodEnd', () => {
+  it('clamps 31 Jan + 1 month to the end of Feb', () => {
+    const d = previewPeriodEnd({ status: 'active' }, 1, new Date('2027-01-31T00:00:00Z'));
+    expect(d.toISOString().slice(0, 10)).toBe('2027-02-28');
+    const leap = previewPeriodEnd({ status: 'active' }, 1, new Date('2028-01-31T00:00:00Z'));
+    expect(leap.toISOString().slice(0, 10)).toBe('2028-02-29');
+  });
+
+  it('extends an active future period from its end', () => {
+    const d = previewPeriodEnd({ status: 'active', currentPeriodEnd: '2026-12-15T00:00:00Z' }, 3, now);
+    expect(d.toISOString().slice(0, 10)).toBe('2027-03-15');
+  });
+
+  it('extends a lapsed lender from today', () => {
+    const d = previewPeriodEnd({ status: 'active', currentPeriodEnd: '2026-09-01T00:00:00Z' }, 1, now);
+    expect(d.toISOString().slice(0, 10)).toBe('2026-11-20');
+  });
+
+  it('extends a trialing lender from trialEndsAt', () => {
+    const d = previewPeriodEnd({ status: 'trialing', trialEndsAt: '2026-11-10T00:00:00Z' }, 1, now);
+    expect(d.toISOString().slice(0, 10)).toBe('2026-12-10');
   });
 });

@@ -113,9 +113,15 @@ router.put('/:id', requireAuth, async (req, res) => {
                 return res.status(400).json({ message: 'lendingModel: direct is only valid for lender companies' });
             }
 
+            const body = { ...req.body };
+            delete body['subscription.reminderSentFor'];
+            if (body.subscription && typeof body.subscription === 'object') {
+                body.subscription = { ...body.subscription };
+                delete body.subscription.reminderSentFor;
+            }
             const updatedCompany = await Company.findByIdAndUpdate(
                 companyId,
-                req.body,
+                body,
                 { new: true, runValidators: true }
             );
             res.json(updatedCompany);
@@ -135,6 +141,10 @@ router.put('/:id', requireAuth, async (req, res) => {
             delete updateData.corporateClients;
             delete updateData.lendingModel;
             delete updateData.publicIntake;
+            // Billing state is platform-managed; a tenant must not be able to
+            // extend its own subscription or touch reminder bookkeeping.
+            delete updateData.subscription;
+            Object.keys(updateData).forEach((k) => { if (k.startsWith('subscription.')) delete updateData[k]; });
 
             const updatedCompany = await Company.findByIdAndUpdate(
                 companyId,

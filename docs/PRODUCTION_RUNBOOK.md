@@ -107,6 +107,8 @@ Admin-mediated recovery is still the fallback, and the only option for users wit
 ### A lender's account shows "locked" (subscription gate)
 This is a different lock — the tenant's subscription status, not a user credential. `platform_admin` → **Settings → Billing** (`SubscriptionManagement.jsx`) → find the lender → **Record payment** (amount, method, reference, and `periodMonths` — or a custom end date). The server works out the new period end and reactivates the lender. Use **Adjust** only for suspensions, cancellations and corrections. To see why a lender's access changed, open **View history → Changes** for that lender.
 
+**If Record payment fails with "Failed to record payment" (500):** before retrying, open **View history** for that lender. In a rare case (a database or network error that hits after the write has committed) the server removes the ledger row but the period end may already have moved. Check **Changes** for a "Payment recorded" entry or an advanced Access until date. If the period is already extended, do not record the payment again, because that would extend it twice. There is no way to add the missing ledger row by hand, so note the payment reference in **Adjust → notes** instead.
+
 ### A deploy broke something
 See §2 "Rolling back a bad deploy" above.
 

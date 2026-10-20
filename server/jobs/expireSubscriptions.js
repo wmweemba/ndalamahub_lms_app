@@ -22,6 +22,25 @@ async function notifyLenderAdmins(lender, kind) {
 }
 
 /**
+ * Write the job's change only if the subscription is still exactly as the job
+ * read it. A plain lender.save() would overwrite a payment (or an Adjust)
+ * recorded by an admin while the sweep was running. Returns true if applied.
+ * A field that was unset when read matches `null` (null matches missing).
+ */
+async function applyIfUnchanged(lender, before, set) {
+  const filter = {
+    _id: lender._id,
+    'subscription.status': before.status,
+    'subscription.currentPeriodEnd': before.currentPeriodEnd || null,
+    'subscription.trialEndsAt': before.trialEndsAt || null
+  };
+  const updates = {};
+  for (const [k, v] of Object.entries(set)) updates[`subscription.${k}`] = v;
+  const res = await Company.updateOne(filter, { $set: updates });
+  return res.modifiedCount === 1;
+}
+
+/**
  * Daily sweep: keeps the persisted subscription.status roughly in sync with
  * reality and fires the transition emails. NOT the source of truth for
  * enforcement — server/middleware/subscription.js computes the effective
@@ -66,7 +85,14 @@ async function expireSubscriptions(asOf = new Date()) {
     }
 
     if (notifyKind) {
-      await lender.save();
+      const set = { status: sub.status };
+      if (notifyKind === 'suspended') set.suspendedAt = sub.suspendedAt;
+      if (!(await applyIfUnchanged(lender, before, set))) {
+        // Changed under us (e.g. a payment was recorded mid-sweep): skip this
+        // lender, no email and no audit row. Tomorrow's run re-evaluates.
+        console.warn('[expireSubscriptions] subscription changed during sweep, skipped', lender._id);
+        continue;
+      }
       const auditRow = await logBillingChange({
         companyId: lender._id,
         action: 'subscription.status_changed',
@@ -81,8 +107,9 @@ async function expireSubscriptions(asOf = new Date()) {
     }
 
     // Pre-expiry reminder (only when no transition fired for this lender this run).
-    const anchor = sub.status === 'active' ? sub.currentPeriodEnd
-      : sub.status === 'trialing' ? sub.trialEndsAt : null;
+    // Same anchor the access gate uses (currentPeriodEnd wins over trialEndsAt).
+    const anchor = (sub.status === 'active' || sub.status === 'trialing')
+      ? (sub.currentPeriodEnd || sub.trialEndsAt) : null;
     if (anchor) {
       const anchorDate = new Date(anchor);
       const daysLeft = Math.ceil((anchorDate.getTime() - asOf.getTime()) / DAY_MS);
@@ -90,8 +117,8 @@ async function expireSubscriptions(asOf = new Date()) {
       if (daysLeft >= 1 && daysLeft <= RENEWAL_REMINDER_DAYS && !alreadySent) {
         const sends = await notifyLenderAdmins(lender, sub.status === 'active' ? 'renewal_upcoming' : 'trial_ending');
         if (sends.some((r) => r && r.sent === true)) {
-          sub.reminderSentFor = anchorDate;
-          await lender.save();
+          // Conditional: don't clobber a payment that landed during the sweep.
+          await applyIfUnchanged(lender, before, { reminderSentFor: anchorDate });
           result.renewalReminders += 1;
         }
       }

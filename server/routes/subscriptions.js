@@ -171,9 +171,15 @@ router.post('/:companyId/payments', requireAuth, authorizeMinRole('platform_admi
       }
     }
 
+    // Read the stored subscription once and use it for the extension, the audit
+    // snapshot and the concurrency guard, so all three agree. The in-memory doc
+    // may carry schema defaults that were never persisted (legacy lenders).
+    const stored = await Company.findById(company._id).select('subscription').lean();
+    const storedSub = (stored && stored.subscription) || {};
+
     let extension;
     try {
-      extension = computePeriodExtension(company.subscription, { periodMonths, customPeriodEnd });
+      extension = computePeriodExtension(storedSub, { periodMonths, customPeriodEnd });
     } catch (err) {
       if (err.code === 'INVALID_PERIOD') {
         return res.status(400).json({ success: false, message: err.message });
@@ -181,11 +187,7 @@ router.post('/:companyId/payments', requireAuth, authorizeMinRole('platform_admi
       throw err;
     }
 
-    const before = snapshotSubscription(company.subscription);
-    // Guard values come from the stored document: the in-memory doc may carry
-    // schema defaults that were never persisted (legacy lenders).
-    const stored = await Company.findById(company._id).select('subscription').lean();
-    const storedSub = (stored && stored.subscription) || {};
+    const before = snapshotSubscription(storedSub);
 
     payment = await SubscriptionPayment.create({
       lenderCompany: company._id,
@@ -193,13 +195,13 @@ router.post('/:companyId/payments', requireAuth, authorizeMinRole('platform_admi
       method,
       reference: ref || undefined,
       recordedBy: req.user.id,
-      previousStatus: company.subscription?.status,
-      previousPeriodEnd: company.subscription?.currentPeriodEnd,
+      previousStatus: storedSub.status,
+      previousPeriodEnd: storedSub.currentPeriodEnd,
       periodStart: extension.periodStart,
       periodEnd: extension.periodEnd,
       periodMonths: isGiven(periodMonths) ? periodMonths : null,
       customPeriodEnd: isGiven(customPeriodEnd),
-      plan: plan || company.subscription?.plan,
+      plan: plan || storedSub.plan,
       note
     });
 

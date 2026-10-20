@@ -133,7 +133,9 @@ describe('Loan.rollover()', () => {
     loan.rollover();
     await loan.save();
 
-    const quote = loan.calculateEarlySettlementAmount();
+    // Pin the quote date inside the new term (new due date is 2026-09-30) so
+    // the test doesn't depend on today's date.
+    const quote = loan.calculateEarlySettlementAmount(new Date('2026-09-15T00:00:00Z'));
 
     // Capitalized principal, no interest accrued yet (new due date is in the future)
     expect(quote.principalBalance).toBe(1250);

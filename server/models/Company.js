@@ -138,6 +138,7 @@ const companySchema = new mongoose.Schema({
     trialEndsAt: Date,
     currentPeriodEnd: Date,
     suspendedAt: Date,
+    reminderSentFor: Date, // anchor date the pre-expiry reminder was last sent for (idempotency)
     notes: String // manual-billing bookkeeping, platform admin only
   },
   // Public website intake config (Phase 22) — lender companies only.

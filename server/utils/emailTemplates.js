@@ -159,7 +159,18 @@ function ticketCreated({ ticketNumber, subject, category, priority, creatorName,
   };
 }
 
+const formatNoticeDate = (d) =>
+  new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Lusaka' });
+
 const SUBSCRIPTION_NOTICE_COPY = {
+  renewal_upcoming: {
+    subject: (company, date) => `${company.name}: your NdalamaHub subscription renews on ${date}`,
+    body: (date) => `<p>Your current billing period ends on <strong>${date}</strong>. Payment before then keeps your access uninterrupted. Please contact Nexus support to arrange it.</p>`
+  },
+  trial_ending: {
+    subject: (company, date) => `${company.name}: your NdalamaHub trial ends on ${date}`,
+    body: (date) => `<p>Your trial ends on <strong>${date}</strong>. Payment before then keeps your access uninterrupted. Please contact Nexus support to arrange it.</p>`
+  },
   trial_ended: {
     subject: (company) => `${company.name}: your NdalamaHub trial has ended`,
     body: () => `<p>Your 30-day trial has ended. You have a 7-day grace period with full access while payment is arranged, after which the account moves to read-only, then locked if unpaid.</p>`
@@ -193,11 +204,14 @@ function applicationReceived(adminUser, application, company) {
 
 function subscriptionNotice(adminUser, company, kind) {
   const copy = SUBSCRIPTION_NOTICE_COPY[kind];
+  const sub = company.subscription || {};
+  const anchor = kind === 'renewal_upcoming' ? sub.currentPeriodEnd : kind === 'trial_ending' ? sub.trialEndsAt : null;
+  const date = anchor ? formatNoticeDate(anchor) : '';
   return {
-    subject: copy.subject(company),
+    subject: copy.subject(company, date),
     html: layout('Subscription notice', `
       <p>Hi ${adminUser.firstName},</p>
-      ${copy.body()}
+      ${copy.body(date)}
       <p>Please contact Nexus support if you believe this is in error, or to arrange payment.</p>
     `)
   };

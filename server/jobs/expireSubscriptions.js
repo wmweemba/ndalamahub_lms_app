@@ -2,9 +2,12 @@ const Company = require('../models/Company');
 const User = require('../models/User');
 const { sendEmail } = require('../utils/email');
 const emailTemplates = require('../utils/emailTemplates');
+const BillingAuditLog = require('../models/BillingAuditLog'); // register for the standalone runner
+const { snapshotSubscription, logBillingChange } = require('../utils/billingAudit');
 const { TRIAL_GRACE_DAYS, READ_ONLY_GRACE_DAYS } = require('../middleware/subscription');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const RENEWAL_REMINDER_DAYS = 7;
 const daysPast = (anchor, asOf) => Math.floor((asOf.getTime() - new Date(anchor).getTime()) / DAY_MS);
 
 async function notifyLenderAdmins(lender, kind) {
@@ -25,13 +28,14 @@ async function notifyLenderAdmins(lender, kind) {
  */
 async function expireSubscriptions(asOf = new Date()) {
   const lenders = await Company.find({ type: 'lender' });
-  const result = { trialToPastDue: 0, activeToPastDue: 0, pastDueToReadOnly: 0, readOnlyToSuspended: 0 };
+  const result = { trialToPastDue: 0, activeToPastDue: 0, pastDueToReadOnly: 0, readOnlyToSuspended: 0, renewalReminders: 0 };
 
   for (const lender of lenders) {
     const sub = lender.subscription;
     if (!sub || !sub.status) continue;
 
     let notifyKind = null;
+    const before = snapshotSubscription(sub);
 
     if (sub.status === 'trialing' && sub.trialEndsAt && sub.trialEndsAt < asOf) {
       sub.status = 'past_due';
@@ -60,7 +64,31 @@ async function expireSubscriptions(asOf = new Date()) {
 
     if (notifyKind) {
       await lender.save();
+      await logBillingChange({
+        companyId: lender._id,
+        action: 'subscription.status_changed',
+        source: 'system',
+        before,
+        after: snapshotSubscription(lender.subscription),
+        meta: { kind: notifyKind }
+      });
       await notifyLenderAdmins(lender, notifyKind);
+      continue;
+    }
+
+    // Pre-expiry reminder (only when no transition fired for this lender this run).
+    const anchor = sub.status === 'active' ? sub.currentPeriodEnd
+      : sub.status === 'trialing' ? sub.trialEndsAt : null;
+    if (anchor) {
+      const anchorDate = new Date(anchor);
+      const daysLeft = Math.ceil((anchorDate.getTime() - asOf.getTime()) / DAY_MS);
+      const alreadySent = sub.reminderSentFor && new Date(sub.reminderSentFor).getTime() === anchorDate.getTime();
+      if (daysLeft >= 1 && daysLeft <= RENEWAL_REMINDER_DAYS && !alreadySent) {
+        sub.reminderSentFor = anchorDate;
+        await lender.save();
+        await notifyLenderAdmins(lender, sub.status === 'active' ? 'renewal_upcoming' : 'trial_ending');
+        result.renewalReminders += 1;
+      }
     }
   }
 
@@ -68,3 +96,4 @@ async function expireSubscriptions(asOf = new Date()) {
 }
 
 module.exports = expireSubscriptions;
+module.exports.RENEWAL_REMINDER_DAYS = RENEWAL_REMINDER_DAYS;

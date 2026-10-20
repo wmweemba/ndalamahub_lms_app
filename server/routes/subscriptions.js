@@ -220,11 +220,22 @@ router.post('/:companyId/payments', requireAuth, authorizeMinRole('platform_admi
         await SubscriptionPayment.deleteOne({ _id: payment._id }).catch(() => {});
         return res.status(409).json({ success: false, message: 'Subscription changed while recording this payment; reload and try again' });
       }
-      updatedCompany = await Company.findById(company._id);
     } catch (saveErr) {
       console.error('Record payment: company update failed, rolling back payment', saveErr);
-      await SubscriptionPayment.deleteOne({ _id: payment._id }).catch(() => {});
+      await SubscriptionPayment.deleteOne({ _id: payment._id }).catch((delErr) => {
+        console.error('Record payment: rollback failed, orphaned payment needs reconciliation', payment._id, delErr);
+      });
       return res.status(500).json({ success: false, message: 'Failed to record payment' });
+    }
+
+    // The update has committed from here on, so never roll the payment back.
+    updatedCompany = await Company.findById(company._id).catch(() => null);
+    if (!updatedCompany) {
+      company.subscription.status = 'active';
+      company.subscription.currentPeriodEnd = extension.periodEnd;
+      company.subscription.suspendedAt = undefined;
+      if (plan) company.subscription.plan = plan;
+      updatedCompany = company;
     }
 
     await logBillingChange({

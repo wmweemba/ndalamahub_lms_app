@@ -56,7 +56,7 @@ Four daily jobs, Africa/Lusaka time, started automatically at boot by `server/se
 |---|---|---|
 | `markOverdueInstallments` | 01:00 | Flips overdue installments, updates arrears status |
 | `rolloverLoans` | 01:30 | **Business-critical** — capitalizes overdue balances on rollover-enabled products past their grace period |
-| `expireSubscriptions` | 02:00 | Advances subscription status, emails affected lender admins |
+| `expireSubscriptions` | 02:00 | Advances subscription status, emails lender admins, sends 7-day pre-expiry reminders, writes billing audit rows for automatic transitions |
 | `sendPaymentReminders` | 08:00 | T-3-day reminders and overdue notices |
 
 **Confirm they're running**: search the runtime (not build) logs for `[cron] scheduler started (...)` shortly after any deploy/restart.
@@ -105,7 +105,7 @@ Admin-mediated recovery is still the fallback, and the only option for users wit
 3. If even that's unavailable (e.g. a fresh env with no browser access), fall back to `resetAdminPassword.js` (§5) from a server shell.
 
 ### A lender's account shows "locked" (subscription gate)
-This is a different lock — the tenant's subscription status, not a user credential. `platform_admin` → **Settings → Billing** (`SubscriptionManagement.jsx`) → find the lender → update/renew their subscription status and `currentPeriodEnd`.
+This is a different lock — the tenant's subscription status, not a user credential. `platform_admin` → **Settings → Billing** (`SubscriptionManagement.jsx`) → find the lender → **Record payment** (amount, method, reference, and `periodMonths` — or a custom end date). The server works out the new period end and reactivates the lender. Use **Adjust** only for suspensions, cancellations and corrections. To see why a lender's access changed, open **View history → Changes** for that lender.
 
 ### A deploy broke something
 See §2 "Rolling back a bad deploy" above.

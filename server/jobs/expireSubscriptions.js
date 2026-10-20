@@ -30,7 +30,9 @@ async function notifyLenderAdmins(lender, kind) {
 async function applyIfUnchanged(lender, before, set) {
   const filter = {
     _id: lender._id,
-    'subscription.status': before.status,
+    // 'trialing' is the schema default, so the in-memory doc reports it even
+    // when no status is stored (legacy lenders); let a missing value match too.
+    'subscription.status': before.status === 'trialing' ? { $in: ['trialing', null] } : before.status,
     'subscription.currentPeriodEnd': before.currentPeriodEnd || null,
     'subscription.trialEndsAt': before.trialEndsAt || null
   };

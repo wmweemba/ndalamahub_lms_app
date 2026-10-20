@@ -173,4 +173,13 @@ describe('Subscription reminders and transition audit (U4)', () => {
     expect(result.renewalReminders).toBe(0);
     expect(sendEmail).not.toHaveBeenCalled();
   });
+  it('a legacy lender with no stored status still transitions (schema default is not persisted)', async () => {
+    await setSub(fx.lenderA._id, { status: 'trialing', trialEndsAt: at(asOf, -3) });
+    await Company.collection.updateOne({ _id: fx.lenderA._id }, { $unset: { 'subscription.status': '' } });
+
+    const result = await expireSubscriptions(asOf);
+    expect(result.trialToPastDue).toBe(1);
+    expect((await getSub()).status).toBe('past_due');
+    expect(await BillingAuditLog.countDocuments({ lenderCompany: fx.lenderA._id, action: 'subscription.status_changed' })).toBe(1);
+  });
 });

@@ -12,11 +12,13 @@ const daysPast = (anchor, asOf) => Math.floor((asOf.getTime() - new Date(anchor)
 
 async function notifyLenderAdmins(lender, kind) {
   const admins = await User.find({ company: lender._id, role: 'lender_admin' }).select('firstName email');
+  const results = [];
   for (const admin of admins) {
     if (admin.email) {
-      void sendEmail({ to: admin.email, ...emailTemplates.subscriptionNotice(admin, lender, kind) });
+      results.push(await sendEmail({ to: admin.email, ...emailTemplates.subscriptionNotice(admin, lender, kind) }));
     }
   }
+  return results;
 }
 
 /**
@@ -28,9 +30,10 @@ async function notifyLenderAdmins(lender, kind) {
  */
 async function expireSubscriptions(asOf = new Date()) {
   const lenders = await Company.find({ type: 'lender' });
-  const result = { trialToPastDue: 0, activeToPastDue: 0, pastDueToReadOnly: 0, readOnlyToSuspended: 0, renewalReminders: 0 };
+  const result = { trialToPastDue: 0, activeToPastDue: 0, pastDueToReadOnly: 0, readOnlyToSuspended: 0, renewalReminders: 0, errors: 0, auditWriteFailures: 0 };
 
   for (const lender of lenders) {
+    try {
     const sub = lender.subscription;
     if (!sub || !sub.status) continue;
 
@@ -64,7 +67,7 @@ async function expireSubscriptions(asOf = new Date()) {
 
     if (notifyKind) {
       await lender.save();
-      await logBillingChange({
+      const auditRow = await logBillingChange({
         companyId: lender._id,
         action: 'subscription.status_changed',
         source: 'system',
@@ -72,6 +75,7 @@ async function expireSubscriptions(asOf = new Date()) {
         after: snapshotSubscription(lender.subscription),
         meta: { kind: notifyKind }
       });
+      if (!auditRow) result.auditWriteFailures += 1;
       await notifyLenderAdmins(lender, notifyKind);
       continue;
     }
@@ -84,11 +88,17 @@ async function expireSubscriptions(asOf = new Date()) {
       const daysLeft = Math.ceil((anchorDate.getTime() - asOf.getTime()) / DAY_MS);
       const alreadySent = sub.reminderSentFor && new Date(sub.reminderSentFor).getTime() === anchorDate.getTime();
       if (daysLeft >= 1 && daysLeft <= RENEWAL_REMINDER_DAYS && !alreadySent) {
-        sub.reminderSentFor = anchorDate;
-        await lender.save();
-        await notifyLenderAdmins(lender, sub.status === 'active' ? 'renewal_upcoming' : 'trial_ending');
-        result.renewalReminders += 1;
+        const sends = await notifyLenderAdmins(lender, sub.status === 'active' ? 'renewal_upcoming' : 'trial_ending');
+        if (sends.some((r) => r && r.sent === true)) {
+          sub.reminderSentFor = anchorDate;
+          await lender.save();
+          result.renewalReminders += 1;
+        }
       }
+    }
+    } catch (err) {
+      console.error('[expireSubscriptions] lender failed', lender._id, err);
+      result.errors += 1;
     }
   }
 

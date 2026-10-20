@@ -94,7 +94,7 @@ describe('Subscription reminders and transition audit (U4)', () => {
     await setSub(fx.lenderB._id, { status: 'past_due', currentPeriodEnd: at(asOf, -10) });
     const result = await expireSubscriptions(asOf);
     expect(result).toEqual({
-      trialToPastDue: 1, activeToPastDue: 0, pastDueToReadOnly: 1, readOnlyToSuspended: 0, renewalReminders: 0
+      trialToPastDue: 1, activeToPastDue: 0, pastDueToReadOnly: 1, readOnlyToSuspended: 0, renewalReminders: 0, errors: 0, auditWriteFailures: 0
     });
   });
 
@@ -115,5 +115,35 @@ describe('Subscription reminders and transition audit (U4)', () => {
 
     await expireSubscriptions(asOf);
     expect(await BillingAuditLog.countDocuments({})).toBe(1);
+  });
+
+  it('does not stamp when the email send fails, and retries next run', async () => {
+    const end = at(asOf, 5);
+    await setSub(fx.lenderA._id, { status: 'active', currentPeriodEnd: end });
+    sendEmail.mockResolvedValueOnce({ sent: false, reason: 'disabled' });
+
+    const first = await expireSubscriptions(asOf);
+    expect(first.renewalReminders).toBe(0);
+    expect((await getSub()).reminderSentFor).toBeUndefined();
+
+    const second = await expireSubscriptions(asOf);
+    expect(second.renewalReminders).toBe(1);
+    expect((await getSub()).reminderSentFor.getTime()).toBe(end.getTime());
+  });
+
+  it('one lender failing does not stop the next lender', async () => {
+    await setSub(fx.lenderA._id, { status: 'active', currentPeriodEnd: at(asOf, -1) });
+    await setSub(fx.lenderB._id, { status: 'active', currentPeriodEnd: at(asOf, -1) });
+    const origSave = Company.prototype.save;
+    const spy = jest.spyOn(Company.prototype, 'save').mockImplementationOnce(() => Promise.reject(new Error('boom')));
+    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const result = await expireSubscriptions(asOf);
+    spy.mockRestore();
+    errSpy.mockRestore();
+    expect(Company.prototype.save).toBe(origSave);
+    expect(result.errors).toBe(1);
+    expect(result.activeToPastDue).toBe(2);
+    const statuses = [(await Company.findById(fx.lenderA._id)).subscription.status, (await Company.findById(fx.lenderB._id)).subscription.status];
+    expect(statuses.filter((x) => x === 'past_due')).toHaveLength(1);
   });
 });

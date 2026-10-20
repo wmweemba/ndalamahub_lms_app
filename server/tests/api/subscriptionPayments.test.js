@@ -134,4 +134,43 @@ describe('Subscription payments (U3)', () => {
     const times = payments.map((p) => new Date(p.createdAt).getTime());
     expect([...times].sort((a, b) => b - a)).toEqual(times);
   });
+
+  it('non-string reference -> 400', async () => {
+    await setSub(fx.lenderA._id, { status: 'active', currentPeriodEnd: daysFromNow(10) });
+    const res = await post(fx.lenderA._id, { amount: 10, method: 'cash', periodMonths: 1, reference: { $ne: 'x' } });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('reference must be a string');
+  });
+
+  it('concurrent change between read and update -> 409, no ledger row, no audit row', async () => {
+    const BillingAuditLog = require('../../models/BillingAuditLog');
+    await setSub(fx.lenderA._id, { status: 'active', currentPeriodEnd: daysFromNow(10) });
+    await SubscriptionPayment.deleteMany({ lenderCompany: fx.lenderA._id });
+    await BillingAuditLog.collection.deleteMany({});
+    const realCreate = SubscriptionPayment.create.bind(SubscriptionPayment);
+    const spy = jest.spyOn(SubscriptionPayment, 'create').mockImplementationOnce(async (...args) => {
+      await Company.updateOne({ _id: fx.lenderA._id }, { $set: { 'subscription.currentPeriodEnd': daysFromNow(99) } });
+      return realCreate(...args);
+    });
+    const res = await post(fx.lenderA._id, { amount: 10, method: 'cash', periodMonths: 1 });
+    spy.mockRestore();
+    expect(res.status).toBe(409);
+    expect(await SubscriptionPayment.countDocuments({ lenderCompany: fx.lenderA._id })).toBe(0);
+    expect(await BillingAuditLog.countDocuments({})).toBe(0);
+  });
+
+  it('reminderSentFor cannot be written via PUT /api/companies/:id', async () => {
+    await setSub(fx.lenderA._id, { status: 'active', currentPeriodEnd: daysFromNow(10) });
+    const stamp = new Date('2030-01-01T00:00:00Z');
+    await request(app).put(`/api/companies/${fx.lenderA._id}`).set(await authHeader(fx.platformAdmin))
+      .send({ subscription: { status: 'active', currentPeriodEnd: daysFromNow(10), reminderSentFor: stamp } });
+    await request(app).put(`/api/companies/${fx.lenderA._id}`).set(await authHeader(fx.platformAdmin))
+      .send({ 'subscription.reminderSentFor': stamp });
+    // lender_admin may not touch billing state at all
+    await request(app).put(`/api/companies/${fx.lenderA._id}`).set(await authHeader(fx.lenderAdminA))
+      .send({ subscription: { status: 'active', currentPeriodEnd: stamp, reminderSentFor: stamp } });
+    const c = await Company.findById(fx.lenderA._id);
+    expect(c.subscription.reminderSentFor).toBeUndefined();
+    expect(new Date(c.subscription.currentPeriodEnd).getTime()).not.toBe(stamp.getTime());
+  });
 });

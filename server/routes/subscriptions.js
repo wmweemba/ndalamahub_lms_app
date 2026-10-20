@@ -6,7 +6,7 @@ const { requireAuth, authorizeMinRole } = require('../middleware/auth');
 const { isPlatformAdmin } = require('../utils/tenantScope');
 const SubscriptionPayment = require('../models/SubscriptionPayment');
 const BillingAuditLog = require('../models/BillingAuditLog');
-const { computePeriodExtension, applyPayment } = require('../utils/subscriptionBilling');
+const { computePeriodExtension } = require('../utils/subscriptionBilling');
 const { snapshotSubscription, logBillingChange } = require('../utils/billingAudit');
 const { payingLenderId, computeEffectiveStatus } = require('../middleware/subscription');
 
@@ -157,6 +157,10 @@ router.post('/:companyId/payments', requireAuth, authorizeMinRole('platform_admi
       return res.status(400).json({ success: false, message: `Invalid method. Must be one of: ${PAYMENT_METHODS.join(', ')}` });
     }
 
+    if (reference !== undefined && reference !== null && typeof reference !== 'string') {
+      return res.status(400).json({ success: false, message: 'reference must be a string' });
+    }
+
     if (isGiven(periodMonths)) periodMonths = Number(periodMonths);
 
     const ref = typeof reference === 'string' ? reference.trim() : '';
@@ -195,11 +199,30 @@ router.post('/:companyId/payments', requireAuth, authorizeMinRole('platform_admi
       note
     });
 
+    let updatedCompany;
     try {
-      applyPayment(company, { periodEnd: extension.periodEnd, plan });
-      await company.save();
+      const prevEnd = company.subscription?.currentPeriodEnd;
+      const prevStatus = company.subscription?.status;
+      const set = {
+        'subscription.status': 'active',
+        'subscription.currentPeriodEnd': extension.periodEnd
+      };
+      if (plan) set['subscription.plan'] = plan;
+      const result = await Company.updateOne(
+        {
+          _id: company._id,
+          'subscription.currentPeriodEnd': prevEnd ? prevEnd : { $in: [null] },
+          'subscription.status': prevStatus ? prevStatus : { $in: [null] }
+        },
+        { $set: set, $unset: { 'subscription.suspendedAt': '' } }
+      );
+      if (result.matchedCount === 0) {
+        await SubscriptionPayment.deleteOne({ _id: payment._id }).catch(() => {});
+        return res.status(409).json({ success: false, message: 'Subscription changed while recording this payment; reload and try again' });
+      }
+      updatedCompany = await Company.findById(company._id);
     } catch (saveErr) {
-      console.error('Record payment: company save failed, rolling back payment', saveErr);
+      console.error('Record payment: company update failed, rolling back payment', saveErr);
       await SubscriptionPayment.deleteOne({ _id: payment._id }).catch(() => {});
       return res.status(500).json({ success: false, message: 'Failed to record payment' });
     }
@@ -210,7 +233,7 @@ router.post('/:companyId/payments', requireAuth, authorizeMinRole('platform_admi
       source: 'admin',
       performedBy: req.user.id,
       before,
-      after: snapshotSubscription(company.subscription),
+      after: snapshotSubscription(updatedCompany.subscription),
       meta: {
         paymentId: payment._id,
         amount: payment.amount,
@@ -220,7 +243,7 @@ router.post('/:companyId/payments', requireAuth, authorizeMinRole('platform_admi
       }
     });
 
-    res.status(201).json({ success: true, message: 'Payment recorded', data: { company, payment } });
+    res.status(201).json({ success: true, message: 'Payment recorded', data: { company: updatedCompany, payment } });
   } catch (error) {
     if (error && error.code === 11000) {
       return res.status(409).json({ success: false, message: 'A payment with this reference has already been recorded' });

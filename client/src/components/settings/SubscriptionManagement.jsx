@@ -20,6 +20,8 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import api from '@/utils/api';
+import { formatDate } from '@/lib/format';
+import { getAccessUntil, getExpiryStatus } from '@/lib/subscription';
 import { CreditCard, Edit } from 'lucide-react';
 
 const STATUS_OPTIONS = ['trialing', 'active', 'past_due', 'read_only', 'suspended', 'cancelled'];
@@ -37,7 +39,28 @@ const statusBadgeColor = (status) => {
   return colors[status] || 'bg-[#F0F0EE] text-[#5F5E5A]';
 };
 
-const formatDate = (date) => (date ? new Date(date).toLocaleDateString() : '—');
+const EXPIRY_TONE_CLASS = {
+  danger: 'bg-status-danger-bg text-status-danger-fg',
+  warning: 'bg-status-warning-bg text-status-warning-fg',
+  neutral: 'bg-muted text-muted-foreground',
+};
+
+function AccessUntilCell({ subscription }) {
+  const { date, kind } = getAccessUntil(subscription);
+  const expiry = getExpiryStatus(subscription);
+  if (!date) return <span className="font-mono text-muted-foreground">—</span>;
+  return (
+    <div className="flex items-center gap-2">
+      <div>
+        <div className="font-mono text-foreground">{formatDate(date)}</div>
+        <div className="text-xs text-muted-foreground">{kind === 'trial' ? 'Trial' : 'Paid'}</div>
+      </div>
+      {expiry && (
+        <Badge className={`rounded-full ${EXPIRY_TONE_CLASS[expiry.tone]}`}>{expiry.label}</Badge>
+      )}
+    </div>
+  );
+}
 
 export default function SubscriptionManagement() {
   const [lenders, setLenders] = useState([]);
@@ -96,8 +119,7 @@ export default function SubscriptionManagement() {
                 <th className="py-2 pr-4 text-xs font-medium">Lender</th>
                 <th className="py-2 pr-4 text-xs font-medium">Status</th>
                 <th className="py-2 pr-4 text-xs font-medium">Plan</th>
-                <th className="py-2 pr-4 text-xs font-medium">Trial ends</th>
-                <th className="py-2 pr-4 text-xs font-medium">Period ends</th>
+                <th className="py-2 pr-4 text-xs font-medium">Access until</th>
                 <th className="py-2 pr-4"></th>
               </tr>
             </thead>
@@ -111,12 +133,15 @@ export default function SubscriptionManagement() {
                     </Badge>
                   </td>
                   <td className="py-3 pr-4 text-muted-foreground">{lender.subscription?.plan || 'standard'}</td>
-                  <td className="py-3 pr-4 font-mono text-muted-foreground">{formatDate(lender.subscription?.trialEndsAt)}</td>
-                  <td className="py-3 pr-4 font-mono text-muted-foreground">{formatDate(lender.subscription?.currentPeriodEnd)}</td>
-                  <td className="py-3 pr-4 text-right">
-                    <Button variant="outline" size="sm" onClick={() => setEditing(lender)}>
-                      <Edit className="w-3.5 h-3.5 mr-1" /> Edit
-                    </Button>
+                  <td className="py-3 pr-4">
+                    <AccessUntilCell subscription={lender.subscription} />
+                  </td>
+                  <td className="py-3 pr-4">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setEditing(lender)}>
+                        <Edit className="w-3.5 h-3.5 mr-1" /> Adjust
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

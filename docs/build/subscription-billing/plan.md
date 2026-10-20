@@ -9,7 +9,7 @@
 5. **Billing audit log.** Every change to a lender's subscription is recorded: who or what made it, when, and the before and after values. That covers manual adjustments, recorded payments and the daily job's automatic status changes. The log can be viewed per lender.
 
 **Repo:** /Users/williammweemba/Dev_Projects/ndalamahub_lms_app · **Branch:** build/subscription-billing · **Base:** 76dceb8 (re-confirm `git rev-parse --short main` at approval)
-**Status:** planning (drafted in a planning session on 2026-10-20 and waiting for William's approval at Checkpoint A)
+**Status:** building (approved by William 2026-10-20 10:41; base 76dceb8)
 
 ## Context
 
@@ -312,6 +312,7 @@ Run on the local dev stack (`pnpm dev`, client on :5173 through the Vite proxy) 
 8. Run `cd server && pnpm job:subscriptions` against the local dev DB only, after setting the fixture's period end to 3 days ago with Adjust. Changes then shows an "Automatic status change" by "System" (active → past due).
 
 ## Log
+- 2026-10-20 10:41 Checkpoint A approved by William. Base 76dceb8 confirmed. Build session started 10:41; branch build/subscription-billing created.
 - 2026-10-20 plan amended (2): William's scope is all five recommendations, not three. Added the billing audit log (rec 5) as U2, plus audit wiring in U3/U4/U6. D6 was rewritten and D13 added. Units renumbered (old U2–U7 → U3–U8). Recommendation coverage table added.
 - 2026-10-20 plan amended: explicit UI_SPEC/existing-convention rules added for the client units. Row buttons changed from primary to outline (§6, one primary per view). Banner role checks moved to `roleUtils.js` (§13).
 - 2026-10-20 plan drafted in a planning session (comparison of Chama360 `mern_vb_app` and BazaBooks `payrush_saas_app` billing). Waiting for Checkpoint A approval in a fresh `/build subscription-billing` session.

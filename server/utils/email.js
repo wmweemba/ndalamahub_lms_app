@@ -16,6 +16,10 @@ async function sendEmail({ to, subject, html }) {
   try {
     const from = `${process.env.FROM_NAME || 'NdalamaHub'} <${process.env.FROM_EMAIL}>`;
     const result = await resend.emails.send({ from, to, subject, html });
+    if (result && result.error) {
+      console.error('[email] send failed:', result.error.message || result.error);
+      return { sent: false, reason: result.error.message || String(result.error) };
+    }
     return { sent: true, id: result.data && result.data.id };
   } catch (error) {
     console.error('[email] send failed:', error.message);

@@ -120,7 +120,7 @@ describe('Subscription reminders and transition audit (U4)', () => {
   it('does not stamp when the email send fails, and retries next run', async () => {
     const end = at(asOf, 5);
     await setSub(fx.lenderA._id, { status: 'active', currentPeriodEnd: end });
-    sendEmail.mockResolvedValueOnce({ sent: false, reason: 'disabled' });
+    sendEmail.mockResolvedValueOnce({ sent: false, reason: 'rejected' });
 
     const first = await expireSubscriptions(asOf);
     expect(first.renewalReminders).toBe(0);

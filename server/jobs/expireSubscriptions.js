@@ -122,8 +122,11 @@ async function expireSubscriptions(asOf = new Date()) {
         const sends = await notifyLenderAdmins(lender, sub.status === 'active' ? 'renewal_upcoming' : 'trial_ending');
         if (sends.some((r) => r && r.sent === true)) {
           // Conditional: don't clobber a payment that landed during the sweep.
-          await applyIfUnchanged(lender, before, { reminderSentFor: anchorDate });
-          result.renewalReminders += 1;
+          if (await applyIfUnchanged(lender, before, { reminderSentFor: anchorDate })) {
+            result.renewalReminders += 1;
+          } else {
+            console.warn('[expireSubscriptions] reminder sent but stamp skipped (changed during sweep)', lender._id);
+          }
         }
       }
     }

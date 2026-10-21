@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const router = express.Router();
 const Company = require('../models/Company');
 const { requireAuth, authorizeMinRole } = require('../middleware/auth');
-const { isPlatformAdmin } = require('../utils/tenantScope');
+const { isPlatformAdmin, isLenderSide } = require('../utils/tenantScope');
 const SubscriptionPayment = require('../models/SubscriptionPayment');
 const BillingAuditLog = require('../models/BillingAuditLog');
 const { computePeriodExtension } = require('../utils/subscriptionBilling');
@@ -42,20 +42,22 @@ router.get('/status', requireAuth, async (req, res) => {
 
     const { effectiveStatus, locked, readOnly } = computeEffectiveStatus(lenderCompany.subscription);
 
-    res.json({
-      success: true,
-      data: {
-        exempt: false,
-        effectiveStatus,
-        locked,
-        readOnly,
-        status: lenderCompany.subscription?.status,
-        plan: lenderCompany.subscription?.plan,
-        trialEndsAt: lenderCompany.subscription?.trialEndsAt,
-        currentPeriodEnd: lenderCompany.subscription?.currentPeriodEnd,
-        lenderCompanyName: lenderCompany.name
-      }
-    });
+    const data = {
+      exempt: false,
+      effectiveStatus,
+      locked,
+      readOnly,
+      lenderCompanyName: lenderCompany.name
+    };
+    // Billing dates are for lender staff only (banner visibility, D11).
+    if (isLenderSide(req.user)) {
+      data.status = lenderCompany.subscription?.status;
+      data.plan = lenderCompany.subscription?.plan;
+      data.trialEndsAt = lenderCompany.subscription?.trialEndsAt;
+      data.currentPeriodEnd = lenderCompany.subscription?.currentPeriodEnd;
+    }
+
+    res.json({ success: true, data });
   } catch (error) {
     console.error('Subscription status error:', error);
     res.status(500).json({ success: false, message: 'Failed to get subscription status' });

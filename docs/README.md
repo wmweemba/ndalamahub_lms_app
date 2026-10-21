@@ -52,3 +52,7 @@ Phases must be executed in order. Each phase leaves the app in a working, testab
 - Update `CLAUDE.md` (sections listed in each phase's final step) and `changelog.md` when a phase completes. Sweep **all** of CLAUDE.md's phase-status references (Sections 2, 3, 11 have each drifted before), not just the sections the phase doc names.
 - After merging a phase: **push `main` to origin** (phases 07–10 were each left stranded locally), then delete the phase branch (`git branch -d`; also the remote branch if it was pushed). Repo policy since 2026-07-15: `main`-only between phases.
 - From the UI build onward (`docs/UI_SPEC.md` exists as of 2026-07-16, so the Section 9 freeze is lifted): UI phases must keep the 261-test server suite green **untouched** — `git diff main -- server/` empty at every phase merge; a UI phase that needs a server change flags it, never makes it. Additional per-phase gates: `cd client && pnpm lint && pnpm build && pnpm test` (test harness exists from Phase 12). For any visual/UX question, `docs/UI_SPEC.md` is the source of truth over a phase doc.
+
+## Archive
+
+Superseded always-loaded files (e.g. the full pre-2026-10-21 CLAUDE.md) live in [`history/`](history/README.md).
